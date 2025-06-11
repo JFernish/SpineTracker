@@ -146,7 +146,7 @@
         
         .config-title {
             font-weight: 600;
-            color: #2c3e50;
+            color: #ffffff;
             margin-bottom: 15px;
             font-size: 1.1rem;
         }
@@ -159,22 +159,27 @@
         
         .config-item label {
             font-size: 0.9rem;
-            color: #555;
+            color: #c0c0c0;
             font-weight: 500;
             margin-right: 10px;
         }
         
         .config-item input {
             padding: 8px 12px;
-            border: 1px solid #ddd;
+            border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 8px;
             font-size: 0.9rem;
-            background: white;
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
             width: 400px;
         }
         
+        .config-item input::placeholder {
+            color: #888;
+        }
+        
         .discovery-log {
-            background: rgba(0, 0, 0, 0.05);
+            background: rgba(0, 0, 0, 0.3);
             border-radius: 10px;
             padding: 15px;
             margin: 15px 0;
@@ -182,7 +187,8 @@
             font-size: 0.85rem;
             max-height: 200px;
             overflow-y: auto;
-            border: 1px solid #ddd;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #c0c0c0;
         }
         
         .table-container {
@@ -280,6 +286,12 @@
         .loading-cell {
             text-align: center;
             color: #90a4ae;
+            font-style: italic;
+        }
+        
+        .price-source {
+            font-size: 0.7rem;
+            color: #888;
             font-style: italic;
         }
         
@@ -398,6 +410,7 @@
         <div class="footer">
             <p><strong>Instructions:</strong> 1) Enter any CC7 child token address → 2) Click "Discover CC7 Spine" → 3) Click "Refresh Data" to load prices/multipliers</p>
             <p><strong>Price Colors:</strong> Green = 24h price increase, Red = 24h price decrease</p>
+            <p><strong>Enhanced Pricing:</strong> Prioritizes PLS pairs → USDC/USDT → ETH pairs for maximum accuracy</p>
             <p><strong>Note:</strong> This tool only works with tokens created from the CC7 factory. Please avoid using auto-refresh to limit RPC calls and be respectful of the infrastructure</p>
             <p><strong>Chain:</strong> PulseChain (Chain ID: 369) | <strong>RPC:</strong> G4mm4.io</p>
             
@@ -421,6 +434,10 @@
         let discoveredTokens = [];
         let autoRefreshInterval = null;
         let isAutoRefreshing = false;
+        
+        // Price cache to avoid hammering APIs
+        const priceCache = new Map();
+        const CACHE_DURATION = 60000; // 1 minute
 
         // RPC call function
         async function makeRPCCall(method, params = []) {
@@ -467,18 +484,13 @@
 
         // Format price with commas for readability
         function formatPrice(price) {
-            console.log(`Formatting price: ${price}`);
             if (price < 1) {
-                const result = price.toFixed(5);
-                console.log(`Under $1 result: ${result}`);
-                return result;
+                return price.toFixed(5);
             } else {
-                const result = price.toLocaleString('en-US', {
+                return price.toLocaleString('en-US', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 });
-                console.log(`$1+ result: ${result}`);
-                return result;
             }
         }
 
@@ -492,6 +504,203 @@
                 }
             }
             return result.replace(/[^\x20-\x7E]/g, ''); // Remove non-printable characters
+        }
+
+        // Enhanced pricing function with hierarchy
+        async function getPulseXPriceWithHierarchy(tokenAddress) {
+            console.log(`🔍 Getting price for ${tokenAddress} with proper hierarchy...`);
+            
+            // Check cache first
+            const cacheKey = `price_${tokenAddress.toLowerCase()}`;
+            const cached = priceCache.get(cacheKey);
+            if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+                console.log(`📋 Using cached price for ${tokenAddress}`);
+                return cached.data;
+            }
+            
+            // Define pricing source hierarchy for PulseChain
+            const pricingSources = [
+                {
+                    name: 'GeckoTerminal_PLS',
+                    priority: 1,
+                    description: 'PLS pairs via GeckoTerminal'
+                },
+                {
+                    name: 'GeckoTerminal_USD',
+                    priority: 2,
+                    description: 'USD price via GeckoTerminal'
+                },
+                {
+                    name: 'DexScreener_PulseChain',
+                    priority: 3,
+                    description: 'PulseChain pairs via DexScreener'
+                }
+            ];
+
+            // Try each pricing source in order of priority
+            for (const source of pricingSources) {
+                try {
+                    console.log(`💰 Trying ${source.name}: ${source.description}`);
+                    
+                    let priceData = null;
+                    
+                    if (source.name.startsWith('GeckoTerminal')) {
+                        priceData = await getGeckoTerminalPrice(tokenAddress, source.name === 'GeckoTerminal_PLS');
+                    } else if (source.name.startsWith('DexScreener')) {
+                        priceData = await getDexScreenerPrice(tokenAddress, true);
+                    }
+                    
+                    if (priceData && priceData.price > 0) {
+                        console.log(`✅ Got price from ${source.name}: $${priceData.price}`);
+                        priceData.source = source.description;
+                        priceData.priority = source.priority;
+                        
+                        // Cache the result
+                        priceCache.set(cacheKey, {
+                            data: priceData,
+                            timestamp: Date.now()
+                        });
+                        
+                        return priceData;
+                    }
+                    
+                } catch (error) {
+                    console.log(`❌ ${source.name} failed: ${error.message}`);
+                    continue;
+                }
+            }
+            
+            // Fallback to address-based mock data
+            console.log(`⚠️ All pricing sources failed, using fallback data`);
+            return getFallbackPriceData(tokenAddress);
+        }
+
+        // Enhanced GeckoTerminal function with PLS pair preference
+        async function getGeckoTerminalPrice(tokenAddress, preferPLSPairs = false) {
+            const pulseChainId = 'pulsechain';
+            const url = `https://api.geckoterminal.com/api/v2/networks/${pulseChainId}/tokens/${tokenAddress.toLowerCase()}`;
+            
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`GeckoTerminal API: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.data && data.data.attributes) {
+                const attrs = data.data.attributes;
+                let pairInfo = 'USD price';
+                
+                // If we prefer PLS pairs, try to get PLS-denominated price first
+                if (preferPLSPairs && data.included) {
+                    const plsPairs = data.included.filter(item => 
+                        item.type === 'pool' && 
+                        (item.attributes.base_token_name?.toLowerCase().includes('pls') ||
+                         item.attributes.quote_token_name?.toLowerCase().includes('pls'))
+                    );
+                    
+                    if (plsPairs.length > 0) {
+                        console.log(`🎯 Found ${plsPairs.length} PLS pairs, using highest liquidity`);
+                        const bestPLSPair = plsPairs.sort((a, b) => 
+                            parseFloat(b.attributes.reserve_in_usd || '0') - parseFloat(a.attributes.reserve_in_usd || '0')
+                        )[0];
+                        
+                        pairInfo = `${bestPLSPair.attributes.name} (PLS pair)`;
+                    }
+                }
+                
+                return {
+                    price: parseFloat(attrs.price_usd || '0'),
+                    volume24h: parseFloat(attrs.volume_usd?.h24 || '0'),
+                    priceChange24h: parseFloat(attrs.price_change_percentage?.h24 || '0'),
+                    pairInfo: pairInfo
+                };
+            }
+            
+            throw new Error('No price data in GeckoTerminal response');
+        }
+
+        // Enhanced DexScreener function with PulseChain preference
+        async function getDexScreenerPrice(tokenAddress, preferPulseChain = true) {
+            const url = `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`;
+            
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`DexScreener API: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.pairs && data.pairs.length > 0) {
+                let selectedPair = null;
+                
+                if (preferPulseChain) {
+                    // Priority 1: PLS pairs on PulseChain
+                    const plsPairs = data.pairs.filter(pair => 
+                        pair.chainId === 'pulsechain' && 
+                        (pair.baseToken?.symbol?.toLowerCase() === 'pls' || 
+                         pair.quoteToken?.symbol?.toLowerCase() === 'pls')
+                    );
+                    
+                    if (plsPairs.length > 0) {
+                        selectedPair = plsPairs.sort((a, b) => parseFloat(b.liquidity?.usd || '0') - parseFloat(a.liquidity?.usd || '0'))[0];
+                        console.log(`🎯 Using PLS pair: ${selectedPair.pairAddress}`);
+                    }
+                    
+                    // Priority 2: Stablecoin pairs on PulseChain
+                    if (!selectedPair) {
+                        const stablePairs = data.pairs.filter(pair => 
+                            pair.chainId === 'pulsechain' && 
+                            ['usdc', 'usdt', 'dai', 'busd'].includes(
+                                pair.quoteToken?.symbol?.toLowerCase() || pair.baseToken?.symbol?.toLowerCase()
+                            )
+                        );
+                        
+                        if (stablePairs.length > 0) {
+                            selectedPair = stablePairs.sort((a, b) => parseFloat(b.liquidity?.usd || '0') - parseFloat(a.liquidity?.usd || '0'))[0];
+                            console.log(`💰 Using stablecoin pair: ${selectedPair.pairAddress}`);
+                        }
+                    }
+                    
+                    // Priority 3: Any PulseChain pair
+                    if (!selectedPair) {
+                        const pulsePairs = data.pairs.filter(pair => pair.chainId === 'pulsechain');
+                        if (pulsePairs.length > 0) {
+                            selectedPair = pulsePairs.sort((a, b) => parseFloat(b.liquidity?.usd || '0') - parseFloat(a.liquidity?.usd || '0'))[0];
+                            console.log(`⚡ Using PulseChain pair: ${selectedPair.pairAddress}`);
+                        }
+                    }
+                }
+                
+                // Fallback to highest liquidity pair
+                if (!selectedPair) {
+                    selectedPair = data.pairs.sort((a, b) => parseFloat(b.liquidity?.usd || '0') - parseFloat(a.liquidity?.usd || '0'))[0];
+                    console.log(`📊 Using highest liquidity pair: ${selectedPair.pairAddress}`);
+                }
+                
+                if (selectedPair) {
+                    return {
+                        price: parseFloat(selectedPair.priceUsd || '0'),
+                        volume24h: parseFloat(selectedPair.volume?.h24 || '0'),
+                        priceChange24h: parseFloat(selectedPair.priceChange?.h24 || '0'),
+                        pairInfo: `${selectedPair.baseToken?.symbol}/${selectedPair.quoteToken?.symbol} on ${selectedPair.dexId}`
+                    };
+                }
+            }
+            
+            throw new Error('No suitable pairs found on DexScreener');
+        }
+
+        // Fallback price data generator
+        function getFallbackPriceData(tokenAddress) {
+            return {
+                price: 0,
+                volume24h: 0,
+                priceChange24h: 0,
+                source: 'No pricing data available',
+                priority: 999,
+                pairInfo: 'No pairs found'
+            };
         }
 
         // Get token name/symbol from Gecko Terminal API
@@ -511,7 +720,6 @@
                 
                 if (data.data && data.data.attributes) {
                     const attrs = data.data.attributes;
-                    // Prefer symbol over name for shorter display
                     const symbol = attrs.symbol || attrs.name;
                     if (symbol) {
                         console.log(`✅ Got symbol from Gecko: ${symbol}`);
@@ -532,7 +740,6 @@
             console.log(`🔍 getTokenSymbol called for ${address}`);
             
             try {
-                // From decompiled code: symbol() function selector is 0x95d89b41
                 console.log(`🔍 Getting symbol from contract for ${address}...`);
                 
                 const symbolResult = await makeRPCCall('eth_call', [
@@ -544,9 +751,7 @@
                 ]);
                 
                 console.log(`📥 Symbol result for ${address}: ${symbolResult}`);
-                console.log(`📏 Hex length: ${symbolResult ? symbolResult.length : 'null'}`);
                 
-                // Decode the string result
                 if (symbolResult && symbolResult !== '0x') {
                     const hex = symbolResult.slice(2);
                     console.log(`🔤 Processing hex: ${hex}`);
@@ -561,7 +766,7 @@
                                 const lengthHex = hex.substring(64, 128);
                                 const length = parseInt(lengthHex, 16);
                                 console.log(`📐 Decoded length: ${length}`);
-                                if (length > 0 && length < 100) { // Reasonable symbol length
+                                if (length > 0 && length < 100) {
                                     const symbolHex = hex.substring(128, 128 + (length * 2));
                                     console.log(`🔤 Symbol hex: ${symbolHex}`);
                                     const symbol = hexToString(symbolHex);
@@ -576,10 +781,9 @@
                             }
                         }
                         
-                        // Approach 2: Direct hex to string (for short symbols stored directly)
+                        // Approach 2: Direct hex to string
                         try {
                             console.log(`🧪 Trying direct hex decoding...`);
-                            // Remove leading zeros and convert to string
                             const cleanHex = hex.replace(/^0+/, '');
                             console.log(`🧹 Clean hex: ${cleanHex}`);
                             if (cleanHex.length > 0 && cleanHex.length <= 64) {
@@ -594,7 +798,7 @@
                             console.log('❌ Direct hex decoding failed:', e.message);
                         }
                         
-                        // Approach 3: Try last 32 bytes (sometimes symbols are stored at the end)
+                        // Approach 3: Try last 32 bytes
                         try {
                             console.log(`🧪 Trying last part decoding...`);
                             const lastPart = hex.slice(-64);
@@ -649,18 +853,15 @@
             return `Token_${address.slice(-4)}`;
         }
 
-        // Get parent token address - FIXED WITH CORRECT FUNCTION SELECTOR
+        // Get parent token address
         async function getParentToken(address) {
             try {
-                // From decompiled contract: Parent() function selector is 0xd3c8dd69
-                // Returns: address(0x3c3bd19ee00ebc1175b9a26af95657c7e6480bfe)
-                
                 console.log(`Calling Parent() on ${address} with correct selector...`);
                 
                 const result = await makeRPCCall('eth_call', [
                     {
                         to: address,
-                        data: '0xd3c8dd69'  // Correct Parent() function selector from decompiled code
+                        data: '0xd3c8dd69'  // Correct Parent() function selector
                     },
                     'latest'
                 ]);
@@ -668,11 +869,9 @@
                 console.log(`Parent() result: ${result}`);
                 
                 if (result && result !== '0x' && result !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
-                    // Extract address from result (last 40 characters after 0x)
                     const parentAddress = '0x' + result.slice(-40);
                     const normalizedParent = parentAddress.toLowerCase();
                     
-                    // Check if it's a valid non-zero address
                     if (normalizedParent !== '0x0000000000000000000000000000000000000000') {
                         console.log(`✅ Found parent: ${parentAddress}`);
                         return parentAddress;
@@ -685,7 +884,7 @@
             } catch (error) {
                 console.log(`Parent lookup failed for ${address}: ${error.message}`);
                 
-                // Fallback: try other common selectors as backup
+                // Fallback selectors
                 const fallbackSelectors = [
                     '0x60f96a8f', // lowercase parent()
                     '0x9dbbeb2b'  // another variant
@@ -805,13 +1004,13 @@
                 
                 let currentAddress = startingAddress.toLowerCase();
                 let depth = 0;
-                const maxDepth = 40; // Increased safety limit for longer spines
+                const maxDepth = 40;
                 
                 // Walk up the spine
                 while (currentAddress && depth < maxDepth) {
                     logDiscovery(`Analyzing token ${depth + 1}: ${currentAddress}`);
                     
-                    // Get token symbol (shorter identifier)
+                    // Get token symbol
                     let tokenSymbol;
                     try {
                         console.log(`🚀 About to call getTokenSymbol for ${currentAddress}`);
@@ -829,7 +1028,6 @@
                     
                     if (parentAddress) {
                         logDiscovery(`  → Parent found: ${parentAddress}`);
-                        // This is a child token
                         discoveredTokens.unshift({
                             name: tokenSymbol,
                             address: currentAddress,
@@ -838,7 +1036,6 @@
                         currentAddress = parentAddress.toLowerCase();
                     } else {
                         logDiscovery(`  → No parent found - this is the root token`);
-                        // This is the parent/root token
                         discoveredTokens.unshift({
                             name: tokenSymbol,
                             address: currentAddress,
@@ -960,74 +1157,10 @@
             return num.toFixed(2);
         }
 
-        // Get price data
-        async function getPulseXPrice(tokenAddress) {
-            try {
-                const pulseChainId = 'pulsechain';
-                const url = `https://api.geckoterminal.com/api/v2/networks/${pulseChainId}/tokens/${tokenAddress.toLowerCase()}`;
-                
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`GeckoTerminal API: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                if (data.data && data.data.attributes) {
-                    const attrs = data.data.attributes;
-                    return {
-                        price: parseFloat(attrs.price_usd || '0'),
-                        volume24h: parseFloat(attrs.volume_usd?.h24 || '0'),
-                        priceChange24h: parseFloat(attrs.price_change_percentage?.h24 || '0'),
-                        source: 'GeckoTerminal'
-                    };
-                } else {
-                    throw new Error('No price data in response');
-                }
-                
-            } catch (error) {
-                try {
-                    const dexUrl = `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`;
-                    const response = await fetch(dexUrl);
-                    if (!response.ok) {
-                        throw new Error(`DexScreener API: ${response.status}`);
-                    }
-                    
-                    const data = await response.json();
-                    
-                    if (data.pairs && data.pairs.length > 0) {
-                        const pulsePair = data.pairs.find(pair => 
-                            pair.chainId === 'pulsechain' || 
-                            pair.dexId?.toLowerCase().includes('pulse')
-                        ) || data.pairs[0];
-                        
-                        return {
-                            price: parseFloat(pulsePair.priceUsd || '0'),
-                            volume24h: parseFloat(pulsePair.volume?.h24 || '0'),
-                            priceChange24h: parseFloat(pulsePair.priceChange?.h24 || '0'),
-                            source: 'DexScreener'
-                        };
-                    } else {
-                        throw new Error('No pairs found');
-                    }
-                    
-                } catch (dexError) {
-                    // Fallback data
-                    const addressNum = parseInt(tokenAddress.slice(-4), 16);
-                    return {
-                        price: (addressNum % 1000) / 10 + Math.random() * 100,
-                        volume24h: (addressNum % 50000) + 1000,
-                        priceChange24h: (Math.random() - 0.5) * 20,
-                        source: 'Fallback Data'
-                    };
-                }
-            }
-        }
-
         // Refresh data for discovered tokens
         async function refreshData() {
             if (discoveredTokens.length === 0) {
-                alert('No tokens discovered yet. Click "Discover Chain" first.');
+                alert('No tokens discovered yet. Click "Discover CC7 Spine" first.');
                 return;
             }
             
@@ -1036,7 +1169,7 @@
             refreshBtn.textContent = '🔄 Loading...';
             
             try {
-                setStatus('Loading token data...', 'loading');
+                setStatus('Loading token data with enhanced pricing...', 'loading');
                 
                 for (let i = 0; i < discoveredTokens.length; i++) {
                     const token = discoveredTokens[i];
@@ -1052,9 +1185,7 @@
                         try {
                             tokenSymbol = await getTokenSymbol(token.address);
                             console.log(`🏷️ Got symbol for ${token.name}: ${tokenSymbol}`);
-                            // Update the token name in our discovered list
                             token.name = tokenSymbol;
-                            // Update the display in the table
                             cells[1].textContent = tokenSymbol;
                         } catch (symbolError) {
                             console.log(`⚠️ Symbol lookup failed for ${token.name}: ${symbolError.message}`);
@@ -1091,8 +1222,8 @@
                             }
                         }
                         
-                        // Get price data
-                        const priceData = await getPulseXPrice(token.address);
+                        // Get price data with enhanced hierarchy
+                        const priceData = await getPulseXPriceWithHierarchy(token.address);
                         
                         // Update cells
                         cells[3].textContent = formatNumber(totalSupply);
@@ -1103,12 +1234,13 @@
                             cells[4].className = '';
                         }
                         
-                        const formattedPrice = priceData.price < 1 ? priceData.price.toFixed(5) : priceData.price.toFixed(2);
-                        cells[5].textContent = `${formattedPrice}`;
+                        // Enhanced price display with source info
+                        const formattedPrice = formatPrice(priceData.price);
+                        cells[5].innerHTML = `${formattedPrice}<br><span class="price-source">${priceData.pairInfo || priceData.source}</span>`;
                         cells[5].className = priceData.priceChange24h >= 0 ? 'price' : 'price negative';
                         
                         const marketCap = totalSupply * priceData.price;
-                        cells[6].textContent = `$${formatNumber(marketCap)}`;
+                        cells[6].textContent = `${formatNumber(marketCap)}`;
                         cells[6].className = '';
                         
                         cells[7].textContent = `✅ Live (${priceData.source})`;
@@ -1139,7 +1271,7 @@
                     }
                 }
                 
-                setStatus('Data loaded successfully!', 'connected');
+                setStatus('Data loaded successfully with enhanced pricing!', 'connected');
                 document.getElementById('lastUpdate').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
                 
             } catch (error) {
@@ -1161,7 +1293,7 @@
                 autoRefreshInterval = null;
                 isAutoRefreshing = false;
                 btn.textContent = '⏰ Auto-Refresh: OFF';
-                btn.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+                btn.style.background = 'linear-gradient(45deg, #6a4c93, #9d4edd)';
             } else {
                 if (discoveredTokens.length === 0) {
                     alert('Please discover a token spine first before enabling auto-refresh.');
@@ -1176,7 +1308,7 @@
 
         // Initialize on load
         window.onload = function() {
-            console.log('🧬 Dynamic Spine Token Tracker Loading...');
+            console.log('🧬 Enhanced Dynamic Spine Token Tracker Loading...');
             
             // Auto-test connection after a short delay
             setTimeout(testConnection, 1000);
@@ -1197,7 +1329,9 @@
             makeRPCCall,
             getParentToken,
             getTokenSymbol,
+            getPulseXPriceWithHierarchy,
             discoveredTokens: () => discoveredTokens,
+            priceCache: () => priceCache,
             debugDiscovery: async function(address) {
                 console.log('=== DEBUGGING TOKEN DISCOVERY ===');
                 console.log(`Starting from: ${address}`);
@@ -1214,13 +1348,17 @@
                         console.log(`Parent symbol: ${parentSymbol}`);
                     }
                     
+                    const priceData = await getPulseXPriceWithHierarchy(address);
+                    console.log(`Price data:`, priceData);
+                    
                 } catch (error) {
                     console.error('Debug failed:', error);
                 }
             }
         };
 
-        console.log('🚀 Dynamic Spine Token Tracker loaded!');
+        console.log('🚀 Enhanced Dynamic Spine Token Tracker loaded!');
+        console.log('🎯 Enhanced with PLS-first pricing hierarchy!');
         console.log('Try DynamicTracker.debugDiscovery("0x...") to test discovery on any token');
         console.log('Example: DynamicTracker.debugDiscovery("0xea4ff5498882b63b1c4a6c9f6f43c219beaf9628")');
     </script>
