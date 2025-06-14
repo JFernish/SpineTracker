@@ -512,11 +512,11 @@
                 <h3>⚠️ Transaction Security Check</h3>
                 <ul>
                     <li><strong>ALWAYS verify contract addresses</strong> in your wallet before approving</li>
-                    <li><strong>Check that you're approving the correct parent token address:</strong><br>
-                        <code id="parentAddressCheck">0x7e33f799f5431d34a04c0017cd13207de55bbb1d</code>
-                    </li>
                     <li><strong>Check that you're minting from the correct child token address:</strong><br>
                         <code id="childAddressCheck">0xb2cdb1359738e8d845cdf189af3ce06fba708c4b</code>
+                    </li>
+                    <li><strong>Check that you're approving the correct parent token address:</strong><br>
+                        <code id="parentAddressCheck">0x7e33f799f5431d34a04c0017cd13207de55bbb1d</code>
                     </li>
                     <li><strong>Never approve unknown contracts</strong> - if addresses don't match, REJECT the transaction</li>
                     <li><strong>Start with small amounts</strong> to test the process first</li>
@@ -671,12 +671,18 @@
         function updateCostCalculation() {
             const mintAmount = document.getElementById('mintAmountInput').value;
             const costCalcEl = document.getElementById('costCalculation');
-            const multiplier = parseInt(tokenData.multiplier) || 2;
+            const multiplier = parseFloat(tokenData.multiplier) || 2;
             
             if (mintAmount && parseFloat(mintAmount) > 0) {
                 const parentCost = parseFloat(mintAmount) * multiplier;
-                const formattedCost = parentCost.toLocaleString();
-                const formattedAmount = parseFloat(mintAmount).toLocaleString();
+                const formattedCost = parentCost.toLocaleString('en-US', {
+                    minimumFractionDigits: 5,
+                    maximumFractionDigits: 5
+                });
+                const formattedAmount = parseFloat(mintAmount).toLocaleString('en-US', {
+                    minimumFractionDigits: 5,
+                    maximumFractionDigits: 5
+                });
                 
                 costCalcEl.innerHTML = `💡 With current ${multiplier}x multiplier: Minting ${formattedAmount} ${tokenData.childName} will cost ${formattedCost} ${tokenData.parentName} tokens`;
             } else {
@@ -1045,19 +1051,54 @@
                     
                     const txHash = await sendTransaction(tokenData.parentToken, approveData);
                     
-                    showStatus(`Approval transaction sent! Hash: ${txHash}`, 'success');
+                    showStatus(`Approval transaction sent! Waiting for confirmation... Hash: ${txHash}`, 'warning');
                     
-                    // Add transaction hash display
-                    const statusEl = document.getElementById('statusMessage');
-                    statusEl.innerHTML = `Successfully approved ${tokenData.childName} to spend unlimited parent tokens!<div class="tx-hash">Tx: ${txHash}</div>`;
+                    // Wait for transaction confirmation before proceeding
+                    let confirmed = false;
+                    let attempts = 0;
+                    const maxAttempts = 30; // Wait up to 30 seconds
                     
-                    currentMintStep = 2;
-                    updateStepUIWithApprovalCheck();
-                    
-                    // Refresh balances after approval
-                    setTimeout(() => {
-                        loadWalletBalances();
-                    }, 2000);
+                    while (!confirmed && attempts < maxAttempts) {
+                        try {
+                            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+                            
+                            // Check if transaction is confirmed
+                            const receipt = await makeRPCCall('eth_getTransactionReceipt', [txHash]);
+                            
+                            if (receipt && receipt.status) {
+                                if (receipt.status === '0x1') {
+                                    // Transaction successful
+                                    confirmed = true;
+                                    showStatus(`Approval confirmed successfully!`, 'success');
+                                    
+                                    // Add transaction hash display
+                                    const statusEl = document.getElementById('statusMessage');
+                                    statusEl.innerHTML = `Successfully approved ${tokenData.childName} to spend unlimited parent tokens!<div class="tx-hash">Tx: ${txHash}</div>`;
+                                    
+                                    currentMintStep = 2;
+                                    updateStepUIWithApprovalCheck();
+                                    
+                                    // Refresh balances after approval
+                                    setTimeout(() => {
+                                        loadWalletBalances();
+                                    }, 2000);
+                                    
+                                } else {
+                                    // Transaction failed
+                                    throw new Error('Transaction failed on blockchain');
+                                }
+                            }
+                            attempts++;
+                            
+                        } catch (receiptError) {
+                            attempts++;
+                            if (attempts >= maxAttempts) {
+                                // Timeout reached, but transaction might still be pending
+                                showStatus(`Transaction sent but confirmation timed out. Please check your wallet for status. Hash: ${txHash}`, 'warning');
+                                break;
+                            }
+                        }
+                    }
                     
                 } catch (error) {
                     let errorMessage = 'Approval failed. Please try again.';
@@ -1094,27 +1135,63 @@
                     
                     const txHash = await sendTransaction(tokenData.childToken, mintData);
                     
-                    const statusEl = document.getElementById('statusMessage');
-                    statusEl.innerHTML = `Successfully minted ${mintAmount} ${tokenData.childName} tokens!<div class="tx-hash">Tx: ${txHash}</div>`;
-                    statusEl.className = 'status-message status-success';
-                    statusEl.style.display = 'block';
+                    showStatus(`Mint transaction sent! Waiting for confirmation... Hash: ${txHash}`, 'warning');
                     
-                    // Refresh balances after mint
-                    setTimeout(() => {
-                        loadWalletBalances();
-                    }, 2000);
+                    // Wait for transaction confirmation before proceeding
+                    let confirmed = false;
+                    let attempts = 0;
+                    const maxAttempts = 30; // Wait up to 30 seconds
                     
-                    // Add success action with return button
-                    setTimeout(() => {
-                        handleSuccessfulMint(mintAmount, tokenData.childName);
-                    }, 2000);
-                    
-                    // Reset for another mint after longer delay
-                    setTimeout(() => {
-                        currentMintStep = 1;
-                        updateStepUIWithApprovalCheck();
-                        document.getElementById('mintAmountInput').value = '';
-                    }, 5000);
+                    while (!confirmed && attempts < maxAttempts) {
+                        try {
+                            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+                            
+                            // Check if transaction is confirmed
+                            const receipt = await makeRPCCall('eth_getTransactionReceipt', [txHash]);
+                            
+                            if (receipt && receipt.status) {
+                                if (receipt.status === '0x1') {
+                                    // Transaction successful
+                                    confirmed = true;
+                                    
+                                    const statusEl = document.getElementById('statusMessage');
+                                    statusEl.innerHTML = `Successfully minted ${mintAmount} ${tokenData.childName} tokens!<div class="tx-hash">Tx: ${txHash}</div>`;
+                                    statusEl.className = 'status-message status-success';
+                                    statusEl.style.display = 'block';
+                                    
+                                    // Refresh balances after mint
+                                    setTimeout(() => {
+                                        loadWalletBalances();
+                                    }, 2000);
+                                    
+                                    // Add success action with return button
+                                    setTimeout(() => {
+                                        handleSuccessfulMint(mintAmount, tokenData.childName);
+                                    }, 2000);
+                                    
+                                    // Reset for another mint after longer delay
+                                    setTimeout(() => {
+                                        currentMintStep = 1;
+                                        updateStepUIWithApprovalCheck();
+                                        document.getElementById('mintAmountInput').value = '';
+                                    }, 5000);
+                                    
+                                } else {
+                                    // Transaction failed
+                                    throw new Error('Transaction failed on blockchain');
+                                }
+                            }
+                            attempts++;
+                            
+                        } catch (receiptError) {
+                            attempts++;
+                            if (attempts >= maxAttempts) {
+                                // Timeout reached, but transaction might still be pending
+                                showStatus(`Transaction sent but confirmation timed out. Please check your wallet for status. Hash: ${txHash}`, 'warning');
+                                break;
+                            }
+                        }
+                    }
                     
                 } catch (error) {
                     let errorMessage = 'Minting failed. Please try again.';
