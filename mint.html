@@ -113,17 +113,17 @@
         
         .balance-section {
             background: rgba(6, 255, 165, 0.1);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 2px solid rgba(6, 255, 165, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            border: 1px solid rgba(6, 255, 165, 0.2);
         }
         
         .balance-title {
             font-weight: 600;
             color: #06ffa5;
-            margin-bottom: 15px;
-            font-size: 1.1rem;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
             text-align: center;
         }
         
@@ -131,21 +131,23 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
-            padding: 10px;
+            margin-bottom: 8px;
+            padding: 8px;
             background: rgba(0, 0, 0, 0.2);
-            border-radius: 10px;
+            border-radius: 8px;
         }
         
         .balance-label {
             font-weight: 500;
             color: #c0c0c0;
+            font-size: 0.85rem;
         }
         
         .balance-value {
             font-family: 'Courier New', monospace;
             color: #06ffa5;
             font-weight: 600;
+            font-size: 0.85rem;
         }
         
         .balance-loading {
@@ -431,6 +433,22 @@
                 <span class="info-label">Multiplier:</span>
                 <span class="info-value" id="multiplierValue">2x</span>
             </div>
+            
+            <!-- Wallet Balances moved here -->
+            <div id="balanceSection" class="balance-section" style="display: none;">
+                <div class="balance-title">💰 Current Wallet Balances</div>
+                <div class="balance-row">
+                    <span class="balance-label" id="parentTokenBalance">Parent (<span id="parentSymbol">...</span>):</span>
+                    <span class="balance-value balance-loading" id="parentBalance">Loading...</span>
+                </div>
+                <div class="balance-row">
+                    <span class="balance-label" id="childTokenBalance">Child (<span id="childSymbol">...</span>):</span>
+                    <span class="balance-value balance-loading" id="childBalance">Loading...</span>
+                </div>
+                <button onclick="refreshBalances()" id="refreshBalanceBtn" style="background: rgba(6, 255, 165, 0.2); border: 1px solid rgba(6, 255, 165, 0.3); color: #06ffa5; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; margin-top: 8px; width: 100%;">
+                    🔄 Refresh Balances
+                </button>
+            </div>
         </div>
         
         <div id="networkWarning" class="network-warning" style="display: none;">
@@ -454,39 +472,7 @@
             </div>
         </div>
         
-        <!-- Wallet Balances Section -->
-        <div id="balanceSection" class="balance-section" style="display: none;">
-            <div class="balance-title">💰 Current Wallet Balances</div>
-            <div class="balance-row">
-                <span class="balance-label" id="parentTokenBalance">Parent Token (<span id="parentSymbol">...</span>):</span>
-                <span class="balance-value balance-loading" id="parentBalance">Loading...</span>
-            </div>
-            <div class="balance-row">
-                <span class="balance-label" id="childTokenBalance">Child Token (<span id="childSymbol">...</span>):</span>
-                <span class="balance-value balance-loading" id="childBalance">Loading...</span>
-            </div>
-            <button onclick="refreshBalances()" id="refreshBalanceBtn" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #c0c0c0; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; margin-top: 10px;">
-                🔄 Refresh Balances
-            </button>
-        </div>
-        
         <div id="mintForm" style="display: none;">
-            <!-- Transaction Security Warning -->
-            <div class="security-warning transaction-warning">
-                <h3>⚠️ Transaction Security Check</h3>
-                <ul>
-                    <li><strong>ALWAYS verify contract addresses</strong> in your wallet before approving</li>
-                    <li><strong>Check that you're approving the correct parent token address:</strong><br>
-                        <code id="parentAddressCheck">0x7e33f799f5431d34a04c0017cd13207de55bbb1d</code>
-                    </li>
-                    <li><strong>Check that you're minting from the correct child token address:</strong><br>
-                        <code id="childAddressCheck">0xb2cdb1359738e8d845cdf189af3ce06fba708c4b</code>
-                    </li>
-                    <li><strong>Never approve unknown contracts</strong> - if addresses don't match, REJECT the transaction</li>
-                    <li><strong>Start with small amounts</strong> to test the process first</li>
-                </ul>
-            </div>
-            
             <div class="step-indicator">
                 <div class="step active" id="step1">1</div>
                 <div class="step-line" id="stepLine"></div>
@@ -519,6 +505,22 @@
                 <button class="back-btn" onclick="goBackToMainPage()">
                     ← Back to Token Tracker
                 </button>
+            </div>
+            
+            <!-- Transaction Security Warning moved to bottom -->
+            <div class="security-warning transaction-warning">
+                <h3>⚠️ Transaction Security Check</h3>
+                <ul>
+                    <li><strong>ALWAYS verify contract addresses</strong> in your wallet before approving</li>
+                    <li><strong>Check that you're approving the correct parent token address:</strong><br>
+                        <code id="parentAddressCheck">0x7e33f799f5431d34a04c0017cd13207de55bbb1d</code>
+                    </li>
+                    <li><strong>Check that you're minting from the correct child token address:</strong><br>
+                        <code id="childAddressCheck">0xb2cdb1359738e8d845cdf189af3ce06fba708c4b</code>
+                    </li>
+                    <li><strong>Never approve unknown contracts</strong> - if addresses don't match, REJECT the transaction</li>
+                    <li><strong>Start with small amounts</strong> to test the process first</li>
+                </ul>
             </div>
         </div>
     </div>
@@ -609,6 +611,11 @@
                 
                 // Load balances when wallet connects
                 loadWalletBalances();
+                
+                // Check approval status
+                setTimeout(() => {
+                    updateStepUIWithApprovalCheck();
+                }, 1000);
             } else {
                 notConnected.style.display = 'block';
                 connected.style.display = 'none';
@@ -639,6 +646,25 @@
                 stepText.textContent = 'Step 2 of 2: Mint CC7 Tokens';
                 actionBtn.textContent = 'Mint CC7 Tokens';
                 actionBtn.className = 'action-btn primary';
+            }
+        }
+        
+        // Check approval status when wallet connects or step changes
+        async function updateStepUIWithApprovalCheck() {
+            updateStepUI();
+            
+            if (currentMintStep === 1 && isWalletConnected) {
+                const isApproved = await checkApprovalStatus();
+                if (isApproved) {
+                    const actionBtn = document.getElementById('actionBtn');
+                    const stepText = document.getElementById('stepText');
+                    
+                    actionBtn.textContent = 'Already Approved - Skip to Mint';
+                    actionBtn.className = 'action-btn primary';
+                    stepText.textContent = 'Step 1 of 2: Parent Token Already Approved!';
+                    
+                    showStatus('Parent token is already approved for spending. You can skip to minting!', 'success');
+                }
             }
         }
 
@@ -722,16 +748,16 @@
                 const parentBalance = parseInt(parentBalanceResult, 16) / Math.pow(10, 18);
                 const childBalance = parseInt(childBalanceResult, 16) / Math.pow(10, 18);
                 
-                // Update UI
+                // Update UI with 5 decimal places
                 document.getElementById('parentBalance').textContent = parentBalance.toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
+                    minimumFractionDigits: 5,
+                    maximumFractionDigits: 5
                 });
                 document.getElementById('parentBalance').className = 'balance-value';
                 
                 document.getElementById('childBalance').textContent = childBalance.toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
+                    minimumFractionDigits: 5,
+                    maximumFractionDigits: 5
                 });
                 document.getElementById('childBalance').className = 'balance-value';
                 
@@ -745,6 +771,37 @@
                 document.getElementById('parentBalance').className = 'balance-value balance-loading';
                 document.getElementById('childBalance').textContent = 'Error loading';
                 document.getElementById('childBalance').className = 'balance-value balance-loading';
+            }
+        }
+
+        // Check if already approved
+        async function checkApprovalStatus() {
+            try {
+                if (!isWalletConnected || !walletAccount) return false;
+                
+                // Call allowance(owner, spender) to check current approval
+                const allowanceResult = await makeRPCCall('eth_call', [
+                    {
+                        to: tokenData.parentToken,
+                        data: '0xdd62ed3e' + // allowance function selector
+                              walletAccount.slice(2).padStart(64, '0') + // owner address
+                              tokenData.childToken.slice(2).padStart(64, '0') // spender address
+                    },
+                    'latest'
+                ]);
+                
+                if (allowanceResult && allowanceResult !== '0x') {
+                    const allowance = BigInt(allowanceResult);
+                    // Check if allowance is greater than a reasonable amount (1e18 tokens)
+                    const threshold = BigInt('1000000000000000000'); // 1e18
+                    return allowance >= threshold;
+                }
+                
+                return false;
+                
+            } catch (error) {
+                console.log('❌ Failed to check approval status:', error);
+                return false;
             }
         }
 
@@ -942,7 +999,7 @@
                     to: to,
                     value: value,
                     data: data,
-                    gas: '0x5208', // 21000 in hex - basic transaction
+                    gas: '0x15F90', // 90000 in hex - reasonable gas limit
                 };
 
                 const txHash = await window.ethereum.request({
@@ -962,6 +1019,16 @@
             const mintAmount = document.getElementById('mintAmountInput').value;
             
             if (currentMintStep === 1) {
+                // Check if already approved first
+                const isApproved = await checkApprovalStatus();
+                if (isApproved) {
+                    // Skip to step 2
+                    currentMintStep = 2;
+                    updateStepUIWithApprovalCheck();
+                    showStatus('Approval detected! Moving to minting step.', 'success');
+                    return;
+                }
+                
                 // Step 1: Approve
                 actionBtn.disabled = true;
                 actionBtn.textContent = 'Approving...';
@@ -985,7 +1052,7 @@
                     statusEl.innerHTML = `Successfully approved ${tokenData.childName} to spend unlimited parent tokens!<div class="tx-hash">Tx: ${txHash}</div>`;
                     
                     currentMintStep = 2;
-                    updateStepUI();
+                    updateStepUIWithApprovalCheck();
                     
                     // Refresh balances after approval
                     setTimeout(() => {
@@ -1003,7 +1070,7 @@
                     console.error('Approval failed:', error);
                 } finally {
                     actionBtn.disabled = false;
-                    updateStepUI();
+                    updateStepUIWithApprovalCheck();
                 }
                 
             } else {
@@ -1045,7 +1112,7 @@
                     // Reset for another mint after longer delay
                     setTimeout(() => {
                         currentMintStep = 1;
-                        updateStepUI();
+                        updateStepUIWithApprovalCheck();
                         document.getElementById('mintAmountInput').value = '';
                     }, 5000);
                     
@@ -1060,7 +1127,7 @@
                     console.error('Minting failed:', error);
                 } finally {
                     actionBtn.disabled = false;
-                    updateStepUI();
+                    updateStepUIWithApprovalCheck();
                 }
             }
         }
@@ -1122,7 +1189,7 @@
             
             parseUrlParams();
             checkNetworkAndExistingWallet();
-            updateStepUI();
+            updateStepUIWithApprovalCheck();
             updateCostCalculation();
             
             // Add event listeners with proper error handling
