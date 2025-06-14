@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mint CC7 Token</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(20, 20, 40, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(157, 78, 221, 0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #ffffff;
+            font-size: 2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #9d4edd, #6a4c93, #3a86ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .security-warning {
+            background: rgba(255, 87, 87, 0.15);
+            border: 2px solid rgba(255, 87, 87, 0.4);
+            color: #ff9999;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            text-align: left;
+        }
+        
+        .security-warning h3 {
+            color: #ff6b6b;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .security-warning ul {
+            margin: 10px 0 10px 20px;
+        }
+        
+        .security-warning li {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        .security-warning.transaction-warning {
+            background: rgba(255, 193, 7, 0.15);
+            border-color: rgba(255, 193, 7, 0.4);
+            color: #ffd54f;
+        }
+        
+        .security-warning.transaction-warning h3 {
+            color: #ffc107;
+        }
+        
+        .token-info {
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 2px solid rgba(102, 126, 234, 0.2);
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: flex-start;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #c0c0c0;
+            width: 120px;
+            flex-shrink: 0;
+        }
+        
+        .info-value {
+            font-family: 'Courier New', monospace;
+            color: #ffffff;
+            font-size: 0.9rem;
+            flex: 1;
+        }
+        
+        .balance-section {
+            background: rgba(6, 255, 165, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid rgba(6, 255, 165, 0.2);
+        }
+        
+        .balance-title {
+            font-weight: 600;
+            color: #06ffa5;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+        
+        .balance-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+        
+        .balance-label {
+            font-weight: 500;
+            color: #c0c0c0;
+        }
+        
+        .balance-value {
+            font-family: 'Courier New', monospace;
+            color: #06ffa5;
+            font-weight: 600;
+        }
+        
+        .balance-loading {
+            color: #888;
+            font-style: italic;
+        }
+        
+        .wallet-section {
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            text-align: center;
+        }
+        
+        .wallet-btn {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(58, 134, 255, 0.3);
+            margin: 10px;
+        }
+        
+        .wallet-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(58, 134, 255, 0.4);
+        }
+        
+        .wallet-connected {
+            background: rgba(6, 255, 165, 0.2);
+            color: #06ffa5;
+            border: 1px solid rgba(6, 255, 165, 0.3);
+            padding: 12px 20px;
+            border-radius: 15px;
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+        
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+            font-size: 1.1rem;
+        }
+        
+        .step.active {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+            color: white;
+            box-shadow: 0 4px 15px rgba(58, 134, 255, 0.3);
+        }
+        
+        .step.completed {
+            background: linear-gradient(45deg, #06ffa5, #00cc88);
+            color: white;
+            box-shadow: 0 4px 15px rgba(6, 255, 165, 0.3);
+        }
+        
+        .step.inactive {
+            background: rgba(255, 255, 255, 0.1);
+            color: #888;
+        }
+        
+        .step-line {
+            width: 60px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 0 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .step-line.active {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+        }
+        
+        .step-text {
+            text-align: center;
+            color: #c0c0c0;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        
+        .form-section {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #ffffff;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #3a86ff;
+            box-shadow: 0 0 15px rgba(58, 134, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .mint-note {
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 8px;
+            font-style: italic;
+        }
+        
+        .action-btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 15px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+        
+        .action-btn.primary {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+            color: white;
+            box-shadow: 0 6px 20px rgba(58, 134, 255, 0.4);
+        }
+        
+        .action-btn.secondary {
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            color: white;
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(58, 134, 255, 0.5);
+        }
+        
+        .action-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .back-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: #c0c0c0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+        }
+        
+        .status-message {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .status-success {
+            background: rgba(6, 255, 165, 0.1);
+            border: 1px solid rgba(6, 255, 165, 0.3);
+            color: #06ffa5;
+        }
+        
+        .status-error {
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            color: #f44336;
+        }
+        
+        .status-warning {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+        }
+        
+        .tx-hash {
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            word-break: break-all;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            border-radius: 6px;
+            margin-top: 8px;
+        }
+        
+        .network-warning {
+            background: rgba(255, 193, 7, 0.2);
+            border: 2px solid rgba(255, 193, 7, 0.4);
+            color: #ffc107;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧬 Mint CC7 Token</h1>
+            <p>Two-step process: Approve → Mint</p>
+        </div>
+        
+        <!-- Security Warning for Wallet Connection -->
+        <div class="security-warning" id="walletSecurityWarning">
+            <h3>🛡️ Wallet Connection Security Warning</h3>
+            <ul>
+                <li><strong>Only connect your wallet to trusted websites</strong> - verify the URL is correct</li>
+                <li><strong>Never share your seed phrase or private keys</strong> with anyone</li>
+                <li><strong>Double-check website authenticity</strong> - scammers create fake versions of legitimate sites</li>
+                <li><strong>Use a separate wallet</strong> for experimental DeFi interactions if possible</li>
+                <li><strong>This site is for entertainment/educational purposes only</strong> - always DYOR</li>
+            </ul>
+        </div>
+        
+        <div class="token-info">
+            <div class="info-row">
+                <span class="info-label">Child Token:</span>
+                <span class="info-value" id="childTokenName">Joyluck</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Child Address:</span>
+                <span class="info-value" id="childTokenAddress">0xb2cdb1359738e8d845cdf189af3ce06fba708c4b</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Parent Token:</span>
+                <span class="info-value" id="parentTokenName">Jess</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Parent Address:</span>
+                <span class="info-value" id="parentTokenAddress">0x7e33f799f5431d34a04c0017cd13207de55bbb1d</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Multiplier:</span>
+                <span class="info-value" id="multiplierValue">2x</span>
+            </div>
+        </div>
+        
+        <div id="networkWarning" class="network-warning" style="display: none;">
+            ⚠️ Please switch to PulseChain network to mint CC7 tokens
+        </div>
+        
+        <div class="wallet-section" id="walletSection">
+            <div id="walletNotConnected">
+                <p style="color: #c0c0c0; margin-bottom: 15px;">Connect your wallet to mint CC7 tokens</p>
+                <button class="wallet-btn" id="connectWalletBtn">
+                    🔗 Connect Wallet
+                </button>
+            </div>
+            <div id="walletConnected" style="display: none;">
+                <div class="wallet-connected">
+                    ✅ Connected: <span id="walletAddress">0x...</span>
+                </div>
+                <button class="wallet-btn" id="disconnectWalletBtn" style="background: linear-gradient(45deg, #f44336, #e91e63);">
+                    Disconnect
+                </button>
+            </div>
+        </div>
+        
+        <!-- Wallet Balances Section -->
+        <div id="balanceSection" class="balance-section" style="display: none;">
+            <div class="balance-title">💰 Current Wallet Balances</div>
+            <div class="balance-row">
+                <span class="balance-label" id="parentTokenBalance">Parent Token (<span id="parentSymbol">...</span>):</span>
+                <span class="balance-value balance-loading" id="parentBalance">Loading...</span>
+            </div>
+            <div class="balance-row">
+                <span class="balance-label" id="childTokenBalance">Child Token (<span id="childSymbol">...</span>):</span>
+                <span class="balance-value balance-loading" id="childBalance">Loading...</span>
+            </div>
+            <button onclick="refreshBalances()" id="refreshBalanceBtn" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #c0c0c0; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; margin-top: 10px;">
+                🔄 Refresh Balances
+            </button>
+        </div>
+        
+        <div id="mintForm" style="display: none;">
+            <!-- Transaction Security Warning -->
+            <div class="security-warning transaction-warning">
+                <h3>⚠️ Transaction Security Check</h3>
+                <ul>
+                    <li><strong>ALWAYS verify contract addresses</strong> in your wallet before approving</li>
+                    <li><strong>Check that you're approving the correct parent token address:</strong><br>
+                        <code id="parentAddressCheck">0x7e33f799f5431d34a04c0017cd13207de55bbb1d</code>
+                    </li>
+                    <li><strong>Check that you're minting from the correct child token address:</strong><br>
+                        <code id="childAddressCheck">0xb2cdb1359738e8d845cdf189af3ce06fba708c4b</code>
+                    </li>
+                    <li><strong>Never approve unknown contracts</strong> - if addresses don't match, REJECT the transaction</li>
+                    <li><strong>Start with small amounts</strong> to test the process first</li>
+                </ul>
+            </div>
+            
+            <div class="step-indicator">
+                <div class="step active" id="step1">1</div>
+                <div class="step-line" id="stepLine"></div>
+                <div class="step inactive" id="step2">2</div>
+            </div>
+            
+            <div class="step-text" id="stepText">
+                Step 1 of 2: Approve Parent Token (Infinite)
+            </div>
+            
+            <div id="statusMessage" class="status-message" style="display: none;"></div>
+            
+            <div class="form-section">
+                <div class="form-group">
+                    <label>Mint Amount</label>
+                    <input type="number" id="mintAmountInput" placeholder="Enter amount (e.g., 1000)" min="0" step="any" onkeyup="updateCostCalculation()" onchange="updateCostCalculation()">
+                    <div class="mint-note">Amount will be multiplied by 10^18 when sent to contract</div>
+                    <div class="mint-note" style="color: #ffc107; margin-top: 8px;" id="costCalculation">
+                        💡 With current 2x multiplier: Enter amount to see parent token cost
+                    </div>
+                    <div class="mint-note" style="color: #888; margin-top: 8px; font-size: 0.8rem;">
+                        ⚠️ Note: Multipliers may increase with additional minting, and parent tokens will be spent based on adjusted multiplier.
+                    </div>
+                </div>
+                
+                <button class="action-btn secondary" id="actionBtn" onclick="handleMintAction()">
+                    Approve Infinite Parent Token
+                </button>
+                
+                <button class="back-btn" onclick="goBackToMainPage()">
+                    ← Back to Token Tracker
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Reset to actual production state
+        let walletAccount = null;
+        let isWalletConnected = false;
+        let currentMintStep = 1;
+        let tokenData = {
+            childToken: '0xb2cdb1359738e8d845cdf189af3ce06fba708c4b',
+            childName: 'Joyluck',
+            parentToken: '0x7e33f799f5431d34a04c0017cd13207de55bbb1d',
+            parentName: 'Jess',
+            multiplier: '2',
+            tokenIndex: '1'
+        };
+
+        // Parse URL parameters or use test data
+        function parseUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            
+            // Use URL params if available, otherwise use test data
+            if (params.get('childToken')) {
+                tokenData = {
+                    childToken: params.get('childToken'),
+                    childName: params.get('childName'),
+                    parentToken: params.get('parentToken'),
+                    parentName: params.get('parentName'),
+                    multiplier: params.get('multiplier'),
+                    tokenIndex: params.get('tokenIndex')
+                };
+            }
+            
+            // Update UI with token data
+            document.getElementById('childTokenName').textContent = tokenData.childName || 'Unknown Token';
+            document.getElementById('childTokenAddress').textContent = tokenData.childToken || 'N/A';
+            document.getElementById('parentTokenName').textContent = tokenData.parentName || 'Unknown Parent';
+            document.getElementById('parentTokenAddress').textContent = tokenData.parentToken || 'N/A';
+            document.getElementById('multiplierValue').textContent = tokenData.multiplier ? `${parseInt(tokenData.multiplier)}x` : 'N/A';
+            
+            // Update security warning addresses
+            document.getElementById('parentAddressCheck').textContent = tokenData.parentToken || 'N/A';
+            document.getElementById('childAddressCheck').textContent = tokenData.childToken || 'N/A';
+            
+            // Update balance labels
+            document.getElementById('parentSymbol').textContent = tokenData.parentName || 'Parent';
+            document.getElementById('childSymbol').textContent = tokenData.childName || 'Child';
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message status-${type}`;
+            statusEl.style.display = 'block';
+            
+            // Auto-hide success messages after 5 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        function hideStatus() {
+            document.getElementById('statusMessage').style.display = 'none';
+        }
+
+        function formatAddress(address) {
+            if (!address) return '';
+            return `${address.slice(0, 6)}...${address.slice(-4)}`;
+        }
+
+        function updateWalletUI() {
+            const notConnected = document.getElementById('walletNotConnected');
+            const connected = document.getElementById('walletConnected');
+            const addressSpan = document.getElementById('walletAddress');
+            const balanceSection = document.getElementById('balanceSection');
+            const walletSecurityWarning = document.getElementById('walletSecurityWarning');
+            
+            if (isWalletConnected) {
+                notConnected.style.display = 'none';
+                connected.style.display = 'block';
+                addressSpan.textContent = formatAddress(walletAccount);
+                document.getElementById('mintForm').style.display = 'block';
+                balanceSection.style.display = 'block';
+                walletSecurityWarning.style.display = 'none'; // Hide security warning once connected
+                
+                // Load balances when wallet connects
+                loadWalletBalances();
+            } else {
+                notConnected.style.display = 'block';
+                connected.style.display = 'none';
+                document.getElementById('mintForm').style.display = 'none';
+                balanceSection.style.display = 'none';
+                walletSecurityWarning.style.display = 'block'; // Show security warning when not connected
+            }
+        }
+
+        function updateStepUI() {
+            const step1 = document.getElementById('step1');
+            const step2 = document.getElementById('step2');
+            const stepLine = document.getElementById('stepLine');
+            const stepText = document.getElementById('stepText');
+            const actionBtn = document.getElementById('actionBtn');
+            
+            if (currentMintStep === 1) {
+                step1.className = 'step active';
+                step2.className = 'step inactive';
+                stepLine.className = 'step-line';
+                stepText.textContent = 'Step 1 of 2: Approve Parent Token (Infinite)';
+                actionBtn.textContent = 'Approve Infinite Parent Token';
+                actionBtn.className = 'action-btn secondary';
+            } else {
+                step1.className = 'step completed';
+                step2.className = 'step active';
+                stepLine.className = 'step-line active';
+                stepText.textContent = 'Step 2 of 2: Mint CC7 Tokens';
+                actionBtn.textContent = 'Mint CC7 Tokens';
+                actionBtn.className = 'action-btn primary';
+            }
+        }
+
+        function updateCostCalculation() {
+            const mintAmount = document.getElementById('mintAmountInput').value;
+            const costCalcEl = document.getElementById('costCalculation');
+            const multiplier = parseInt(tokenData.multiplier) || 2;
+            
+            if (mintAmount && parseFloat(mintAmount) > 0) {
+                const parentCost = parseFloat(mintAmount) * multiplier;
+                const formattedCost = parentCost.toLocaleString();
+                const formattedAmount = parseFloat(mintAmount).toLocaleString();
+                
+                costCalcEl.innerHTML = `💡 With current ${multiplier}x multiplier: Minting ${formattedAmount} ${tokenData.childName} will cost ${formattedCost} ${tokenData.parentName} tokens`;
+            } else {
+                costCalcEl.innerHTML = `💡 With current ${multiplier}x multiplier: Enter amount to see ${tokenData.parentName} token cost`;
+            }
+        }
+
+        // RPC call function for balance checking
+        async function makeRPCCall(method, params = []) {
+            const rpcUrl = 'https://rpc-pulsechain.g4mm4.io';
+            
+            const response = await fetch(rpcUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    method: method,
+                    params: params,
+                    id: Date.now()
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            if (data.error) {
+                throw new Error(`RPC Error: ${data.error.message}`);
+            }
+            
+            return data.result;
+        }
+
+        // Load wallet balances
+        async function loadWalletBalances() {
+            if (!isWalletConnected || !walletAccount) return;
+            
+            try {
+                console.log('🔍 Loading wallet balances...');
+                
+                // Reset balance display
+                document.getElementById('parentBalance').textContent = 'Loading...';
+                document.getElementById('parentBalance').className = 'balance-value balance-loading';
+                document.getElementById('childBalance').textContent = 'Loading...';
+                document.getElementById('childBalance').className = 'balance-value balance-loading';
+                
+                // Get parent token balance
+                const parentBalanceResult = await makeRPCCall('eth_call', [
+                    {
+                        to: tokenData.parentToken,
+                        data: '0x70a08231' + walletAccount.slice(2).padStart(64, '0') // balanceOf(address)
+                    },
+                    'latest'
+                ]);
+                
+                // Get child token balance
+                const childBalanceResult = await makeRPCCall('eth_call', [
+                    {
+                        to: tokenData.childToken,
+                        data: '0x70a08231' + walletAccount.slice(2).padStart(64, '0') // balanceOf(address)
+                    },
+                    'latest'
+                ]);
+                
+                // Convert from wei to ether and format
+                const parentBalance = parseInt(parentBalanceResult, 16) / Math.pow(10, 18);
+                const childBalance = parseInt(childBalanceResult, 16) / Math.pow(10, 18);
+                
+                // Update UI
+                document.getElementById('parentBalance').textContent = parentBalance.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+                document.getElementById('parentBalance').className = 'balance-value';
+                
+                document.getElementById('childBalance').textContent = childBalance.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+                document.getElementById('childBalance').className = 'balance-value';
+                
+                console.log(`✅ Balances loaded: ${tokenData.parentName}=${parentBalance}, ${tokenData.childName}=${childBalance}`);
+                
+            } catch (error) {
+                console.error('❌ Failed to load balances:', error);
+                
+                // Show error state
+                document.getElementById('parentBalance').textContent = 'Error loading';
+                document.getElementById('parentBalance').className = 'balance-value balance-loading';
+                document.getElementById('childBalance').textContent = 'Error loading';
+                document.getElementById('childBalance').className = 'balance-value balance-loading';
+            }
+        }
+
+        // Refresh balances function
+        async function refreshBalances() {
+            const refreshBtn = document.getElementById('refreshBalanceBtn');
+            const originalText = refreshBtn.textContent;
+            
+            refreshBtn.textContent = '🔄 Refreshing...';
+            refreshBtn.disabled = true;
+            
+            await loadWalletBalances();
+            
+            setTimeout(() => {
+                refreshBtn.textContent = originalText;
+                refreshBtn.disabled = false;
+            }, 1000);
+        }
+
+        async function checkNetworkAndExistingWallet() {
+            console.log('🔍 Checking for existing wallet connection...');
+            
+            // Wait a bit for wallet extension to load
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            if (typeof window.ethereum !== 'undefined') {
+                console.log('✅ window.ethereum detected');
+                
+                try {
+                    // Check for existing accounts without requesting permission
+                    const accounts = await window.ethereum.request({
+                        method: 'eth_accounts',
+                    });
+                    
+                    console.log('📥 Existing accounts:', accounts);
+                    
+                    if (accounts.length > 0) {
+                        console.log('✅ Found existing connection:', accounts[0]);
+                        
+                        // Check if we're on PulseChain
+                        const chainId = await window.ethereum.request({
+                            method: 'eth_chainId',
+                        });
+                        
+                        console.log('🔗 Current chain ID:', chainId);
+                        
+                        if (chainId === '0x171') {
+                            walletAccount = accounts[0];
+                            isWalletConnected = true;
+                            updateWalletUI();
+                            document.getElementById('networkWarning').style.display = 'none';
+                            console.log('✅ Auto-connected to existing wallet on PulseChain');
+                        } else {
+                            console.log('⚠️ Wallet connected but not on PulseChain');
+                            document.getElementById('networkWarning').style.display = 'block';
+                        }
+                    } else {
+                        console.log('ℹ️ No existing accounts found');
+                    }
+                } catch (error) {
+                    console.error('❌ Failed to check wallet connection:', error);
+                }
+            } else {
+                console.log('❌ window.ethereum not found - no wallet extension detected');
+            }
+        }
+
+        async function connectWallet() {
+            console.log('🔗 connectWallet() function called');
+            
+            // Check if running locally first
+            if (location.protocol === 'file:') {
+                alert(`❌ Wallet Issue Detected!\n\nYou're running this locally (file://) and wallets don't inject into local files for security.\n\nSolutions:\n1. Run a local server: python -m http.server 8000\n2. Use VS Code Live Server extension\n3. Upload to a web server\n\nThen visit via http://localhost:8000/mint.html`);
+                return;
+            }
+            
+            try {
+                if (!window.ethereum) {
+                    showStatus('No Web3 wallet detected! Please install MetaMask, Rabby, or another Web3 wallet.', 'error');
+                    return;
+                }
+                
+                console.log('✅ window.ethereum found:', window.ethereum);
+                
+                hideStatus();
+                showStatus('Connecting to wallet...', 'warning');
+                
+                // Simple connection request
+                console.log('📞 Requesting accounts...');
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts',
+                });
+                
+                console.log('✅ Got accounts:', accounts);
+                
+                if (!accounts || accounts.length === 0) {
+                    throw new Error('No accounts returned');
+                }
+                
+                walletAccount = accounts[0];
+                console.log('✅ Wallet connected:', walletAccount);
+                
+                // Check network
+                const chainId = await window.ethereum.request({
+                    method: 'eth_chainId',
+                });
+                
+                console.log('Network chain ID:', chainId);
+                
+                if (chainId !== '0x171') {
+                    console.log('⚠️ Not on PulseChain, need to switch');
+                    showStatus('Please switch to PulseChain network', 'warning');
+                    
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0x171' }],
+                        });
+                        console.log('✅ Switched to PulseChain');
+                    } catch (switchError) {
+                        console.log('Switch failed:', switchError);
+                        if (switchError.code === 4902) {
+                            console.log('Adding PulseChain...');
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: '0x171',
+                                    chainName: 'PulseChain',
+                                    nativeCurrency: {
+                                        name: 'Pulse',
+                                        symbol: 'PLS',
+                                        decimals: 18,
+                                    },
+                                    rpcUrls: ['https://rpc-pulsechain.g4mm4.io'],
+                                    blockExplorerUrls: ['https://scan.pulsechain.com/'],
+                                }],
+                            });
+                            console.log('✅ PulseChain added');
+                        }
+                    }
+                }
+                
+                isWalletConnected = true;
+                updateWalletUI();
+                showStatus('Wallet connected successfully!', 'success');
+                
+            } catch (error) {
+                console.error('❌ Connection error:', error);
+                
+                let errorMessage = 'Connection failed: ';
+                if (error.code === 4001) {
+                    errorMessage += 'User rejected the request';
+                } else if (error.code === -32002) {
+                    errorMessage += 'Request already pending';
+                } else {
+                    errorMessage += error.message || 'Unknown error';
+                }
+                
+                showStatus(errorMessage, 'error');
+            }
+        }
+
+        function disconnectWallet() {
+            isWalletConnected = false;
+            walletAccount = null;
+            updateWalletUI();
+            showStatus('Wallet disconnected', 'warning');
+        }
+
+        function handleAccountsChanged(accounts) {
+            if (accounts.length === 0) {
+                disconnectWallet();
+            } else {
+                walletAccount = accounts[0];
+                updateWalletUI();
+                showStatus('Account switched', 'success');
+            }
+        }
+
+        function handleChainChanged(chainId) {
+            // Check if switched to PulseChain
+            if (chainId === '0x171') {
+                document.getElementById('networkWarning').style.display = 'none';
+                showStatus('Switched to PulseChain successfully!', 'success');
+            } else {
+                document.getElementById('networkWarning').style.display = 'block';
+                showStatus('Please switch back to PulseChain network', 'warning');
+            }
+        }
+
+        async function sendTransaction(to, data, value = '0x0') {
+            try {
+                const txParams = {
+                    from: walletAccount,
+                    to: to,
+                    value: value,
+                    data: data,
+                    gas: '0x5208', // 21000 in hex - basic transaction
+                };
+
+                const txHash = await window.ethereum.request({
+                    method: 'eth_sendTransaction',
+                    params: [txParams],
+                });
+
+                return txHash;
+            } catch (error) {
+                console.error('Transaction failed:', error);
+                throw error;
+            }
+        }
+
+        async function handleMintAction() {
+            const actionBtn = document.getElementById('actionBtn');
+            const mintAmount = document.getElementById('mintAmountInput').value;
+            
+            if (currentMintStep === 1) {
+                // Step 1: Approve
+                actionBtn.disabled = true;
+                actionBtn.textContent = 'Approving...';
+                hideStatus();
+                
+                try {
+                    showStatus('Sending approval transaction...', 'warning');
+                    
+                    // ERC20 approve function selector + spender + amount
+                    // approve(address spender, uint256 amount)
+                    const spenderAddress = tokenData.childToken.slice(2).padStart(64, '0'); // Remove 0x and pad
+                    const maxAmount = 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'; // Max uint256
+                    const approveData = '0x095ea7b3' + spenderAddress + maxAmount;
+                    
+                    const txHash = await sendTransaction(tokenData.parentToken, approveData);
+                    
+                    showStatus(`Approval transaction sent! Hash: ${txHash}`, 'success');
+                    
+                    // Add transaction hash display
+                    const statusEl = document.getElementById('statusMessage');
+                    statusEl.innerHTML = `Successfully approved ${tokenData.childName} to spend unlimited parent tokens!<div class="tx-hash">Tx: ${txHash}</div>`;
+                    
+                    currentMintStep = 2;
+                    updateStepUI();
+                    
+                    // Refresh balances after approval
+                    setTimeout(() => {
+                        loadWalletBalances();
+                    }, 2000);
+                    
+                } catch (error) {
+                    let errorMessage = 'Approval failed. Please try again.';
+                    if (error.code === 4001) {
+                        errorMessage = 'Transaction was rejected by user';
+                    } else if (error.message) {
+                        errorMessage = `Approval failed: ${error.message}`;
+                    }
+                    showStatus(errorMessage, 'error');
+                    console.error('Approval failed:', error);
+                } finally {
+                    actionBtn.disabled = false;
+                    updateStepUI();
+                }
+                
+            } else {
+                // Step 2: Mint
+                if (!mintAmount || parseFloat(mintAmount) <= 0) {
+                    showStatus('Please enter a valid mint amount', 'error');
+                    return;
+                }
+                
+                actionBtn.disabled = true;
+                actionBtn.textContent = 'Minting...';
+                hideStatus();
+                
+                try {
+                    showStatus('Sending mint transaction...', 'warning');
+                    
+                    // Mint function - this will depend on the CC7 contract
+                    // Assuming mint(uint256 amount) function
+                    const amount = (parseFloat(mintAmount) * Math.pow(10, 18)).toString(16); // Convert to wei and hex
+                    const mintData = '0xa0712d68' + amount.padStart(64, '0'); // mint function selector
+                    
+                    const txHash = await sendTransaction(tokenData.childToken, mintData);
+                    
+                    const statusEl = document.getElementById('statusMessage');
+                    statusEl.innerHTML = `Successfully minted ${mintAmount} ${tokenData.childName} tokens!<div class="tx-hash">Tx: ${txHash}</div>`;
+                    statusEl.className = 'status-message status-success';
+                    statusEl.style.display = 'block';
+                    
+                    // Refresh balances after mint
+                    setTimeout(() => {
+                        loadWalletBalances();
+                    }, 2000);
+                    
+                    // Add success action with return button
+                    setTimeout(() => {
+                        handleSuccessfulMint(mintAmount, tokenData.childName);
+                    }, 2000);
+                    
+                    // Reset for another mint after longer delay
+                    setTimeout(() => {
+                        currentMintStep = 1;
+                        updateStepUI();
+                        document.getElementById('mintAmountInput').value = '';
+                    }, 5000);
+                    
+                } catch (error) {
+                    let errorMessage = 'Minting failed. Please try again.';
+                    if (error.code === 4001) {
+                        errorMessage = 'Transaction was rejected by user';
+                    } else if (error.message) {
+                        errorMessage = `Minting failed: ${error.message}`;
+                    }
+                    showStatus(errorMessage, 'error');
+                    console.error('Minting failed:', error);
+                } finally {
+                    actionBtn.disabled = false;
+                    updateStepUI();
+                }
+            }
+        }
+
+        function goBackToMainPage() {
+            // Try multiple methods to get back to main page
+            
+            // Method 1: If opened from main page, try to focus back to it
+            if (window.opener && !window.opener.closed) {
+                console.log('✅ Focusing back to main page window');
+                window.opener.focus();
+                window.close();
+                return;
+            }
+            
+            // Method 2: Use browser history if available
+            if (window.history.length > 1) {
+                console.log('✅ Going back in browser history');
+                window.history.back();
+                return;
+            }
+            
+            // Method 3: Try to navigate to main page
+            try {
+                // Check if we're in the same directory
+                const currentUrl = window.location.href;
+                const mainPageUrl = currentUrl.replace('mint.html', 'index.html');
+                
+                console.log('✅ Navigating to main page:', mainPageUrl);
+                window.location.href = mainPageUrl;
+            } catch (error) {
+                console.log('❌ Navigation failed:', error);
+                
+                // Method 4: Fallback - just close the window
+                console.log('✅ Closing mint window as fallback');
+                window.close();
+            }
+        }
+
+        // Also add success action after minting
+        function handleSuccessfulMint(amount, tokenName) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.innerHTML = `
+                Successfully minted ${amount} ${tokenName} tokens!
+                <div class="tx-hash">Transaction completed</div>
+                <div style="margin-top: 15px;">
+                    <button onclick="goBackToMainPage()" class="action-btn primary" style="padding: 10px 20px; font-size: 0.9rem;">
+                        ← Return to Token Tracker
+                    </button>
+                </div>
+            `;
+            statusEl.className = 'status-message status-success';
+            statusEl.style.display = 'block';
+        }
+
+        // Initialize page
+        window.onload = function() {
+            console.log('🚀 Page loading...');
+            
+            parseUrlParams();
+            checkNetworkAndExistingWallet();
+            updateStepUI();
+            updateCostCalculation();
+            
+            // Add event listeners with proper error handling
+            try {
+                const connectBtn = document.getElementById('connectWalletBtn');
+                const disconnectBtn = document.getElementById('disconnectWalletBtn');
+                
+                if (connectBtn) {
+                    console.log('✅ Setting up connect button event listener');
+                    connectBtn.addEventListener('click', function(e) {
+                        console.log('🔗 Connect button clicked!');
+                        e.preventDefault();
+                        connectWallet();
+                    });
+                } else {
+                    console.error('❌ Connect button not found!');
+                }
+                
+                if (disconnectBtn) {
+                    console.log('✅ Setting up disconnect button event listener');
+                    disconnectBtn.addEventListener('click', function(e) {
+                        console.log('🔌 Disconnect button clicked!');
+                        e.preventDefault();
+                        disconnectWallet();
+                    });
+                }
+                
+                // Add wallet event listeners
+                if (window.ethereum) {
+                    window.ethereum.on('accountsChanged', handleAccountsChanged);
+                    window.ethereum.on('chainChanged', handleChainChanged);
+                }
+                
+            } catch (error) {
+                console.error('❌ Error setting up event listeners:', error);
+            }
+            
+            console.log('🧬 CC7 Mint Page Loaded');
+            console.log('Token Data:', tokenData);
+        };
+    </script>
+</body>
+</html>
