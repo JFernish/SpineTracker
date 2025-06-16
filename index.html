@@ -269,6 +269,21 @@
             color: #f44336;
         }
         
+        .parity {
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            text-align: right;
+            font-size: 0.9rem;
+        }
+        
+        .parity.profitable {
+            color: #06ffa5;
+        }
+        
+        .parity.unprofitable {
+            color: #f44336;
+        }
+        
         .multiplier {
             background: linear-gradient(45deg, #3a86ff, #6a4c93);
             color: white;
@@ -411,7 +426,7 @@
                         <th>Total Supply</th>
                         <th>Multiplier</th>
                         <th>Price (USD)</th>
-                        <th>Market Cap</th>
+                        <th>Parity %</th>
                         <th style="width: 60px;">Mint</th>
                     </tr>
                 </thead>
@@ -428,6 +443,8 @@
         <div class="footer">
             <p><strong>Instructions:</strong> 1) Enter any CC7 child token address → 2) Click "Discover CC7 Spine" → 3) Click "Refresh Data" to load prices/multipliers</p>
             <p><strong>Price Colors:</strong> Green = 24h price increase, Red = 24h price decrease</p>
+            <p><strong>Parity %:</strong> Shows minting opportunity - Green >100% = profitable to mint child, Red <100% = profitable to buy child (assuming price will return to parity)</p>
+            <p><strong>Parity Calculation:</strong> Child Price ÷ (Parent Price × Multiplier) × 100%</p>
             <p><strong>Enhanced Pricing:</strong> Prioritizes PLS pairs → USDC/USDT → ETH pairs for maximum accuracy</p>
             <p><strong>Note:</strong> This tool only works with tokens created from the CC7 factory. Please avoid using auto-refresh to limit RPC calls and be respectful of the infrastructure</p>
             <p><strong>Chain:</strong> PulseChain (Chain ID: 369) | <strong>RPC:</strong> G4mm4.io</p>
@@ -755,7 +772,7 @@
                                     console.log(`🔤 Symbol hex: ${symbolHex}`);
                                     const symbol = hexToString(symbolHex);
                                     console.log(`✨ Decoded symbol: "${symbol}"`);
-                                    if (symbol && symbol.length > 0 && /^[A-Za-z0-9]+$/.test(symbol)) {
+                                    if (symbol && symbol.length > 0 && /^[\w\u3000-\u9FFF㉾]+$/.test(symbol)) {
                                         console.log(`✅ Symbol decoded (standard): ${symbol}`);
                                         return symbol;
                                     }
@@ -773,7 +790,7 @@
                             if (cleanHex.length > 0 && cleanHex.length <= 64) {
                                 const directSymbol = hexToString(cleanHex);
                                 console.log(`✨ Direct decoded: "${directSymbol}"`);
-                                if (directSymbol && /^[A-Za-z0-9]+$/.test(directSymbol) && directSymbol.length <= 10) {
+                                if (directSymbol && /^[\w\u3000-\u9FFF㉾]+$/.test(directSymbol) && directSymbol.length <= 10) {
                                     console.log(`✅ Symbol decoded (direct): ${directSymbol}`);
                                     return directSymbol;
                                 }
@@ -789,7 +806,7 @@
                             console.log(`🔚 Last part: ${lastPart}`);
                             const lastSymbol = hexToString(lastPart);
                             console.log(`✨ Last decoded: "${lastSymbol}"`);
-                            if (lastSymbol && /^[A-Za-z0-9]+$/.test(lastSymbol) && lastSymbol.length <= 10) {
+                            if (lastSymbol && /^[\w\u3000-\u9FFF㉾]+$/.test(lastSymbol) && lastSymbol.length <= 10) {
                                 console.log(`✅ Symbol decoded (last part): ${lastSymbol}`);
                                 return lastSymbol;
                             }
@@ -802,7 +819,7 @@
                             console.log(`🧪 Trying full hex as string...`);
                             const fullSymbol = hexToString(hex).trim();
                             console.log(`✨ Full decoded: "${fullSymbol}"`);
-                            if (fullSymbol && /^[A-Za-z0-9]+$/.test(fullSymbol) && fullSymbol.length <= 20) {
+                            if (fullSymbol && /^[\w\u3000-\u9FFF㉾]+$/.test(fullSymbol) && fullSymbol.length <= 20) {
                                 console.log(`✅ Symbol decoded (full): ${fullSymbol}`);
                                 return fullSymbol;
                             }
@@ -1146,7 +1163,7 @@
                     <td class="loading-cell">Loading...</td>
                     <td class="loading-cell">${token.type === 'parent' ? 'N/A' : 'Reading...'}</td>
                     <td class="loading-cell">Loading...</td>
-                    <td class="loading-cell">Loading...</td>
+                    <td class="loading-cell">${token.type === 'parent' ? 'N/A' : 'Calculating...'}</td>
                     <td>${token.type === 'child' ? `<button class="mint-btn" onclick="openMintModal(${index})">Mint</button>` : 'N/A'}</td>
                 `;
                 
@@ -1178,24 +1195,24 @@
             refreshBtn.textContent = '🔄 Loading...';
             
             try {
-                setStatus('Loading token data with corrected multipliers...', 'loading');
+                setStatus('Loading token data with corrected multipliers and parity calculations...', 'loading');
                 
+                // Store token data for parity calculations
+                const tokenData = [];
+                
+                // First pass: collect all data
                 for (let i = 0; i < discoveredTokens.length; i++) {
                     const token = discoveredTokens[i];
                     const row = document.getElementById(`token-row-${i}`);
                     
                     if (!row) continue;
                     
-                    const cells = row.children;
-                    
                     try {
                         // Get token symbol for better naming
                         let tokenSymbol;
                         try {
                             tokenSymbol = await getTokenSymbol(token.address);
-                            console.log(`🏷️ Got symbol for ${token.name}: ${tokenSymbol}`);
                             token.name = tokenSymbol;
-                            cells[1].textContent = tokenSymbol;
                         } catch (symbolError) {
                             console.log(`⚠️ Symbol lookup failed for ${token.name}: ${symbolError.message}`);
                         }
@@ -1211,7 +1228,7 @@
                         
                         const totalSupply = parseInt(totalSupplyResult, 16) / Math.pow(10, 18);
                         
-                        // Get CORRECTED multiplier for child tokens
+                        // Get multiplier for child tokens
                         let multiplier = null;
                         if (token.type === 'child') {
                             try {
@@ -1219,30 +1236,22 @@
                                 console.log(`✅ Got correct multiplier for ${token.name}: ${multiplier}`);
                             } catch (e) {
                                 console.log(`❌ Multiplier lookup failed for ${token.name}: ${e.message}`);
-                                multiplier = 1.0; // Default fallback
+                                multiplier = 2.0; // Default fallback
                             }
                         }
                         
-                        // Get REAL price data with enhanced hierarchy
+                        // Get REAL price data
                         const priceData = await getPulseXPriceWithHierarchy(token.address);
                         
-                        // Update cells
-                        cells[3].textContent = formatNumber(totalSupply);
-                        cells[3].className = '';
-                        
-                        if (token.type === 'child') {
-                            cells[4].innerHTML = `<span class="multiplier">${Math.round(multiplier)}x</span>`;
-                            cells[4].className = '';
-                        }
-                        
-                        // Enhanced price display with source info
-                        const formattedPrice = formatPrice(priceData.price);
-                        cells[5].innerHTML = `${formattedPrice}<br><span class="price-source">${priceData.pairInfo || priceData.source}</span>`;
-                        cells[5].className = priceData.priceChange24h >= 0 ? 'price' : 'price negative';
-                        
-                        const marketCap = totalSupply * priceData.price;
-                        cells[6].textContent = `${formatNumber(marketCap)}`;
-                        cells[6].className = '';
+                        // Store data for parity calculations
+                        tokenData[i] = {
+                            index: i,
+                            token: token,
+                            totalSupply: totalSupply,
+                            multiplier: multiplier,
+                            priceData: priceData,
+                            symbol: tokenSymbol
+                        };
                         
                     } catch (error) {
                         console.error(`Error loading data for ${token.name}:`, error);
@@ -1250,20 +1259,16 @@
                         // Fallback data
                         const addressNum = parseInt(token.address.slice(-4), 16);
                         const mockTotalSupply = (addressNum % 100000) * 10000;
-                        const mockPrice = (addressNum % 1000) / 10 + Math.random() * 100;
+                        const mockPrice = (addressNum % 1000) / 1000000 + Math.random() * 0.0001;
                         
-                        cells[3].textContent = formatNumber(mockTotalSupply);
-                        if (token.type === 'child') {
-                            // Still try to get real multiplier even in fallback
-                            getMultiplier(token.address).then(mult => {
-                                cells[4].innerHTML = `<span class="multiplier">${mult.toFixed(1)}x</span>`;
-                            }).catch(() => {
-                                cells[4].innerHTML = `<span class="multiplier">1.0x</span>`;
-                            });
-                        }
-                        cells[5].textContent = `${mockPrice.toFixed(2)}`;
-                        cells[5].className = 'price';
-                        cells[6].textContent = `${formatNumber(mockTotalSupply * mockPrice)}`;
+                        tokenData[i] = {
+                            index: i,
+                            token: token,
+                            totalSupply: mockTotalSupply,
+                            multiplier: token.type === 'child' ? 2.0 : null,
+                            priceData: { price: mockPrice, priceChange24h: 0, pairInfo: 'Mock data' },
+                            symbol: token.name
+                        };
                     }
                     
                     // Small delay to avoid rate limiting
@@ -1272,7 +1277,59 @@
                     }
                 }
                 
-                setStatus('Data loaded successfully with corrected multipliers!', 'connected');
+                // Second pass: update UI with parity calculations
+                for (let i = 0; i < tokenData.length; i++) {
+                    const data = tokenData[i];
+                    if (!data) continue;
+                    
+                    const row = document.getElementById(`token-row-${i}`);
+                    if (!row) continue;
+                    
+                    const cells = row.children;
+                    
+                    // Update token name
+                    cells[1].textContent = data.symbol;
+                    
+                    // Update total supply
+                    cells[3].textContent = formatNumber(data.totalSupply);
+                    cells[3].className = '';
+                    
+                    // Update multiplier
+                    if (data.token.type === 'child') {
+                        cells[4].innerHTML = `<span class="multiplier">${Math.round(data.multiplier)}x</span>`;
+                        cells[4].className = '';
+                    }
+                    
+                    // Update price
+                    const formattedPrice = formatPrice(data.priceData.price);
+                    cells[5].innerHTML = `${formattedPrice}<br><span class="price-source">${data.priceData.pairInfo || data.priceData.source}</span>`;
+                    cells[5].className = data.priceData.priceChange24h >= 0 ? 'price' : 'price negative';
+                    
+                    // Calculate and update parity percentage
+                    if (data.token.type === 'child' && i > 0) {
+                        const parentData = tokenData[i - 1]; // Parent is the previous token
+                        if (parentData && parentData.priceData.price > 0 && data.priceData.price > 0) {
+                            // Calculate: (Child Price / (Parent Price × Multiplier)) × 100
+                            const expectedChildPrice = parentData.priceData.price * data.multiplier;
+                            const parityPercentage = (data.priceData.price / expectedChildPrice) * 100;
+                            
+                            const parityClass = parityPercentage >= 100 ? 'profitable' : 'unprofitable';
+                            cells[6].innerHTML = `<span class="parity ${parityClass}">${parityPercentage.toFixed(1)}%</span>`;
+                            cells[6].className = '';
+                            
+                            console.log(`💰 Parity for ${data.symbol}: ${parityPercentage.toFixed(1)}% (Parent: ${parentData.priceData.price.toFixed(6)}, Multiplier: ${data.multiplier}x, Child: ${data.priceData.price.toFixed(6)})`);
+                        } else {
+                            cells[6].textContent = 'N/A';
+                            cells[6].className = '';
+                        }
+                    } else {
+                        // Parent token doesn't have parity
+                        cells[6].textContent = 'N/A';
+                        cells[6].className = '';
+                    }
+                }
+                
+                setStatus('Data loaded successfully with parity calculations!', 'connected');
                 document.getElementById('lastUpdate').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
                 
             } catch (error) {
