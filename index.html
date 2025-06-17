@@ -328,6 +328,23 @@
             box-shadow: 0 4px 12px rgba(58, 134, 255, 0.4);
         }
         
+        .total-multiplier-section {
+            background: rgba(157, 78, 221, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 2px solid rgba(157, 78, 221, 0.2);
+            text-align: left;
+        }
+        
+        .total-multiplier-title {
+            color: #ffffff;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
         .footer {
             text-align: center;
             margin-top: 30px;
@@ -438,6 +455,19 @@
                     </tr>
                 </tbody>
             </table>
+        </div>
+        
+        <!-- Total Multiplier Section -->
+        <div class="total-multiplier-section" id="totalMultiplierSection" style="display: none;">
+            <div class="total-multiplier-title">📊 Spine Summary</div>
+            <p style="margin: 10px 0; font-size: 1rem; line-height: 1.5;">
+                <strong>Total Spine Multiplier:</strong> <span class="total-multiplier-value" id="totalMultiplierValue" style="color: #06ffa5; font-family: 'Courier New', monospace; font-weight: 700;">-</span>
+                <span style="font-size: 0.9rem; color: #c0c0c0;"> (aggregate of all child multipliers)</span>
+            </p>
+            <p style="margin: 10px 0; font-size: 1rem; line-height: 1.5;">
+                <strong>Implied Lowest Child Price at Parity:</strong> $<span class="implied-price-value" id="impliedPriceValue" style="color: #3a86ff; font-family: 'Courier New', monospace; font-weight: 700;">-</span>
+                <span style="font-size: 0.9rem; color: #c0c0c0;"> (parent price × total multiplier)</span>
+            </p>
         </div>
         
         <div class="footer">
@@ -725,6 +755,7 @@
                 pairInfo: 'No pairs found'
             };
         }
+
         function hexToString(hex) {
             let result = '';
             for (let i = 0; i < hex.length; i += 2) {
@@ -1066,6 +1097,9 @@
                 discoveredTokens = [];
                 document.getElementById('discoveryLog').textContent = 'Starting spine discovery...';
                 
+                // Hide total multiplier section
+                document.getElementById('totalMultiplierSection').style.display = 'none';
+                
                 logDiscovery(`Starting discovery from: ${startingAddress}`);
                 
                 // Test connection first
@@ -1173,6 +1207,41 @@
 
         function copyAddress(address) {
             navigator.clipboard.writeText(address);
+        }
+
+        // Calculate and update total multiplier
+        function updateTotalMultiplier(tokenData) {
+            let totalMultiplier = 1;
+            let parentPrice = 0;
+            
+            // Calculate total multiplier and get parent price
+            for (let i = 0; i < tokenData.length; i++) {
+                const data = tokenData[i];
+                if (!data) continue;
+                
+                if (data.token.type === 'parent') {
+                    parentPrice = data.priceData.price;
+                } else if (data.token.type === 'child' && data.multiplier) {
+                    totalMultiplier *= data.multiplier;
+                }
+            }
+            
+            // Show the section if we have child tokens
+            const hasChildTokens = tokenData.some(data => data && data.token.type === 'child');
+            const section = document.getElementById('totalMultiplierSection');
+            
+            if (hasChildTokens && parentPrice > 0) {
+                section.style.display = 'block';
+                
+                const impliedPrice = parentPrice * totalMultiplier;
+                
+                document.getElementById('totalMultiplierValue').textContent = `${totalMultiplier.toLocaleString()}x`;
+                document.getElementById('impliedPriceValue').textContent = `${formatPrice(impliedPrice)}`;
+                
+                console.log(`📊 Total Multiplier: ${totalMultiplier}x, Parent Price: ${parentPrice.toFixed(6)}, Implied Price: ${impliedPrice.toFixed(6)}`);
+            } else {
+                section.style.display = 'none';
+            }
         }
 
         // Utility functions
@@ -1329,6 +1398,9 @@
                     }
                 }
                 
+                // Update total multiplier section
+                updateTotalMultiplier(tokenData);
+                
                 setStatus('Data loaded successfully with parity calculations!', 'connected');
                 document.getElementById('lastUpdate').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
                 
@@ -1348,15 +1420,6 @@
             
             if (isAutoRefreshing) {
                 clearInterval(autoRefreshInterval);
-                autoRefreshInterval = null;
-                isAutoRefreshing = false;
-                btn.textContent = '⏰ Auto-Refresh: OFF';
-                btn.style.background = 'linear-gradient(45deg, #6a4c93, #9d4edd)';
-            } else {
-                if (discoveredTokens.length === 0) {
-                    alert('Please discover a token spine first before enabling auto-refresh.');
-                    return;
-                }
                 autoRefreshInterval = setInterval(refreshData, interval);
                 isAutoRefreshing = true;
                 btn.textContent = `⏰ Auto-Refresh: ON (${interval/1000}s)`;
@@ -1415,7 +1478,7 @@
 
         // Initialize on load
         window.onload = function() {
-            console.log('🧬 Fixed Dynamic Spine Token Tracker Loading...');
+            console.log('🧬 Enhanced Dynamic Spine Token Tracker Loading...');
             
             // Auto-test connection after a short delay
             setTimeout(testConnection, 1000);
@@ -1464,10 +1527,21 @@
             }
         };
 
-        console.log('🚀 Fixed Dynamic Spine Token Tracker loaded!');
-        console.log('🔢 Fixed multiplier calculation for accurate values!');
+        console.log('🚀 Enhanced Dynamic Spine Token Tracker loaded!');
+        console.log('🔢 Added Total Multiplier and Implied Price calculations!');
+        console.log('📊 Total Multiplier = Product of all child multipliers');
+        console.log('💰 Implied Price = Parent Price × Total Multiplier');
         console.log('Try DynamicTracker.debugDiscovery("0x...") to test discovery on any token');
         console.log('Example: DynamicTracker.debugDiscovery("0x7e264cd4fa2354078f527f6a72afbadc0ba89d26")');
     </script>
 </body>
-</html>
+</html>reshInterval = null;
+                isAutoRefreshing = false;
+                btn.textContent = '⏰ Auto-Refresh: OFF';
+                btn.style.background = 'linear-gradient(45deg, #6a4c93, #9d4edd)';
+            } else {
+                if (discoveredTokens.length === 0) {
+                    alert('Please discover a token spine first before enabling auto-refresh.');
+                    return;
+                }
+                autoRef
