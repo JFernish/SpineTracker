@@ -1420,6 +1420,15 @@
             
             if (isAutoRefreshing) {
                 clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+                isAutoRefreshing = false;
+                btn.textContent = '⏰ Auto-Refresh: OFF';
+                btn.style.background = 'linear-gradient(45deg, #6a4c93, #9d4edd)';
+            } else {
+                if (discoveredTokens.length === 0) {
+                    alert('Please discover a token spine first before enabling auto-refresh.');
+                    return;
+                }
                 autoRefreshInterval = setInterval(refreshData, interval);
                 isAutoRefreshing = true;
                 btn.textContent = `⏰ Auto-Refresh: ON (${interval/1000}s)`;
@@ -1499,7 +1508,7 @@
             makeRPCCall,
             getParentToken,
             getTokenSymbol,
-            getMultiplier, // Added for debugging
+            getMultiplier,
             discoveredTokens: () => discoveredTokens,
             priceCache: () => priceCache,
             debugDiscovery: async function(address) {
@@ -1535,13 +1544,5 @@
         console.log('Example: DynamicTracker.debugDiscovery("0x7e264cd4fa2354078f527f6a72afbadc0ba89d26")');
     </script>
 </body>
-</html>reshInterval = null;
-                isAutoRefreshing = false;
-                btn.textContent = '⏰ Auto-Refresh: OFF';
-                btn.style.background = 'linear-gradient(45deg, #6a4c93, #9d4edd)';
-            } else {
-                if (discoveredTokens.length === 0) {
-                    alert('Please discover a token spine first before enabling auto-refresh.');
-                    return;
-                }
-                autoRef
+</html>
+                
