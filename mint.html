@@ -522,7 +522,7 @@
         <div class="wallet-section" id="walletSection">
             <div id="walletNotConnected">
                 <p style="color: #c0c0c0; margin-bottom: 15px;">Connect your wallet to mint V4 tokens</p>
-                <button class="wallet-btn" id="connectWalletBtn">
+                <button class="wallet-btn" id="connectWalletBtn" onclick="connectWallet()">
                     🔗 Connect Wallet
                 </button>
             </div>
@@ -530,7 +530,7 @@
                 <div class="wallet-connected">
                     ✅ Connected: <span id="walletAddress">0x...</span>
                 </div>
-                <button class="wallet-btn" id="disconnectWalletBtn" style="background: linear-gradient(45deg, #f44336, #e91e63);">
+                <button class="wallet-btn" id="disconnectWalletBtn" onclick="disconnectWallet()" style="background: linear-gradient(45deg, #f44336, #e91e63);">
                     Disconnect
                 </button>
             </div>
@@ -605,11 +605,15 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
     <script>
-        // Reset to actual production state
+        // Web3 and wallet connection variables
+        let web3 = null;
         let walletAccount = null;
         let isWalletConnected = false;
         let currentMintStep = 1;
+        
+        // Token data with defaults
         let tokenData = {
             childToken: '0xb2cdb1359738e8d845cdf189af3ce06fba708c4b',
             childName: 'Joyluck',
@@ -626,6 +630,23 @@
         // Store discovered tokens and multipliers for multi-hop integration
         let discoveredTokens = [];
         let tokenMultipliers = {};
+
+        // ERC20 ABI for basic token operations
+        const ERC20_ABI = [
+            {"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},
+            {"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"}
+        ];
+
+        // V4 Token ABI for minting and multiplier functions
+        const V4_TOKEN_ABI = [
+            {"constant":false,"inputs":[{"name":"amount","type":"uint256"}],"name":"mint","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
+            {"constant":true,"inputs":[{"name":"amount","type":"uint256"}],"name":"Multiplier","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[],"name":"Parent","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"}
+        ];
 
         // Enhanced data loading with better error handling and validation
         function parseUrlParams() {
@@ -812,6 +833,349 @@
             }
         }
 
+        // Wallet connection functions
+        async function connectWallet() {
+            console.log('🔗 Attempting to connect wallet...');
+            
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    // Initialize Web3
+                    web3 = new Web3(window.ethereum);
+                    
+                    // Request account access
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    walletAccount = accounts[0];
+                    isWalletConnected = true;
+                    
+                    console.log('✅ Wallet connected:', walletAccount);
+                    
+                    // Check network
+                    const chainId = await web3.eth.getChainId();
+                    console.log('🌐 Connected to chain ID:', chainId);
+                    
+                    // Update UI
+                    updateWalletUI();
+                    
+                    showStatus('Wallet connected successfully!', 'success');
+                    
+                    // Load balances and check approval status
+                    await loadWalletBalances();
+                    await updateStepUIWithApprovalCheck();
+                    
+                } catch (error) {
+                    console.error('❌ Failed to connect wallet:', error);
+                    showStatus('Failed to connect wallet: ' + error.message, 'error');
+                }
+            } else {
+                showStatus('Please install MetaMask or another Web3 wallet', 'error');
+            }
+        }
+
+        async function disconnectWallet() {
+            walletAccount = null;
+            isWalletConnected = false;
+            web3 = null;
+            
+            updateWalletUI();
+            
+            console.log('👋 Wallet disconnected');
+            showStatus('Wallet disconnected', 'warning');
+        }
+
+        function updateWalletUI() {
+            const notConnected = document.getElementById('walletNotConnected');
+            const connected = document.getElementById('walletConnected');
+            const addressSpan = document.getElementById('walletAddress');
+            const balanceSection = document.getElementById('balanceSection');
+            const walletSecurityWarning = document.getElementById('walletSecurityWarning');
+           
+            if (isWalletConnected) {
+                notConnected.style.display = 'none';
+                connected.style.display = 'block';
+                addressSpan.textContent = formatAddress(walletAccount);
+                document.getElementById('mintForm').style.display = 'block';
+                balanceSection.style.display = 'block';
+                walletSecurityWarning.style.display = 'none'; // Hide security warning once connected
+            } else {
+                notConnected.style.display = 'block';
+                connected.style.display = 'none';
+                document.getElementById('mintForm').style.display = 'none';
+                balanceSection.style.display = 'none';
+                walletSecurityWarning.style.display = 'block'; // Show security warning when not connected
+            }
+        }
+
+        // Load wallet balances
+        async function loadWalletBalances() {
+            if (!web3 || !walletAccount) return;
+            
+            console.log('💰 Loading wallet balances...');
+            
+            try {
+                // Load parent token balance
+                if (tokenData.parentToken && tokenData.parentToken !== 'N/A') {
+                    const parentContract = new web3.eth.Contract(ERC20_ABI, tokenData.parentToken);
+                    const parentBalance = await parentContract.methods.balanceOf(walletAccount).call();
+                    const parentBalanceFormatted = web3.utils.fromWei(parentBalance, 'ether');
+                    currentParentBalance = parseFloat(parentBalanceFormatted);
+                    
+                    document.getElementById('parentBalance').textContent = `${parseFloat(parentBalanceFormatted).toLocaleString()}`;
+                    document.getElementById('parentBalance').className = 'balance-value';
+                }
+                
+                // Load child token balance
+                if (tokenData.childToken && tokenData.childToken !== 'N/A') {
+                    const childContract = new web3.eth.Contract(ERC20_ABI, tokenData.childToken);
+                    const childBalance = await childContract.methods.balanceOf(walletAccount).call();
+                    const childBalanceFormatted = web3.utils.fromWei(childBalance, 'ether');
+                    currentChildBalance = parseFloat(childBalanceFormatted);
+                    
+                    document.getElementById('childBalance').textContent = `${parseFloat(childBalanceFormatted).toLocaleString()}`;
+                    document.getElementById('childBalance').className = 'balance-value';
+                }
+                
+                console.log('✅ Balances loaded successfully');
+                
+            } catch (error) {
+                console.error('❌ Failed to load balances:', error);
+                document.getElementById('parentBalance').textContent = 'Error';
+                document.getElementById('childBalance').textContent = 'Error';
+            }
+        }
+
+        // Check approval status and update step UI
+        async function updateStepUIWithApprovalCheck() {
+            if (!web3 || !walletAccount || !tokenData.parentToken || !tokenData.childToken) return;
+            
+            console.log('🔍 Checking approval status...');
+            
+            try {
+                const parentContract = new web3.eth.Contract(ERC20_ABI, tokenData.parentToken);
+                const allowance = await parentContract.methods.allowance(walletAccount, tokenData.childToken).call();
+                const allowanceFormatted = web3.utils.fromWei(allowance, 'ether');
+                
+                console.log('📋 Current allowance:', allowanceFormatted);
+                
+                // Check if approval is sufficient (we use a high threshold to consider it "infinite")
+                const isApproved = parseFloat(allowanceFormatted) > 1000000;
+                
+                if (isApproved) {
+                    // Move to step 2 (mint)
+                    currentMintStep = 2;
+                    updateStepUI();
+                } else {
+                    // Stay on step 1 (approve)
+                    currentMintStep = 1;
+                    updateStepUI();
+                }
+                
+            } catch (error) {
+                console.error('❌ Failed to check approval:', error);
+                currentMintStep = 1;
+                updateStepUI();
+            }
+        }
+
+        // Update step indicator UI
+        function updateStepUI() {
+            const step1 = document.getElementById('step1');
+            const step2 = document.getElementById('step2');
+            const stepLine = document.getElementById('stepLine');
+            const stepText = document.getElementById('stepText');
+            const actionBtn = document.getElementById('actionBtn');
+            
+            if (currentMintStep === 1) {
+                // Step 1: Approve
+                step1.className = 'step active';
+                step2.className = 'step inactive';
+                stepLine.className = 'step-line';
+                stepText.textContent = 'Step 1 of 2: Approve Parent Token (Infinite)';
+                actionBtn.textContent = 'Approve Infinite Parent Token';
+                actionBtn.className = 'action-btn secondary';
+            } else {
+                // Step 2: Mint
+                step1.className = 'step completed';
+                step2.className = 'step active';
+                stepLine.className = 'step-line active';
+                stepText.textContent = 'Step 2 of 2: Mint Child Token';
+                actionBtn.textContent = 'Mint Child Token';
+                actionBtn.className = 'action-btn primary';
+            }
+        }
+
+        // Handle mint action (approve or mint based on current step)
+        async function handleMintAction() {
+            if (!web3 || !walletAccount) {
+                showStatus('Please connect your wallet first', 'error');
+                return;
+            }
+            
+            const amount = parseFloat(document.getElementById('mintAmountInput').value);
+            if (!amount || amount <= 0) {
+                showStatus('Please enter a valid amount', 'error');
+                return;
+            }
+            
+            const actionBtn = document.getElementById('actionBtn');
+            const originalText = actionBtn.textContent;
+            
+            try {
+                actionBtn.disabled = true;
+                
+                if (currentMintStep === 1) {
+                    // Step 1: Approve
+                    await approveParentToken();
+                } else {
+                    // Step 2: Mint
+                    await mintChildToken(amount);
+                }
+                
+            } catch (error) {
+                console.error('❌ Action failed:', error);
+                
+                let errorMessage = error.message;
+                if (error.message.includes('User denied')) {
+                    errorMessage = 'Transaction cancelled by user';
+                } else if (error.message.includes('insufficient funds')) {
+                    errorMessage = 'Insufficient funds for gas';
+                }
+                
+                showStatus(`❌ Failed: ${errorMessage}`, 'error');
+            } finally {
+                actionBtn.disabled = false;
+                actionBtn.textContent = originalText;
+            }
+        }
+
+        // Approve parent token for infinite spending
+        async function approveParentToken() {
+            console.log('📝 Approving parent token...');
+            
+            const actionBtn = document.getElementById('actionBtn');
+            actionBtn.textContent = 'Approving...';
+            
+            showStatus('Requesting approval for infinite parent token spending...', 'warning');
+            
+            const parentContract = new web3.eth.Contract(ERC20_ABI, tokenData.parentToken);
+            const maxApproval = '115792089237316195423570985008687907853269984665640564039457584007913129639935'; // 2^256 - 1
+            
+            const tx = await parentContract.methods
+                .approve(tokenData.childToken, maxApproval)
+                .send({ from: walletAccount });
+            
+            console.log('✅ Approval transaction:', tx.transactionHash);
+            showStatus(`✅ Approval successful! TX: ${tx.transactionHash.slice(0, 10)}...`, 'success');
+            
+            // Move to step 2
+            currentMintStep = 2;
+            updateStepUI();
+        }
+
+        // Mint child token
+        async function mintChildToken(amount) {
+            console.log('🪙 Minting child token...');
+            
+            const actionBtn = document.getElementById('actionBtn');
+            actionBtn.textContent = 'Minting...';
+            
+            showStatus(`Minting ${amount} ${tokenData.childName}...`, 'warning');
+            
+            const childContract = new web3.eth.Contract(V4_TOKEN_ABI, tokenData.childToken);
+            const amountWei = web3.utils.toWei(amount.toString(), 'ether');
+            
+            const tx = await childContract.methods
+                .mint(amountWei)
+                .send({ from: walletAccount });
+            
+            console.log('✅ Mint transaction:', tx.transactionHash);
+            showStatus(`✅ Mint successful! Minted ${amount} ${tokenData.childName}. TX: ${tx.transactionHash.slice(0, 10)}...`, 'success');
+            
+            // Refresh balances
+            await loadWalletBalances();
+            
+            // Update cost calculation to show completion
+            document.getElementById('costCalculation').innerHTML = `✅ <strong>Mint Complete!</strong> Minted ${amount} ${tokenData.childName}`;
+        }
+
+        // Update cost calculation
+        function updateCostCalculation() {
+            const amountInput = document.getElementById('mintAmountInput');
+            const costCalc = document.getElementById('costCalculation');
+            
+            const amount = parseFloat(amountInput.value);
+            const multiplier = parseInt(tokenData.multiplier) || 2;
+            
+            if (!amount || amount <= 0) {
+                costCalc.textContent = `💡 With current ${multiplier}x multiplier: Enter amount to see parent token cost`;
+                return;
+            }
+            
+            const parentCost = amount * multiplier;
+            costCalc.innerHTML = `💰 Cost: <strong>${parentCost.toLocaleString()}</strong> ${tokenData.parentName} (${multiplier}x multiplier)`;
+            costCalc.style.color = '#06ffa5';
+        }
+
+        // Set max amount based on parent balance
+        function setMaxAmount() {
+            if (!currentParentBalance || currentParentBalance <= 0) {
+                showStatus('Parent token balance not available', 'warning');
+                return;
+            }
+            
+            const multiplier = parseInt(tokenData.multiplier) || 2;
+            const maxMintAmount = Math.floor(currentParentBalance / multiplier);
+            
+            if (maxMintAmount > 0) {
+                document.getElementById('mintAmountInput').value = maxMintAmount;
+                updateCostCalculation();
+                showStatus(`Set to maximum mintable amount: ${maxMintAmount}`, 'success');
+            } else {
+                showStatus('Insufficient parent token balance for minting', 'warning');
+            }
+        }
+
+        // Refresh multiplier from contract
+        async function refreshMultiplier() {
+            if (!web3 || !tokenData.childToken) {
+                showStatus('Connect wallet to refresh multiplier', 'warning');
+                return;
+            }
+            
+            console.log('🔄 Refreshing multiplier...');
+            
+            try {
+                const childContract = new web3.eth.Contract(V4_TOKEN_ABI, tokenData.childToken);
+                const testAmount = web3.utils.toWei('1000', 'ether'); // Test with 1000 tokens
+                const multiplier = await childContract.methods.Multiplier(testAmount).call();
+                
+                tokenData.multiplier = multiplier.toString();
+                document.getElementById('multiplierValue').textContent = `${multiplier}x`;
+                
+                updateCostCalculation();
+                
+                console.log('✅ Multiplier refreshed:', multiplier);
+                showStatus(`Multiplier updated: ${multiplier}x`, 'success');
+                
+            } catch (error) {
+                console.error('❌ Failed to refresh multiplier:', error);
+                showStatus('Failed to refresh multiplier', 'error');
+            }
+        }
+
+        // Refresh balances
+        async function refreshBalances() {
+            if (!isWalletConnected) {
+                showStatus('Connect wallet to refresh balances', 'warning');
+                return;
+            }
+            
+            console.log('🔄 Refreshing balances...');
+            showStatus('Refreshing balances...', 'warning');
+            
+            await loadWalletBalances();
+            showStatus('Balances refreshed!', 'success');
+        }
+
         // Enhanced Multi-Hop Mint function with robust data passing
         function openMultiHopMint() {
             console.log('🎯 Opening multi-hop mint with discovered tokens:', discoveredTokens.length);
@@ -866,7 +1230,7 @@
             }
 
             // Open multi-hop mint page
-            const multiHopUrl = `multi-hop-mint.html?${params.toString()}`;
+            const multiHopUrl = `enhanced_multihop_mint.html?${params.toString()}`;
             console.log('🚀 Opening multi-hop URL:', multiHopUrl);
             
             const multiHopWindow = window.open(multiHopUrl, '_blank');
@@ -883,60 +1247,9 @@
                 multipliersCount: Object.keys(tokenMultipliers).length,
                 urlLength: multiHopUrl.length
             });
-
-            // Enhanced data passing with multiple methods and retries
-            const passDataToMultiHop = (attempt = 1) => {
-                const maxAttempts = 3;
-                const delay = attempt * 500; // Increasing delay: 500ms, 1s, 1.5s
-                
-                setTimeout(() => {
-                    try {
-                        if (multiHopWindow.closed) {
-                            console.log('⚠️ Multi-hop window was closed before data could be passed');
-                            return;
-                        }
-
-                        // Method 1: Use the MultiHopMint API if available
-                        if (multiHopWindow.MultiHopMint && typeof multiHopWindow.MultiHopMint.loadTokenDataFromMain === 'function') {
-                            multiHopWindow.MultiHopMint.loadTokenDataFromMain(discoveredTokens, tokenMultipliers, tokenData);
-                            console.log(`✅ [Attempt ${attempt}] Passed data to multi-hop window via API`);
-                            return;
-                        }
-                        
-                        // Method 2: Direct property assignment
-                        if (multiHopWindow.document && multiHopWindow.document.readyState === 'complete') {
-                            multiHopWindow.discoveredTokens = discoveredTokens;
-                            multiHopWindow.tokenMultipliers = tokenMultipliers;
-                            multiHopWindow.directMintTokenData = tokenData;
-                            console.log(`✅ [Attempt ${attempt}] Passed data to multi-hop window directly`);
-                            return;
-                        }
-
-                        // Method 3: Retry if we haven't reached max attempts
-                        if (attempt < maxAttempts) {
-                            console.log(`⏳ [Attempt ${attempt}] Multi-hop window not ready, retrying...`);
-                            passDataToMultiHop(attempt + 1);
-                        } else {
-                            console.log(`⚠️ [Attempt ${attempt}] Failed to pass data after ${maxAttempts} attempts`);
-                            console.log('💡 Multi-hop page will load data from URL parameters or localStorage');
-                        }
-                        
-                    } catch (error) {
-                        console.log(`❌ [Attempt ${attempt}] Error passing data to multi-hop window:`, error.message);
-                        
-                        if (attempt < maxAttempts) {
-                            passDataToMultiHop(attempt + 1);
-                        }
-                    }
-                }, delay);
-            };
-
-            // Start the data passing process
-            passDataToMultiHop(1);
-
-            return multiHopWindow;
         }
 
+        // Utility functions
         function showStatus(message, type) {
             const statusEl = document.getElementById('statusMessage');
             statusEl.textContent = message;
@@ -951,80 +1264,9 @@
             }
         }
 
-        function hideStatus() {
-            document.getElementById('statusMessage').style.display = 'none';
-        }
-
         function formatAddress(address) {
             if (!address) return '';
             return `${address.slice(0, 6)}...${address.slice(-4)}`;
-        }
-
-        function updateWalletUI() {
-            const notConnected = document.getElementById('walletNotConnected');
-            const connected = document.getElementById('walletConnected');
-            const addressSpan = document.getElementById('walletAddress');
-            const balanceSection = document.getElementById('balanceSection');
-            const walletSecurityWarning = document.getElementById('walletSecurityWarning');
-           
-            if (isWalletConnected) {
-                notConnected.style.display = 'none';
-                connected.style.display = 'block';
-                addressSpan.textContent = formatAddress(walletAccount);
-                document.getElementById('mintForm').style.display = 'block';
-                balanceSection.style.display = 'block';
-                walletSecurityWarning.style.display = 'none'; // Hide security warning once connected
-               
-                // Load balances when wallet connects
-                loadWalletBalances();
-               
-                // Check approval status
-                setTimeout(() => {
-                    updateStepUIWithApprovalCheck();
-                }, 1000);
-            } else {
-                notConnected.style.display = 'block';
-                connected.style.display = 'none';
-                document.getElementById('mintForm').style.display = 'none';
-                balanceSection.style.display = 'none';
-                walletSecurityWarning.style.display = 'block'; // Show security warning when not connected
-            }
-        }
-
-        // Stub functions for missing functionality (these would be implemented in the full version)
-        function loadWalletBalances() {
-            console.log('💰 Loading wallet balances...');
-            // Implementation would go here
-        }
-
-        function updateStepUIWithApprovalCheck() {
-            console.log('🔍 Checking approval status...');
-            // Implementation would go here
-        }
-
-        function updateCostCalculation() {
-            console.log('💲 Updating cost calculation...');
-            // Implementation would go here
-        }
-
-        function setMaxAmount() {
-            console.log('📊 Setting max amount...');
-            // Implementation would go here
-        }
-
-        function handleMintAction() {
-            console.log('🚀 Handling mint action...');
-            // Implementation would go here
-        }
-
-        function refreshMultiplier() {
-            console.log('🔄 Refreshing multiplier...');
-            // Implementation would go here
-        }
-
-        function refreshBalances() {
-            console.log('🔄 Refreshing balances...');
-            // Implementation would go here
         }
 
         function goBackToMainPage() {
@@ -1037,8 +1279,8 @@
         }
 
         // Initialize page
-        window.onload = function() {
-            console.log('🚀 V4 Mint Page Production Ready with Enhanced Multi-Hop Integration!');
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 V4 Mint Page with Wallet Connection Ready!');
             parseUrlParams();
             
             console.log('📊 Enhanced Multi-Hop Integration Status:', {
@@ -1047,10 +1289,12 @@
                 currentTokenData: tokenData,
                 integrationMethods: ['URL parameters', 'localStorage', 'opener window', 'minimal fallback']
             });
-        };
+        });
 
         // Expose enhanced functions for debugging and integration
         window.DirectMint = {
+            connectWallet,
+            disconnectWallet,
             openMultiHopMint,
             discoveredTokens: () => discoveredTokens,
             tokenMultipliers: () => tokenMultipliers,
@@ -1075,10 +1319,10 @@
             }
         };
 
-        console.log('🎯 Enhanced Direct Mint Page loaded with Multi-Hop integration!');
+        console.log('🎯 Enhanced Direct Mint Page loaded with working wallet connection!');
         console.log('💡 Multi-hop integration includes 4 fallback methods for maximum reliability');
         console.log('🔗 Use DirectMint.debugMultiHopData() to inspect all integration data');
-        console.log('🚀 Use DirectMint.openMultiHopMint() to test multi-hop integration');
+        console.log('🚀 Use DirectMint.connectWallet() to test wallet connection');
     </script>
 </body>
 </html>
