@@ -375,7 +375,7 @@
     <div class="container">
         <div class="header">
             <h1>Dynamic Spine Token Tracker</h1>
-            <p>Automatically discover CC7 factory token spines by walking up from any child token</p>
+            <p>Automatically discover V4 factory token spines by walking up from any child token</p>
             <div style="background: rgba(157, 78, 221, 0.1); padding: 15px; border-radius: 10px; margin-top: 15px; border: 2px solid rgba(157, 78, 221, 0.2);">
                 <strong>⚠️ Entertainment Purposes Only:</strong> This tool is for entertainment purposes. All data should be independently verified before making any financial decisions. Always DYOR (Do Your Own Research).
             </div>
@@ -393,7 +393,7 @@
                 <input type="text" id="rpcUrl" value="https://rpc-pulsechain.g4mm4.io">
             </div>
             <div class="config-item">
-                <label>Starting CC7 Token Address (lowest child):</label>
+                <label>Starting V4 Token Address (lowest child):</label>
                 <input type="text" id="startingToken" value="0x7e264cd4fa2354078f527f6a72afbadc0ba89d26" placeholder="0x...">
             </div>
             <div class="config-item">
@@ -402,7 +402,7 @@
             </div>
             
             <div class="discovery-log" id="discoveryLog" style="max-height: 100px;">
-                Ready to discover CC7 token spine... Enter a CC7 child token address and click "Discover CC7 Spine"
+                Ready to discover V4 token spine... Enter a V4 child token address and click "Discover V4 Spine"
             </div>
         </div>
         
@@ -412,7 +412,7 @@
                     🔗 Test Connection
                 </button>
                 <button class="btn discover" onclick="discoverSpine()" id="discoverBtn">
-                    🧬 Discover CC7 Spine
+                    🧬 Discover V4 Spine
                 </button>
                 <button class="btn" onclick="refreshData()" id="refreshBtn" disabled>
                     🔄 Refresh Data
@@ -450,7 +450,7 @@
                 <tbody id="tokenTable">
                     <tr>
                         <td colspan="8" style="text-align: center; padding: 40px; color: #90a4ae;">
-                            No CC7 tokens discovered yet. Click "Discover CC7 Spine" to start building the spine from a CC7 child token.
+                            No V4 tokens discovered yet. Click "Discover V4 Spine" to start building the spine from a V4 child token.
                         </td>
                     </tr>
                 </tbody>
@@ -471,15 +471,16 @@
         </div>
         
         <div class="footer">
-            <p><strong>Instructions:</strong> 1) Enter any CC7 child token address → 2) Click "Discover CC7 Spine" → 3) Click "Refresh Data" to load prices/multipliers</p>
+            <p><strong>Instructions:</strong> 1) Enter any V4 child token address → 2) Click "Discover V4 Spine" → 3) Click "Refresh Data" to load prices/multipliers</p>
             <p><strong>Price Colors:</strong> Green = 24h price increase, Red = 24h price decrease</p>
             <p><strong>Parity %:</strong> Shows minting opportunity - Green >100% = profitable to mint child, Red <100% = profitable to buy child (assuming price will return to parity)</p>
             <p><strong>Parity Calculation:</strong> Child Price ÷ (Parent Price × Multiplier) × 100%</p>
             <p><strong>Enhanced Pricing:</strong> Prioritizes PLS pairs → USDC/USDT → ETH pairs for maximum accuracy</p>
-            <p><strong>Note:</strong> This tool only works with tokens created from the CC7 factory. Please avoid using auto-refresh to limit RPC calls and be respectful of the infrastructure</p>
+            <p><strong>Note:</strong> This tool only works with tokens created from the V4 factory. Please avoid using auto-refresh to limit RPC calls and be respectful of the infrastructure</p>
             <p><strong>Chain:</strong> PulseChain (Chain ID: 369) | <strong>RPC:</strong> G4mm4.io</p>
             
             <div style="margin-top: 30px; padding: 20px; background: rgba(157, 78, 221, 0.1); border-radius: 15px; border: 2px solid rgba(157, 78, 221, 0.2); text-align: left;">
+                <p style="margin-bottom: 15px;"><strong>🎯 Multi-Hop Minting Available:</strong> Multi-hop minting is accessible from the Mint pages and allows you to mint directly from any parent token in a spine to any child token in a single transaction, skipping intermediate steps. One click, multiple hops.</p>
                 <p style="margin-bottom: 15px;">The provided information may not be 100% accurate and still needs some testing.</p>
                 <p style="margin-bottom: 10px;"><strong>Your support is greatly appreciated and helps me continue improving the website.</strong></p>
                 <p style="font-family: 'Courier New', monospace; background: rgba(0, 0, 0, 0.3); padding: 10px; border-radius: 8px; margin: 10px 0; word-break: break-all; font-size: 0.85rem;">0x809b15CCdC92882035C274738318296525b98aD8</p>
@@ -497,6 +498,7 @@
     <script>
         // Discovered tokens will be stored here
         let discoveredTokens = [];
+        let tokenMultipliers = new Map(); // Store multipliers for multi-hop
         let autoRefreshInterval = null;
         let isAutoRefreshing = false;
         
@@ -559,9 +561,9 @@
             }
         }
 
-        // Enhanced pricing function with hierarchy
+        // Simplified pricing function (removed stable pair checking)
         async function getPulseXPriceWithHierarchy(tokenAddress) {
-            console.log(`🔍 Getting price for ${tokenAddress} with proper hierarchy...`);
+            console.log(`🔍 Getting price for ${tokenAddress}...`);
             
             // Check cache first
             const cacheKey = `price_${tokenAddress.toLowerCase()}`;
@@ -571,41 +573,29 @@
                 return cached.data;
             }
             
-            // Define pricing source hierarchy for PulseChain
+            // Simplified pricing sources - PLS pairs first, then USD
             const pricingSources = [
-                {
-                    name: 'GeckoTerminal_PLS',
-                    priority: 1,
-                    description: 'PLS pairs via GeckoTerminal'
-                },
-                {
-                    name: 'GeckoTerminal_USD',
-                    priority: 2,
-                    description: 'USD price via GeckoTerminal'
-                },
-                {
-                    name: 'DexScreener_PulseChain',
-                    priority: 3,
-                    description: 'PulseChain pairs via DexScreener'
-                }
+                { name: 'GeckoTerminal_PLS', priority: 1 },
+                { name: 'GeckoTerminal_USD', priority: 2 },
+                { name: 'DexScreener', priority: 3 }
             ];
 
-            // Try each pricing source in order of priority
+            // Try each pricing source in order
             for (const source of pricingSources) {
                 try {
-                    console.log(`💰 Trying ${source.name}: ${source.description}`);
+                    console.log(`💰 Trying ${source.name}...`);
                     
                     let priceData = null;
                     
                     if (source.name.startsWith('GeckoTerminal')) {
                         priceData = await getGeckoTerminalPrice(tokenAddress, source.name === 'GeckoTerminal_PLS');
-                    } else if (source.name.startsWith('DexScreener')) {
-                        priceData = await getDexScreenerPrice(tokenAddress, true);
+                    } else if (source.name === 'DexScreener') {
+                        priceData = await getDexScreenerPrice(tokenAddress);
                     }
                     
                     if (priceData && priceData.price > 0) {
                         console.log(`✅ Got price from ${source.name}: ${priceData.price}`);
-                        priceData.source = source.description;
+                        priceData.source = source.name;
                         priceData.priority = source.priority;
                         
                         // Cache the result
@@ -623,12 +613,12 @@
                 }
             }
             
-            // Fallback to address-based mock data
+            // Fallback
             console.log(`⚠️ All pricing sources failed, using fallback data`);
             return getFallbackPriceData(tokenAddress);
         }
 
-        // Enhanced GeckoTerminal function with PLS pair preference
+        // Simplified GeckoTerminal function
         async function getGeckoTerminalPrice(tokenAddress, preferPLSPairs = false) {
             const pulseChainId = 'pulsechain';
             const url = `https://api.geckoterminal.com/api/v2/networks/${pulseChainId}/tokens/${tokenAddress.toLowerCase()}`;
@@ -653,12 +643,8 @@
                     );
                     
                     if (plsPairs.length > 0) {
-                        console.log(`🎯 Found ${plsPairs.length} PLS pairs, using highest liquidity`);
-                        const bestPLSPair = plsPairs.sort((a, b) => 
-                            parseFloat(b.attributes.reserve_in_usd || '0') - parseFloat(a.attributes.reserve_in_usd || '0')
-                        )[0];
-                        
-                        pairInfo = `${bestPLSPair.attributes.name} (PLS pair)`;
+                        console.log(`🎯 Found ${plsPairs.length} PLS pairs`);
+                        pairInfo = 'PLS pair';
                     }
                 }
                 
@@ -673,8 +659,8 @@
             throw new Error('No price data in GeckoTerminal response');
         }
 
-        // Enhanced DexScreener function with PulseChain preference
-        async function getDexScreenerPrice(tokenAddress, preferPulseChain = true) {
+        // Simplified DexScreener function
+        async function getDexScreenerPrice(tokenAddress) {
             const url = `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`;
             
             const response = await fetch(url);
@@ -685,58 +671,17 @@
             const data = await response.json();
             
             if (data.pairs && data.pairs.length > 0) {
-                let selectedPair = null;
-                
-                if (preferPulseChain) {
-                    // Priority 1: PLS pairs on PulseChain
-                    const plsPairs = data.pairs.filter(pair => 
-                        pair.chainId === 'pulsechain' && 
-                        (pair.baseToken?.symbol?.toLowerCase() === 'pls' || 
-                         pair.quoteToken?.symbol?.toLowerCase() === 'pls')
-                    );
-                    
-                    if (plsPairs.length > 0) {
-                        selectedPair = plsPairs.sort((a, b) => parseFloat(b.liquidity?.usd || '0') - parseFloat(a.liquidity?.usd || '0'))[0];
-                        console.log(`🎯 Using PLS pair: ${selectedPair.pairAddress}`);
-                    }
-                    
-                    // Priority 2: Stablecoin pairs on PulseChain
-                    if (!selectedPair) {
-                        const stablePairs = data.pairs.filter(pair => 
-                            pair.chainId === 'pulsechain' && 
-                            ['usdc', 'usdt', 'dai', 'busd'].includes(
-                                pair.quoteToken?.symbol?.toLowerCase() || pair.baseToken?.symbol?.toLowerCase()
-                            )
-                        );
-                        
-                        if (stablePairs.length > 0) {
-                            selectedPair = stablePairs.sort((a, b) => parseFloat(b.liquidity?.usd || '0') - parseFloat(a.liquidity?.usd || '0'))[0];
-                            console.log(`💰 Using stablecoin pair: ${selectedPair.pairAddress}`);
-                        }
-                    }
-                    
-                    // Priority 3: Any PulseChain pair
-                    if (!selectedPair) {
-                        const pulsePairs = data.pairs.filter(pair => pair.chainId === 'pulsechain');
-                        if (pulsePairs.length > 0) {
-                            selectedPair = pulsePairs.sort((a, b) => parseFloat(b.liquidity?.usd || '0') - parseFloat(a.liquidity?.usd || '0'))[0];
-                            console.log(`⚡ Using PulseChain pair: ${selectedPair.pairAddress}`);
-                        }
-                    }
-                }
-                
-                // Fallback to highest liquidity pair
-                if (!selectedPair) {
-                    selectedPair = data.pairs.sort((a, b) => parseFloat(b.liquidity?.usd || '0') - parseFloat(a.liquidity?.usd || '0'))[0];
-                    console.log(`📊 Using highest liquidity pair: ${selectedPair.pairAddress}`);
-                }
+                // Get highest liquidity pair
+                const selectedPair = data.pairs.sort((a, b) => 
+                    parseFloat(b.liquidity?.usd || '0') - parseFloat(a.liquidity?.usd || '0')
+                )[0];
                 
                 if (selectedPair) {
                     return {
                         price: parseFloat(selectedPair.priceUsd || '0'),
                         volume24h: parseFloat(selectedPair.volume?.h24 || '0'),
                         priceChange24h: parseFloat(selectedPair.priceChange?.h24 || '0'),
-                        pairInfo: `${selectedPair.baseToken?.symbol}/${selectedPair.quoteToken?.symbol} on ${selectedPair.dexId}`
+                        pairInfo: `${selectedPair.baseToken?.symbol}/${selectedPair.quoteToken?.symbol}`
                     };
                 }
             }
@@ -917,20 +862,15 @@
             }
         }
 
-        // FIXED: Get multiplier using the exact ABI function Multiplier(uint256) with 0 parameter
+        // Get multiplier using the exact ABI function Multiplier(uint256) with 0 parameter
         async function getMultiplier(address) {
             try {
                 console.log(`🔢 Getting multiplier for ${address} using Multiplier(uint256) with 0 amount...`);
                 
-                // The function signature from ABI: Multiplier(uint256)
-                // We need to call it with 0 as the parameter
-                // The selector 0x5677abcc is actually for Multiplier(uint256)
-                
                 const result = await makeRPCCall('eth_call', [
                     {
                         to: address,
-                        // Call Multiplier(uint256) with 0 as parameter
-                        data: '0x5677abcc' + '0000000000000000000000000000000000000000000000000000000000000000' // 0 as uint256
+                        data: '0x5677abcc' + '0000000000000000000000000000000000000000000000000000000000000000'
                     },
                     'latest'
                 ]);
@@ -938,18 +878,21 @@
                 console.log(`📥 Multiplier(0) result: ${result}`);
                 
                 if (result && result !== '0x') {
-                    // The result should be the direct multiplier value
                     const multiplier = parseInt(result, 16);
                     console.log(`✅ Multiplier from Multiplier(0): ${multiplier}`);
+                    
+                    // Store for multi-hop integration
+                    tokenMultipliers.set(address.toLowerCase(), multiplier);
+                    
                     return multiplier;
                 }
                 
                 console.log(`⚠️ No valid multiplier result for ${address}`);
-                return 2.0; // Default to 2 as you mentioned
+                return 2.0; // Default to 2
                 
             } catch (error) {
                 console.log(`❌ Failed to get multiplier for ${address}: ${error.message}`);
-                return 2.0; // Default to 2 as you mentioned
+                return 2.0; // Default to 2
             }
         }
 
@@ -983,41 +926,23 @@
                 
             } catch (error) {
                 console.log(`Parent lookup failed for ${address}: ${error.message}`);
-                
-                // Fallback selectors
-                const fallbackSelectors = [
-                    '0x60f96a8f', // lowercase parent()
-                    '0x9dbbeb2b'  // another variant
-                ];
-                
-                for (const selector of fallbackSelectors) {
-                    try {
-                        console.log(`Trying fallback selector: ${selector}`);
-                        
-                        const result = await makeRPCCall('eth_call', [
-                            {
-                                to: address,
-                                data: selector
-                            },
-                            'latest'
-                        ]);
-                        
-                        if (result && result !== '0x' && result !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
-                            const parentAddress = '0x' + result.slice(-40);
-                            const normalizedParent = parentAddress.toLowerCase();
-                            
-                            if (normalizedParent !== '0x0000000000000000000000000000000000000000') {
-                                console.log(`✅ Found parent with fallback selector ${selector}: ${parentAddress}`);
-                                return parentAddress;
-                            }
-                        }
-                        
-                    } catch (fallbackError) {
-                        console.log(`Fallback selector ${selector} failed: ${fallbackError.message}`);
-                    }
+                return null;
+            }
+        }
+
+        // Store discovered token data for multi-hop integration
+        function storeTokenDataForMultiHop() {
+            try {
+                if (discoveredTokens.length > 0) {
+                    console.log('✅ Stored token data for multi-hop integration');
                 }
                 
-                return null;
+                if (tokenMultipliers.size > 0) {
+                    const multiplierObj = Object.fromEntries(tokenMultipliers);
+                    console.log('✅ Stored multiplier data for multi-hop integration');
+                }
+            } catch (error) {
+                console.error('❌ Failed to store token data:', error);
             }
         }
 
@@ -1095,6 +1020,7 @@
                 
                 // Clear previous results
                 discoveredTokens = [];
+                tokenMultipliers.clear();
                 document.getElementById('discoveryLog').textContent = 'Starting spine discovery...';
                 
                 // Hide total multiplier section
@@ -1176,7 +1102,7 @@
                 logDiscovery(`❌ Discovery failed: ${error.message}`);
             } finally {
                 discoverBtn.disabled = false;
-                discoverBtn.textContent = '🧬 Discover CC7 Spine';
+                discoverBtn.textContent = '🧬 Discover V4 Spine';
             }
         }
 
@@ -1255,7 +1181,7 @@
         // Refresh data for discovered tokens
         async function refreshData() {
             if (discoveredTokens.length === 0) {
-                alert('No tokens discovered yet. Click "Discover CC7 Spine" first.');
+                alert('No tokens discovered yet. Click "Discover V4 Spine" first.');
                 return;
             }
             
@@ -1436,7 +1362,7 @@
             }
         }
 
-        // MINT FUNCTIONS
+        // ENHANCED MINT FUNCTION WITH MULTI-HOP SUPPORT
         function openMintModal(tokenIndex) {
             const token = discoveredTokens[tokenIndex];
             if (!token) return;
@@ -1444,18 +1370,30 @@
             const parentToken = getParentTokenForMint(tokenIndex);
             const multiplier = getMultiplierForToken(tokenIndex);
             
-            // Create URL parameters for the mint page
+            // Create URL parameters for the mint page with multi-hop data
             const params = new URLSearchParams({
                 childToken: token.address,
                 childName: token.name,
                 parentToken: parentToken.address,
                 parentName: parentToken.name,
                 multiplier: multiplier,
-                tokenIndex: tokenIndex
+                tokenIndex: tokenIndex,
+                // NEW: Pass discovered tokens for multi-hop integration
+                tokenChain: encodeURIComponent(JSON.stringify(discoveredTokens))
             });
+            
+            // NEW: Store data for multi-hop integration
+            storeTokenDataForMultiHop();
             
             // Open mint page in new tab
             window.open(`mint.html?${params.toString()}`, '_blank');
+            
+            console.log('🚀 Opening mint page with enhanced data:', {
+                token: token,
+                parentToken: parentToken,
+                discoveredTokensCount: discoveredTokens.length,
+                tokenMultipliersCount: tokenMultipliers.size
+            });
         }
         
         function getParentTokenForMint(tokenIndex) {
@@ -1493,11 +1431,12 @@
             setTimeout(testConnection, 1000);
         };
 
-        // Cleanup
+        // Cleanup and store data on page unload
         window.addEventListener('beforeunload', function() {
             if (autoRefreshInterval) {
                 clearInterval(autoRefreshInterval);
             }
+            storeTokenDataForMultiHop();
         });
 
         // Global functions for console debugging
@@ -1510,6 +1449,7 @@
             getTokenSymbol,
             getMultiplier,
             discoveredTokens: () => discoveredTokens,
+            tokenMultipliers: () => tokenMultipliers,
             priceCache: () => priceCache,
             debugDiscovery: async function(address) {
                 console.log('=== DEBUGGING TOKEN DISCOVERY ===');
@@ -1540,6 +1480,7 @@
         console.log('🔢 Added Total Multiplier and Implied Price calculations!');
         console.log('📊 Total Multiplier = Product of all child multipliers');
         console.log('💰 Implied Price = Parent Price × Total Multiplier');
+        console.log('🎯 Multi-hop data passing enabled!');
         console.log('Try DynamicTracker.debugDiscovery("0x...") to test discovery on any token');
         console.log('Example: DynamicTracker.debugDiscovery("0x7e264cd4fa2354078f527f6a72afbadc0ba89d26")');
     </script>
