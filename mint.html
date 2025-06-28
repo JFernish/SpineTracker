@@ -1409,10 +1409,32 @@
             console.log('✅ Approval transaction:', tx.transactionHash);
             showStatus(`✅ Approval successful! TX: ${tx.transactionHash.slice(0, 10)}...`, 'success');
             
-            // Move to step 2 and update approval status
-            isApprovalSufficient = true;
-            currentMintStep = 2;
-            updateStepUI();
+            // Wait for transaction confirmation and then update UI
+            actionBtn.textContent = 'Waiting for confirmation...';
+            
+            try {
+                // Wait for transaction receipt (confirmation)
+                const receipt = await web3.eth.getTransactionReceipt(tx.transactionHash);
+                if (receipt && receipt.status) {
+                    console.log('✅ Approval transaction confirmed');
+                    
+                    // Update approval status and UI immediately after confirmation
+                    isApprovalSufficient = true;
+                    currentMintStep = 2;
+                    updateStepUI();
+                    
+                    showStatus(`✅ Approval confirmed! You can now mint.`, 'success');
+                } else {
+                    console.log('❌ Approval transaction failed');
+                    showStatus('❌ Approval transaction failed', 'error');
+                }
+            } catch (error) {
+                console.error('❌ Error waiting for approval confirmation:', error);
+                // Fallback: still update UI even if we can't get receipt
+                isApprovalSufficient = true;
+                currentMintStep = 2;
+                updateStepUI();
+            }
         }
 
         // Mint child token
