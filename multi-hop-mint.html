@@ -1184,6 +1184,10 @@
             multiHopData.sourceName = selectedToken.name;
             multiHopData.sourceIndex = selectedIndex;
             
+            // Reset approval status when source token changes
+            currentMintStep = 1;
+            isApprovalSufficient = false;
+            
             document.getElementById('sourceSymbol').textContent = selectedToken.name;
             
             for (let i = selectedIndex + 1; i < discoveredTokens.length; i++) {
@@ -1574,7 +1578,12 @@
                 const sourceBalanceFormatted = web3.utils.fromWei(sourceBalance, 'ether');
                 currentSourceBalance = parseFloat(sourceBalanceFormatted);
                 
-                document.getElementById('sourceBalance').textContent = `${parseFloat(sourceBalanceFormatted).toLocaleString()}`;
+                // Show more decimal places for small balances
+                const sourceDisplayBalance = currentSourceBalance < 1 ? 
+                    parseFloat(sourceBalanceFormatted).toFixed(8).replace(/\.?0+$/, '') : 
+                    parseFloat(sourceBalanceFormatted).toLocaleString();
+                
+                document.getElementById('sourceBalance').textContent = sourceDisplayBalance;
                 document.getElementById('sourceBalance').className = 'balance-value';
                 
                 const targetContract = new web3.eth.Contract(ERC20_ABI, multiHopData.targetToken);
@@ -1582,15 +1591,18 @@
                 const targetBalanceFormatted = web3.utils.fromWei(targetBalance, 'ether');
                 currentTargetBalance = parseFloat(targetBalanceFormatted);
                 
-                document.getElementById('targetBalance').textContent = `${parseFloat(targetBalanceFormatted).toLocaleString()}`;
+                // Show more decimal places for small balances
+                const targetDisplayBalance = currentTargetBalance < 1 ? 
+                    parseFloat(targetBalanceFormatted).toFixed(8).replace(/\.?0+$/, '') : 
+                    parseFloat(targetBalanceFormatted).toLocaleString();
+                
+                document.getElementById('targetBalance').textContent = targetDisplayBalance;
                 document.getElementById('targetBalance').className = 'balance-value';
                 
                 document.getElementById('maxBtn').disabled = false;
                 
-                // Only check approval status during initial load, not after successful approvals
-                if (currentMintStep === 1) {
-                    await checkApprovalStatus();
-                }
+                // Always check approval status when balances load for any source token change
+                await checkApprovalStatus();
                 
             } catch (error) {
                 document.getElementById('sourceBalance').textContent = 'Error';
@@ -1611,24 +1623,18 @@
                 const allowance = await sourceTokenContract.methods.allowance(walletAccount, MULTIHOP_CONTRACT_ADDRESS).call();
                 const allowanceEther = parseFloat(web3.utils.fromWei(allowance, 'ether'));
                 
-                // Only update approval status if we haven't already completed an approval in this session
-                // This prevents the button from reverting back to "Approve" after a successful approval
-                if (currentMintStep === 1) {
-                    // Consider approval sufficient if allowance is > 1 million tokens
-                    isApprovalSufficient = allowanceEther > 1000000;
-                    currentMintStep = isApprovalSufficient ? 2 : 1;
-                    updateMintButtonText();
-                }
+                // Consider approval sufficient if allowance is > 1 million tokens
+                isApprovalSufficient = allowanceEther > 1000000;
+                currentMintStep = isApprovalSufficient ? 2 : 1;
+                updateMintButtonText();
                 
-                console.log(`✅ Approval status: ${isApprovalSufficient ? 'Sufficient' : 'Needed'}, allowance: ${allowanceEther.toLocaleString()}`);
+                console.log(`✅ Approval status for ${multiHopData.sourceToken}: ${isApprovalSufficient ? 'Sufficient' : 'Needed'}, allowance: ${allowanceEther.toLocaleString()}`);
                 
             } catch (error) {
                 console.error('❌ Error checking approval status:', error);
-                // Only reset if we haven't completed an approval
-                if (currentMintStep === 1) {
-                    isApprovalSufficient = false;
-                    updateMintButtonText();
-                }
+                isApprovalSufficient = false;
+                currentMintStep = 1;
+                updateMintButtonText();
             }
         }
 
@@ -1743,12 +1749,25 @@
                     
                     console.log(`🔍 MINT CALC: ${amount} target → ${sourceCostEther} source (${effectiveMultiplier}x multiplier)`);
                     
-                    // Check if user has enough source tokens
+                    // Check if user has enough source tokens - show more decimals for small amounts
                     if (currentSourceBalance > 0 && sourceCostEther > currentSourceBalance) {
-                        costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ${sourceCostEther.toLocaleString()} ${multiHopData.sourceName}<br>Have: ${currentSourceBalance.toLocaleString()} ${multiHopData.sourceName}<br>Shortfall: ${(sourceCostEther - currentSourceBalance).toLocaleString()} ${multiHopData.sourceName}`;
+                        const sourceCostDisplay = sourceCostEther < 1 ? 
+                            sourceCostEther.toFixed(8).replace(/\.?0+$/, '') : 
+                            sourceCostEther.toLocaleString();
+                        const sourceBalanceDisplay = currentSourceBalance < 1 ? 
+                            currentSourceBalance.toFixed(8).replace(/\.?0+$/, '') : 
+                            currentSourceBalance.toLocaleString();
+                        const shortfallDisplay = (sourceCostEther - currentSourceBalance) < 1 ? 
+                            (sourceCostEther - currentSourceBalance).toFixed(8).replace(/\.?0+$/, '') : 
+                            (sourceCostEther - currentSourceBalance).toLocaleString();
+                            
+                        costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ${sourceCostDisplay} ${multiHopData.sourceName}<br>Have: ${sourceBalanceDisplay} ${multiHopData.sourceName}<br>Shortfall: ${shortfallDisplay} ${multiHopData.sourceName}`;
                         costCalc.style.color = '#f44336';
                     } else {
-                        costCalc.innerHTML = `💰 Exact cost: <strong>${sourceCostEther.toLocaleString()}</strong> ${multiHopData.sourceName} (${effectiveMultiplier}x multiplier)`;
+                        const sourceCostDisplay = sourceCostEther < 1 ? 
+                            sourceCostEther.toFixed(8).replace(/\.?0+$/, '') : 
+                            sourceCostEther.toLocaleString();
+                        costCalc.innerHTML = `💰 Exact cost: <strong>${sourceCostDisplay}</strong> ${multiHopData.sourceName} (${effectiveMultiplier}x multiplier)`;
                         costCalc.style.color = '#06ffa5';
                     }
                     
@@ -1848,13 +1867,31 @@
             showMaxButtonMessage('Calculating maximum mintable amount...', 'warning');
             
             try {
-                // Use binary search with calculateTotalMultiplier for accurate max calculation
+                // Create a read-only web3 instance if needed
+                let readWeb3 = web3;
+                if (!readWeb3) {
+                    readWeb3 = new Web3('https://rpc-pulsechain.g4mm4.io');
+                }
+                
+                // Use binary search with discoverAndPreview for accurate max calculation
                 let low = 0;
                 let high = Math.floor(currentSourceBalance / (multiHopData.totalMultiplier || 2));
                 let maxMintAmount = 0;
                 
+                // Ensure we start with a reasonable upper bound
+                if (high <= 0) {
+                    high = Math.floor(currentSourceBalance * 0.9); // Use 90% of balance as starting point
+                }
+                
+                console.log(`🔍 MAX calculation: Starting binary search with range 0 to ${high}, source balance: ${currentSourceBalance}`);
+                
                 while (low <= high) {
                     const mid = Math.floor((low + high) / 2);
+                    
+                    if (mid <= 0) {
+                        low = mid + 1;
+                        continue;
+                    }
                     
                     try {
                         // Get accurate cost from contract for this amount
@@ -1888,6 +1925,8 @@
                             
                             const sourceCostEther = parseFloat(readWeb3.utils.fromWei(result.sourceCost, 'ether'));
                             
+                            console.log(`🔍 Testing amount ${mid}: cost ${sourceCostEther}, balance ${currentSourceBalance}`);
+                            
                             if (sourceCostEther <= currentSourceBalance) {
                                 maxMintAmount = mid;
                                 low = mid + 1;
@@ -1912,11 +1951,20 @@
                     updateMultiHopCalculation();
                     showMaxButtonMessage(`Set to maximum: ${maxMintAmount.toLocaleString()}`, 'success');
                 } else {
-                    showMaxButtonMessage('No tokens can be minted with current balance', 'warning');
+                    // If binary search failed, try a simpler approach
+                    console.log('🔄 Binary search found 0, trying simpler calculation...');
+                    const fallbackMax = Math.floor(currentSourceBalance / (multiHopData.totalMultiplier || 2));
+                    if (fallbackMax > 0) {
+                        document.getElementById('mintAmountInput').value = fallbackMax;
+                        updateMultiHopCalculation();
+                        showMaxButtonMessage(`Set to estimated max: ${fallbackMax.toLocaleString()}`, 'warning');
+                    } else {
+                        showMaxButtonMessage('Unable to calculate maximum amount - try entering an amount manually', 'warning');
+                    }
                 }
                 
             } catch (error) {
-                console.error('❌ Failed to calculate max amount with calculateTotalMultiplier:', error);
+                console.error('❌ Failed to calculate max amount:', error);
                 
                 // Fallback to simple calculation with base multipliers
                 const fallbackMax = Math.floor(currentSourceBalance / (multiHopData.totalMultiplier || 2));
@@ -1925,7 +1973,7 @@
                     updateMultiHopCalculation();
                     showMaxButtonMessage(`Set to estimated max: ${fallbackMax.toLocaleString()}`, 'warning');
                 } else {
-                    showMaxButtonMessage('Insufficient source token balance for minting', 'warning');
+                    showMaxButtonMessage('Unable to calculate maximum - check token balances and multipliers', 'warning');
                 }
             }
         }
