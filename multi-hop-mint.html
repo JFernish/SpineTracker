@@ -1365,7 +1365,42 @@
         }
 
         function refreshChainData() {
-            parseUrlParams();
+            console.log('🔄 Refreshing current path data...');
+            
+            // Check if we have a current path selected
+            if (multiHopData.sourceIndex !== -1 && multiHopData.targetIndex !== -1) {
+                showStatus('🔄 Refreshing path multipliers and costs...', 'warning');
+                
+                // Re-fetch multipliers for current path
+                setTimeout(async () => {
+                    try {
+                        const foundNew = await fetchMultipliersForPath(multiHopData.sourceIndex, multiHopData.targetIndex);
+                        
+                        // Refresh the hop details display
+                        showHopDetails();
+                        
+                        // Update costs in mint section
+                        updateMultiHopCalculation();
+                        
+                        // Re-check approval status if wallet connected
+                        if (isWalletConnected) {
+                            await checkApprovalStatus();
+                        }
+                        
+                        showStatus('✅ Path data refreshed successfully!', 'success');
+                        
+                    } catch (error) {
+                        console.error('❌ Error refreshing path data:', error);
+                        showStatus('❌ Failed to refresh path data. Try again.', 'error');
+                    }
+                }, 100);
+                
+            } else {
+                // Fallback to original behavior if no path selected
+                console.log('🔄 No path selected, reloading token data...');
+                parseUrlParams();
+                showStatus('✅ Token data reloaded!', 'success');
+            }
         }
 
         function goToDirectMint() {
@@ -1666,13 +1701,27 @@
                     
                 } catch (error) {
                     console.error('❌ Error calculating cost with discoverAndPreview:', error);
-                    // Fallback to estimated cost
-                    if (currentSourceBalance > 0 && estimatedCost > currentSourceBalance) {
-                        costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ~${estimatedCost.toLocaleString()} ${multiHopData.sourceName}<br>Have: ${currentSourceBalance.toLocaleString()} ${multiHopData.sourceName}<br>Shortfall: ~${(estimatedCost - currentSourceBalance).toLocaleString()} ${multiHopData.sourceName}`;
-                        costCalc.style.color = '#f44336';
+                    
+                    // Handle specific RPC/contract errors gracefully
+                    if (error.message.includes('execution reverted') || error.message.includes('RPC Request failed')) {
+                        console.log('🔄 Contract call failed, likely invalid path. Using fallback estimation.');
+                        // Show fallback with warning
+                        if (currentSourceBalance > 0 && estimatedCost > currentSourceBalance) {
+                            costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ~${estimatedCost.toLocaleString()} ${multiHopData.sourceName}<br>Have: ${currentSourceBalance.toLocaleString()} ${multiHopData.sourceName}<br><em>⚠️ Unable to get exact cost - using estimate</em>`;
+                            costCalc.style.color = '#f44336';
+                        } else {
+                            costCalc.innerHTML = `💰 Estimated cost: <strong>${estimatedCost.toLocaleString()}</strong> ${multiHopData.sourceName} (${multiHopData.totalMultiplier || 1}x base multiplier)<br><em>⚠️ Unable to get exact cost from contract</em>`;
+                            costCalc.style.color = '#ffc107';
+                        }
                     } else {
-                        costCalc.innerHTML = `💰 Estimated cost: <strong>${estimatedCost.toLocaleString()}</strong> ${multiHopData.sourceName} (${multiHopData.totalMultiplier || 1}x base multiplier)`;
-                        costCalc.style.color = '#06ffa5';
+                        // For other errors, show generic fallback
+                        if (currentSourceBalance > 0 && estimatedCost > currentSourceBalance) {
+                            costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ~${estimatedCost.toLocaleString()} ${multiHopData.sourceName}<br>Have: ${currentSourceBalance.toLocaleString()} ${multiHopData.sourceName}<br>Shortfall: ~${(estimatedCost - currentSourceBalance).toLocaleString()} ${multiHopData.sourceName}`;
+                            costCalc.style.color = '#f44336';
+                        } else {
+                            costCalc.innerHTML = `💰 Estimated cost: <strong>${estimatedCost.toLocaleString()}</strong> ${multiHopData.sourceName} (${multiHopData.totalMultiplier || 1}x base multiplier)`;
+                            costCalc.style.color = '#06ffa5';
+                        }
                     }
                 }
             }, 100);
