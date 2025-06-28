@@ -297,6 +297,17 @@
             font-size: 1rem;
             transition: all 0.3s ease;
         }
+
+        /* Remove up/down arrows from number input */
+        .form-group input[type="number"]::-webkit-outer-spin-button,
+        .form-group input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .form-group input[type="number"] {
+            -moz-appearance: textfield;
+        }
        
         .form-group input:focus {
             outline: none;
@@ -1283,7 +1294,7 @@
             document.getElementById('costCalculation').innerHTML = `✅ <strong>Mint Complete!</strong> Minted ${amount} ${tokenData.childName}`;
         }
 
-        // Set max amount based on parent balance and current multiplier
+        // Set max amount based on parent balance and current multiplier with progressive testing
         async function setMaxAmount() {
             if (!multiplierLoaded) {
                 showStatus('❌ Cannot calculate max without multiplier data', 'error');
@@ -1298,49 +1309,88 @@
             showStatus('Calculating maximum mintable amount...', 'warning');
             
             try {
-                // Use binary search to find the maximum amount that can be minted
-                let low = 0;
-                let high = Math.floor(currentParentBalance / currentMultiplier);
-                let maxMintAmount = 0;
+                const originalMultiplier = currentMultiplier; // Store the original multiplier
                 
-                // Binary search for the maximum amount (accounting for dynamic multiplier)
-                while (low <= high) {
-                    const mid = Math.floor((low + high) / 2);
+                // Convert balance to wei for precision, then back to ether
+                const balanceWei = web3.utils.toWei(currentParentBalance.toString(), 'ether');
+                const balanceMinusOneWei = web3.utils.toBN(balanceWei).sub(web3.utils.toBN('1'));
+                const adjustedBalance = parseFloat(web3.utils.fromWei(balanceMinusOneWei, 'ether'));
+                
+                // Start with wallet amount divided by current multiplier, minus 1 wei equivalent
+                let testAmount = Math.floor(adjustedBalance / currentMultiplier);
+                
+                console.log(`🧮 Testing max amount calculation:`);
+                console.log(`Balance: ${currentParentBalance}, Original Multiplier: ${originalMultiplier}`);
+                console.log(`Starting test amount: ${testAmount}`);
+                
+                // Test the initial amount
+                try {
+                    const requiredMultiplier = await getAdvancedMultiplier(testAmount);
+                    const requiredParent = testAmount * requiredMultiplier;
+                    
+                    console.log(`Initial test - Amount: ${testAmount}, Multiplier: ${requiredMultiplier}, Required: ${requiredParent}`);
+                    
+                    if (requiredParent <= currentParentBalance) {
+                        // Success with initial calculation
+                        document.getElementById('mintAmountInput').value = testAmount;
+                        await updateCostCalculation();
+                        showStatus(`Set to maximum mintable amount: ${testAmount.toLocaleString()}`, 'success');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('❌ Error testing initial amount:', error);
+                }
+                
+                // If initial amount failed, try progressively smaller percentages
+                const testPercentages = [99, 98, 97];
+                
+                for (const percentage of testPercentages) {
+                    const percentageAmount = Math.floor((currentParentBalance * percentage / 100) / originalMultiplier);
+                    
+                    if (percentageAmount <= 0) continue;
                     
                     try {
-                        const requiredMultiplier = await getAdvancedMultiplier(mid);
-                        const requiredParent = mid * requiredMultiplier;
+                        const requiredMultiplier = await getAdvancedMultiplier(percentageAmount);
+                        const requiredParent = percentageAmount * requiredMultiplier;
+                        
+                        console.log(`${percentage}% test - Amount: ${percentageAmount}, Multiplier: ${requiredMultiplier}, Required: ${requiredParent}`);
                         
                         if (requiredParent <= currentParentBalance) {
-                            maxMintAmount = mid;
-                            low = mid + 1;
-                        } else {
-                            high = mid - 1;
+                            // Success with percentage calculation
+                            document.getElementById('mintAmountInput').value = percentageAmount;
+                            await updateCostCalculation();
+                            showStatus(`Set to maximum mintable amount: ${percentageAmount.toLocaleString()} (${percentage}% of optimal)`, 'success');
+                            return;
                         }
                     } catch (error) {
-                        console.error('❌ Error in binary search:', error);
-                        high = mid - 1;
+                        console.error(`❌ Error testing ${percentage}% amount:`, error);
+                        continue;
                     }
                 }
                 
-                if (maxMintAmount > 0) {
-                    document.getElementById('mintAmountInput').value = maxMintAmount;
-                    await updateCostCalculation();
-                    showStatus(`Set to maximum mintable amount: ${maxMintAmount.toLocaleString()}`, 'success');
-                } else {
-                    showStatus('No tokens can be minted with current balance', 'warning');
-                }
+                // If none of the percentages worked, show the warning message
+                const suggestedAmount = Math.floor(currentParentBalance / originalMultiplier);
+                const message = `Max mint amount will cause a significant increase in multipliers. Try starting with ${suggestedAmount.toLocaleString()} amount based on original multiplier and gradually reduce.`;
+                
+                showStatus(message, 'warning');
+                
+                // Set the suggested amount as a starting point
+                document.getElementById('mintAmountInput').value = suggestedAmount;
+                await updateCostCalculation();
+                
+                console.log(`⚠️ All percentage tests failed. Suggested starting amount: ${suggestedAmount}`);
                 
             } catch (error) {
                 console.error('❌ Failed to calculate max amount:', error);
-                // Fallback to simple calculation
+                
+                // Ultimate fallback
                 const fallbackMax = Math.floor(currentParentBalance / currentMultiplier);
                 if (fallbackMax > 0) {
                     document.getElementById('mintAmountInput').value = fallbackMax;
                     await updateCostCalculation();
                     showStatus(`Set to estimated max amount: ${fallbackMax.toLocaleString()} (fallback calculation)`, 'warning');
                 } else {
-                    showStatus('Insufficient parent token balance for minting', 'warning');
+                    showStatus('Unable to calculate maximum mintable amount', 'error');
                 }
             }
         }
