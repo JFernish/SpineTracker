@@ -1891,29 +1891,59 @@
         async function handleOptimizedMultiHopMint() {
             const mintBtn = document.getElementById('multiHopMintBtn');
             const originalText = mintBtn.textContent;
+            const costCalc = document.getElementById('costCalculation');
             
             try {
                 const amount = parseFloat(document.getElementById('mintAmountInput').value);
                 if (!amount || amount <= 0) {
-                    throw new Error('Please enter a valid amount');
+                    costCalc.innerHTML = '❌ Please enter a valid amount';
+                    costCalc.style.color = '#f44336';
+                    return;
                 }
                 
                 if (!isWalletConnected || !multiHopContract) {
-                    throw new Error('Wallet not connected');
+                    costCalc.innerHTML = '❌ Wallet not connected';
+                    costCalc.style.color = '#f44336';
+                    return;
                 }
                 
                 if (multiHopData.fullChainPath.length < 2) {
-                    throw new Error('Invalid chain path - need at least source and target');
+                    costCalc.innerHTML = '❌ Invalid chain path - need at least source and target';
+                    costCalc.style.color = '#f44336';
+                    return;
                 }
                 
-                const estimatedCost = amount * multiHopData.totalMultiplier;
+                const estimatedCost = amount * (multiHopData.totalMultiplier || 1);
                 if (currentSourceBalance > 0 && estimatedCost > currentSourceBalance) {
-                    throw new Error(`Insufficient ${multiHopData.sourceName} balance! Need ${estimatedCost.toLocaleString()}, but you only have ${currentSourceBalance.toLocaleString()}.`);
+                    costCalc.innerHTML = `❌ Insufficient ${multiHopData.sourceName} balance! Need ${estimatedCost.toLocaleString()}, but you only have ${currentSourceBalance.toLocaleString()}.`;
+                    costCalc.style.color = '#f44336';
+                    return;
                 }
                 
                 mintBtn.disabled = true;
                 
-                const targetAmountWei = web3.utils.toWei(amount.toString(), 'ether');
+                // Convert amount properly to avoid scientific notation
+                let targetAmountWei;
+                try {
+                    let amountStr;
+                    if (amount.toString().includes('e')) {
+                        // Handle scientific notation like 1e-9
+                        amountStr = amount.toFixed(20).replace(/\.?0+$/, '');
+                    } else if (amount < 1) {
+                        amountStr = amount.toFixed(18).replace(/\.?0+$/, '');
+                    } else {
+                        amountStr = amount.toString();
+                    }
+                    
+                    console.log(`🔍 APPROVAL AMOUNT CONVERSION: ${amount} → "${amountStr}"`);
+                    targetAmountWei = web3.utils.toWei(amountStr, 'ether');
+                } catch (conversionError) {
+                    console.error('❌ Amount conversion error in approval:', conversionError);
+                    costCalc.innerHTML = `❌ Invalid amount format: ${amount}`;
+                    costCalc.style.color = '#f44336';
+                    return;
+                }
+                
                 const chainPathExcludingSource = multiHopData.fullChainPath.slice(1);
                 
                 // Get the exact cost from contract
@@ -1931,14 +1961,16 @@
                 if (currentMintStep === 1) {
                     // Step 1: Approve
                     mintBtn.textContent = '📝 Requesting approval...';
-                    showStatus(`Approving ${multiHopData.sourceName} for multi-hop minting...`, 'warning');
+                    costCalc.innerHTML = `Approving ${multiHopData.sourceName} for multi-hop minting...`;
+                    costCalc.style.color = '#ffc107';
                     
                     const approveTx = await sourceTokenContract.methods
                         .approve(MULTIHOP_CONTRACT_ADDRESS, sourceCostWei)
                         .send({ from: walletAccount });
                     
                     console.log('✅ Approval transaction:', approveTx.transactionHash);
-                    showStatus('✅ Approval successful! You can now mint.', 'success');
+                    costCalc.innerHTML = '✅ Approval successful! You can now mint.';
+                    costCalc.style.color = '#06ffa5';
                     
                     // Update to step 2
                     isApprovalSufficient = true;
@@ -1955,17 +1987,21 @@
                     const userBalanceEther = web3.utils.fromWei(userBalance, 'ether');
                     
                     if (web3.utils.toBN(userBalance).lt(web3.utils.toBN(sourceCostWei))) {
-                        throw new Error(`Insufficient ${multiHopData.sourceName} balance. Need: ${sourceCostEther}, Have: ${userBalanceEther}`);
+                        costCalc.innerHTML = `❌ Insufficient ${multiHopData.sourceName} balance. Need: ${sourceCostEther}, Have: ${userBalanceEther}`;
+                        costCalc.style.color = '#f44336';
+                        return;
                     }
                     
                     mintBtn.textContent = '⚡ Executing mint...';
-                    showStatus('Executing optimized multi-hop mint...', 'warning');
+                    costCalc.innerHTML = 'Executing optimized multi-hop mint...';
+                    costCalc.style.color = '#ffc107';
                     
                     const mintTx = await multiHopContract.methods
                         .multiHopMintOptimized(targetAmountWei, multiHopData.fullChainPath)
                         .send({ from: walletAccount });
                     
-                    showStatus(`✅ Multi-hop mint successful! TX: ${mintTx.transactionHash.slice(0, 10)}...`, 'success');
+                    costCalc.innerHTML = `✅ Multi-hop mint successful! TX: ${mintTx.transactionHash.slice(0, 10)}...`;
+                    costCalc.style.color = '#06ffa5';
                     
                     document.getElementById('costCalculation').innerHTML = `✅ <strong>Mint Complete!</strong><br>
                         Minted: ${amount} ${multiHopData.targetName}<br>
@@ -1986,7 +2022,8 @@
                     errorMessage = 'Insufficient funds for gas';
                 }
                 
-                showStatus(`❌ ${currentMintStep === 1 ? 'Approval' : 'Mint'} failed: ${errorMessage}`, 'error');
+                costCalc.innerHTML = `❌ ${currentMintStep === 1 ? 'Approval' : 'Mint'} failed: ${errorMessage}`;
+                costCalc.style.color = '#f44336';
             } finally {
                 mintBtn.disabled = false;
                 mintBtn.textContent = originalText;
