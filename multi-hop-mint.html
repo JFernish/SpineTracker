@@ -593,6 +593,9 @@
                 <button class="back-btn" onclick="goToMainWebsite()">
                     ← Token Tracker
                 </button>
+                <button class="back-btn" onclick="fetchMissingMultipliers()" id="fetchMultipliersBtn" style="background: rgba(255, 193, 7, 0.2); border-color: rgba(255, 193, 7, 0.3); color: #ffc107;">
+                    🔍 Fetch Multipliers
+                </button>
             </div>
         </div>
 
@@ -624,8 +627,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
     <script>
-        // Contract configuration
-        const MULTIHOP_CONTRACT_ADDRESS = '0xFD17eBc0B90dcfa51f3eE9b377Ff0b14a8dC9C2C';
+        // Updated MULTIHOP_CONTRACT_ABI with the full ABI including getMultiplier
         const MULTIHOP_CONTRACT_ABI = [
             {"type":"constructor","inputs":[],"stateMutability":"nonpayable"},
             {"type":"receive","stateMutability":"payable"},
@@ -633,6 +635,10 @@
             {"type":"function","name":"contractEnabled","inputs":[],"outputs":[{"name":"","type":"bool","internalType":"bool"}],"stateMutability":"view"},
             {"type":"function","name":"multiHopMintOptimized","inputs":[{"name":"targetAmount","type":"uint256","internalType":"uint256"},{"name":"fullChainPath","type":"address[]","internalType":"address[]"}],"outputs":[{"name":"sourceCost","type":"uint256","internalType":"uint256"}],"stateMutability":"nonpayable"},
             {"type":"function","name":"previewMultiHopMintOptimized","inputs":[{"name":"targetAmount","type":"uint256","internalType":"uint256"},{"name":"chainPath","type":"address[]","internalType":"address[]"}],"outputs":[{"name":"sourceCost","type":"uint256","internalType":"uint256"},{"name":"steps","type":"tuple[]","internalType":"struct MultiHopMinter.MintStep[]","components":[{"name":"token","type":"address","internalType":"address"},{"name":"amountToMint","type":"uint256","internalType":"uint256"},{"name":"parentCost","type":"uint256","internalType":"uint256"},{"name":"multiplier","type":"uint256","internalType":"uint256"}]}],"stateMutability":"view"},
+            {"type":"function","name":"getMultiplier","inputs":[{"name":"token","type":"address","internalType":"address"},{"name":"amount","type":"uint256","internalType":"uint256"}],"outputs":[{"name":"multiplier","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},
+            {"type":"function","name":"getChainInfo","inputs":[{"name":"sourceToken","type":"address","internalType":"address"},{"name":"targetToken","type":"address","internalType":"address"},{"name":"amount","type":"uint256","internalType":"uint256"}],"outputs":[{"name":"mintingChain","type":"address[]","internalType":"address[]"},{"name":"multipliers","type":"uint256[]","internalType":"uint256[]"},{"name":"totalCost","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},
+            {"type":"function","name":"discoverAndPreview","inputs":[{"name":"sourceToken","type":"address","internalType":"address"},{"name":"targetToken","type":"address","internalType":"address"},{"name":"targetAmount","type":"uint256","internalType":"uint256"}],"outputs":[{"name":"chainPath","type":"address[]","internalType":"address[]"},{"name":"sourceCost","type":"uint256","internalType":"uint256"},{"name":"steps","type":"tuple[]","internalType":"struct MultiHopMinter.MintStep[]","components":[{"name":"token","type":"address","internalType":"address"},{"name":"amountToMint","type":"uint256","internalType":"uint256"},{"name":"parentCost","type":"uint256","internalType":"uint256"},{"name":"multiplier","type":"uint256","internalType":"uint256"}]}],"stateMutability":"view"},
+            {"type":"function","name":"calculateTotalMultiplier","inputs":[{"name":"sourceToken","type":"address","internalType":"address"},{"name":"targetToken","type":"address","internalType":"address"},{"name":"targetAmount","type":"uint256","internalType":"uint256"}],"outputs":[{"name":"totalMultiplier","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},
             {"type":"event","name":"MultiHopMint","inputs":[{"name":"user","type":"address","indexed":true,"internalType":"address"},{"name":"sourceToken","type":"address","indexed":true,"internalType":"address"},{"name":"targetToken","type":"address","indexed":true,"internalType":"address"},{"name":"targetAmount","type":"uint256","indexed":false,"internalType":"uint256"},{"name":"sourceCost","type":"uint256","indexed":false,"internalType":"uint256"},{"name":"stepsCount","type":"uint256","indexed":false,"internalType":"uint256"}],"anonymous":false}
         ];
 
@@ -642,6 +648,9 @@
             {"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
             {"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"}
         ];
+
+        // Contract configuration
+        const MULTIHOP_CONTRACT_ADDRESS = '0xFD17eBc0B90dcfa51f3eE9b377Ff0b14a8dC9C2C';
 
         // Multi-hop state management
         let discoveredTokens = [];
@@ -662,6 +671,186 @@
         // Session storage for wallet persistence
         const WALLET_SESSION_KEY = 'walletConnected';
         
+        // Get total multiplier for source->target path using hopper contract
+        async function getTotalMultiplierFromContract(sourceToken, targetToken, targetAmount) {
+            try {
+                // Create a read-only web3 instance if needed
+                let readWeb3 = web3;
+                if (!readWeb3) {
+                    readWeb3 = new Web3('https://rpc-pulsechain.g4mm4.io');
+                }
+                
+                const hopContract = new readWeb3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
+                const targetAmountWei = readWeb3.utils.toWei(targetAmount.toString(), 'ether');
+                
+                const totalMultiplier = await hopContract.methods
+                    .calculateTotalMultiplier(sourceToken, targetToken, targetAmountWei)
+                    .call();
+                
+                console.log(`🔢 Total multiplier from contract for ${targetAmount} tokens: ${totalMultiplier}x`);
+                return parseInt(totalMultiplier);
+                
+            } catch (error) {
+                console.error(`❌ Failed to get total multiplier from contract:`, error);
+                return null;
+            }
+        }
+
+        // Get amount-aware multiplier using multi-hop contract (like direct mint page)
+        async function getAmountAwareMultiplier(tokenAddress, amount) {
+            try {
+                // Create a read-only web3 instance if needed
+                let readWeb3 = web3;
+                if (!readWeb3) {
+                    readWeb3 = new Web3('https://rpc-pulsechain.g4mm4.io');
+                }
+                
+                // Create multi-hop contract instance
+                const hopContract = new readWeb3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
+                const amountWei = readWeb3.utils.toWei(amount.toString(), 'ether');
+                
+                const multiplier = await hopContract.methods.getMultiplier(tokenAddress, amountWei).call();
+                
+                console.log(`🔢 Amount-aware multiplier for ${tokenAddress} with ${amount} tokens: ${multiplier}x`);
+                return parseInt(multiplier);
+                
+            } catch (error) {
+                console.error(`❌ Failed to get amount-aware multiplier for ${tokenAddress}:`, error);
+                return null;
+            }
+        }
+
+        // Get base multiplier from contract (for display purposes, using 0 amount)
+        async function getBaseMultiplier(tokenAddress) {
+            return await getAmountAwareMultiplier(tokenAddress, 0);
+        }
+
+        // Calculate accurate cost using contract preview (most accurate method)
+        async function getAccurateCostFromContract(sourceToken, targetToken, targetAmount) {
+            if (!sourceToken || !targetToken || !targetAmount || targetAmount <= 0) {
+                return null;
+            }
+            
+            try {
+                // Create a read-only web3 instance if needed
+                let readWeb3 = web3;
+                if (!readWeb3) {
+                    readWeb3 = new Web3('https://rpc-pulsechain.g4mm4.io');
+                }
+                
+                const hopContract = new readWeb3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
+                const targetAmountWei = readWeb3.utils.toWei(targetAmount.toString(), 'ether');
+                
+                // Use discoverAndPreview for most accurate cost calculation
+                const result = await hopContract.methods
+                    .discoverAndPreview(sourceToken, targetToken, targetAmountWei)
+                    .call();
+                
+                const sourceCostEther = readWeb3.utils.fromWei(result.sourceCost, 'ether');
+                
+                console.log(`💰 Accurate cost from contract: ${sourceCostEther} source tokens for ${targetAmount} target tokens`);
+                return parseFloat(sourceCostEther);
+                
+            } catch (error) {
+                console.error(`❌ Failed to get accurate cost from contract:`, error);
+                return null;
+            }
+        }
+
+        // Fetch multipliers for a specific hop path (optimized for dropdown changes)
+        async function fetchMultipliersForPath(startIndex, endIndex) {
+            if (startIndex === -1 || endIndex === -1 || startIndex >= endIndex) {
+                return;
+            }
+            
+            console.log(`🔍 Fetching base multipliers for path from index ${startIndex} to ${endIndex}...`);
+            let foundMultipliers = 0;
+            
+            // Only fetch base multipliers for tokens in the selected path (for display)
+            for (let i = startIndex + 1; i <= endIndex; i++) {
+                const token = discoveredTokens[i];
+                const addressKey = token.address.toLowerCase();
+                
+                // Skip if we already have this multiplier
+                if (tokenMultipliers[addressKey] && tokenMultipliers[addressKey] > 1) {
+                    console.log(`✅ Already have multiplier for ${token.name}: ${tokenMultipliers[addressKey]}x`);
+                    continue;
+                }
+                
+                // Try to get base multiplier from contract
+                const multiplier = await getBaseMultiplier(token.address);
+                if (multiplier && multiplier > 0) {
+                    tokenMultipliers[addressKey] = multiplier;
+                    foundMultipliers++;
+                    console.log(`✅ Found base multiplier for ${token.name}: ${multiplier}x`);
+                } else {
+                    console.warn(`❌ Could not get multiplier for ${token.name} (${token.address})`);
+                }
+                
+                // Small delay to avoid overwhelming the RPC
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            if (foundMultipliers > 0) {
+                console.log(`🎯 Fetched ${foundMultipliers} new base multipliers for selected path`);
+                return true;
+            }
+            
+            return false;
+        }
+        // Fetch all missing multipliers from contracts (works without wallet)
+        async function fetchMissingMultipliers() {
+            if (discoveredTokens.length === 0) {
+                console.log('⚠️ Cannot fetch multipliers - no tokens available');
+                return;
+            }
+            
+            console.log('🔍 Fetching missing multipliers from contracts...');
+            showStatus('🔍 Fetching multipliers from blockchain...', 'warning');
+            
+            let foundMultipliers = 0;
+            
+            // Check each child token (skip parent at index 0)
+            for (let i = 1; i < discoveredTokens.length; i++) {
+                const token = discoveredTokens[i];
+                const addressKey = token.address.toLowerCase();
+                
+                // Skip if we already have this multiplier
+                if (tokenMultipliers[addressKey] && tokenMultipliers[addressKey] > 1) {
+                    console.log(`✅ Already have multiplier for ${token.name}: ${tokenMultipliers[addressKey]}x`);
+                    continue;
+                }
+                
+                // Try to get base multiplier from contract
+                const multiplier = await getBaseMultiplier(token.address);
+                if (multiplier && multiplier > 0) {
+                    tokenMultipliers[addressKey] = multiplier;
+                    foundMultipliers++;
+                    console.log(`✅ Found base multiplier for ${token.name}: ${multiplier}x`);
+                } else {
+                    console.warn(`❌ Could not get multiplier for ${token.name} (${token.address})`);
+                }
+                
+                // Small delay to avoid overwhelming the RPC
+                await new Promise(resolve => setTimeout(resolve, 150));
+            }
+            
+            console.log(`🎯 Fetched ${foundMultipliers} multipliers from contracts`);
+            
+            // Update the UI if we found any multipliers
+            if (foundMultipliers > 0) {
+                showStatus(`✅ Found ${foundMultipliers} multipliers from contracts!`, 'success');
+                
+                // Refresh the hop details display
+                if (multiHopData.sourceIndex !== -1 && multiHopData.targetIndex !== -1) {
+                    showHopDetails();
+                    updateMultiHopCalculation();
+                }
+            } else {
+                showStatus('❌ Could not fetch multipliers from contracts. Try connecting wallet.', 'error');
+            }
+        }
+
         // Multi-hop data object
         let multiHopData = {
             sourceToken: '',
@@ -877,6 +1066,12 @@
                     }, 100);
                 }
                 
+                // Auto-fetch multipliers from contracts after data is loaded
+                setTimeout(async () => {
+                    console.log('🚀 Auto-fetching multipliers from contracts...');
+                    await fetchMissingMultipliers();
+                }, 500);
+                
                 return true;
             } else {
                 showNoDataWarning();
@@ -991,6 +1186,15 @@
             
             hideHopDetails();
             updateMintButtonState();
+            
+            // If auto-selecting target from URL params, let that handle the multiplier fetching
+            // Otherwise, pre-fetch multipliers for potential targets
+            if (!new URLSearchParams(window.location.search).get('targetToken')) {
+                setTimeout(async () => {
+                    console.log(`🔄 Source changed - pre-fetching multipliers for potential targets...`);
+                    await fetchMultipliersForPath(selectedIndex, Math.min(selectedIndex + 5, discoveredTokens.length - 1));
+                }, 200);
+            }
         }
 
         function onTargetTokenChange() {
@@ -1025,6 +1229,11 @@
             
             if (isWalletConnected) {
                 loadWalletBalances();
+                
+                // Try to fetch missing multipliers from contracts
+                setTimeout(async () => {
+                    await fetchMissingMultipliers();
+                }, 1000); // Give wallet time to fully connect
             }
         }
 
@@ -1202,6 +1411,11 @@
                     
                     await loadWalletBalances();
                     updateMintButtonState();
+                    
+                    // Try to fetch missing multipliers from contracts
+                    setTimeout(async () => {
+                        await fetchMissingMultipliers();
+                    }, 1000); // Small delay to ensure wallet is fully ready
                 }
             } catch (error) {
                 sessionStorage.removeItem(WALLET_SESSION_KEY);
@@ -1389,15 +1603,67 @@
                 return;
             }
             
-            const sourceCost = amount * multiHopData.totalMultiplier;
+            // Show initial estimate with base multipliers
+            const estimatedCost = amount * multiHopData.totalMultiplier;
+            costCalc.innerHTML = `💰 Estimated cost: <strong>${estimatedCost.toLocaleString()}</strong> ${multiHopData.sourceName} <em>(calculating exact cost...)</em>`;
+            costCalc.style.color = '#ffc107';
             
-            if (currentSourceBalance > 0 && sourceCost > currentSourceBalance) {
-                costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ${sourceCost.toLocaleString()} ${multiHopData.sourceName}<br>Have: ${currentSourceBalance.toLocaleString()} ${multiHopData.sourceName}<br>Shortfall: ${(sourceCost - currentSourceBalance).toLocaleString()} ${multiHopData.sourceName}`;
-                costCalc.style.color = '#f44336';
-            } else {
-                costCalc.innerHTML = `💰 Source cost: <strong>${sourceCost.toLocaleString()}</strong> ${multiHopData.sourceName} (${multiHopData.totalMultiplier}x multiplier)`;
-                costCalc.style.color = '#06ffa5';
-            }
+            // Get accurate total multiplier and cost from contract (async)
+            setTimeout(async () => {
+                if (!multiHopData.sourceToken || !multiHopData.targetToken) return;
+                
+                try {
+                    // Get accurate total multiplier for this specific amount
+                    const accurateTotalMultiplier = await getTotalMultiplierFromContract(
+                        multiHopData.sourceToken, 
+                        multiHopData.targetToken, 
+                        amount
+                    );
+                    
+                    if (accurateTotalMultiplier !== null) {
+                        const accurateCost = amount * accurateTotalMultiplier;
+                        
+                        // Check if user has enough source tokens
+                        if (currentSourceBalance > 0 && accurateCost > currentSourceBalance) {
+                            costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ${accurateCost.toLocaleString()} ${multiHopData.sourceName}<br>Have: ${currentSourceBalance.toLocaleString()} ${multiHopData.sourceName}<br>Shortfall: ${(accurateCost - currentSourceBalance).toLocaleString()} ${multiHopData.sourceName}`;
+                            costCalc.style.color = '#f44336';
+                        } else {
+                            costCalc.innerHTML = `💰 Exact cost: <strong>${accurateCost.toLocaleString()}</strong> ${multiHopData.sourceName} (${accurateTotalMultiplier}x total multiplier)`;
+                            costCalc.style.color = '#06ffa5';
+                        }
+                    } else {
+                        // Fallback to contract preview method
+                        const accurateCost = await getAccurateCostFromContract(
+                            multiHopData.sourceToken, 
+                            multiHopData.targetToken, 
+                            amount
+                        );
+                        
+                        if (accurateCost !== null) {
+                            const effectiveMultiplier = Math.round(accurateCost / amount);
+                            
+                            if (currentSourceBalance > 0 && accurateCost > currentSourceBalance) {
+                                costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ${accurateCost.toLocaleString()} ${multiHopData.sourceName}<br>Have: ${currentSourceBalance.toLocaleString()} ${multiHopData.sourceName}<br>Shortfall: ${(accurateCost - currentSourceBalance).toLocaleString()} ${multiHopData.sourceName}`;
+                                costCalc.style.color = '#f44336';
+                            } else {
+                                costCalc.innerHTML = `💰 Exact cost: <strong>${accurateCost.toLocaleString()}</strong> ${multiHopData.sourceName} (${effectiveMultiplier}x total multiplier)`;
+                                costCalc.style.color = '#06ffa5';
+                            }
+                        } else {
+                            // Final fallback to estimated cost
+                            if (currentSourceBalance > 0 && estimatedCost > currentSourceBalance) {
+                                costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ~${estimatedCost.toLocaleString()} ${multiHopData.sourceName}<br>Have: ${currentSourceBalance.toLocaleString()} ${multiHopData.sourceName}<br>Shortfall: ~${(estimatedCost - currentSourceBalance).toLocaleString()} ${multiHopData.sourceName}`;
+                                costCalc.style.color = '#f44336';
+                            } else {
+                                costCalc.innerHTML = `💰 Estimated cost: <strong>${estimatedCost.toLocaleString()}</strong> ${multiHopData.sourceName} (${multiHopData.totalMultiplier}x base multiplier)`;
+                                costCalc.style.color = '#06ffa5';
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ Error calculating accurate cost:', error);
+                }
+            }, 100);
             
             updateMintButtonState();
         }
@@ -1460,56 +1726,76 @@
                 return;
             }
             
-            if (!multiHopContract || multiHopData.fullChainPath.length < 2) {
-                showStatus('Select tokens and connect wallet to calculate max amount', 'warning');
+            if (!multiHopData.sourceToken || !multiHopData.targetToken) {
+                showStatus('Select source and target tokens first', 'warning');
                 return;
             }
             
-            showStatus('Calculating maximum mintable amount using contract...', 'warning');
+            showStatus('Calculating maximum mintable amount using calculateTotalMultiplier...', 'warning');
             
             try {
+                // Use binary search with calculateTotalMultiplier for accurate max calculation
                 let low = 0;
-                let high = Math.floor(currentSourceBalance * 10);
+                let high = Math.floor(currentSourceBalance / (multiHopData.totalMultiplier || 2));
                 let maxMintAmount = 0;
-                
-                const chainPathExcludingSource = multiHopData.fullChainPath.slice(1);
                 
                 while (low <= high) {
                     const mid = Math.floor((low + high) / 2);
                     
                     try {
-                        const targetAmountWei = web3.utils.toWei(mid.toString(), 'ether');
+                        // Get accurate total multiplier for this amount
+                        const totalMultiplier = await getTotalMultiplierFromContract(
+                            multiHopData.sourceToken,
+                            multiHopData.targetToken,
+                            mid
+                        );
                         
-                        const previewResult = await multiHopContract.methods
-                            .previewMultiHopMintOptimized(targetAmountWei, chainPathExcludingSource)
-                            .call();
-                        
-                        const sourceCostWei = previewResult.sourceCost;
-                        const sourceCostEther = parseFloat(web3.utils.fromWei(sourceCostWei, 'ether'));
-                        
-                        if (sourceCostEther <= currentSourceBalance) {
-                            maxMintAmount = mid;
-                            low = mid + 1;
+                        if (totalMultiplier !== null) {
+                            const requiredCost = mid * totalMultiplier;
+                            
+                            if (requiredCost <= currentSourceBalance) {
+                                maxMintAmount = mid;
+                                low = mid + 1;
+                            } else {
+                                high = mid - 1;
+                            }
                         } else {
-                            high = mid - 1;
+                            // Fallback to contract preview if calculateTotalMultiplier fails
+                            const accurateCost = await getAccurateCostFromContract(
+                                multiHopData.sourceToken,
+                                multiHopData.targetToken,
+                                mid
+                            );
+                            
+                            if (accurateCost !== null && accurateCost <= currentSourceBalance) {
+                                maxMintAmount = mid;
+                                low = mid + 1;
+                            } else {
+                                high = mid - 1;
+                            }
                         }
                     } catch (error) {
+                        console.error(`❌ Error in binary search at amount ${mid}:`, error);
                         high = mid - 1;
                     }
                     
+                    // Prevent infinite loops
                     await new Promise(resolve => setTimeout(resolve, 50));
                 }
                 
                 if (maxMintAmount > 0) {
                     document.getElementById('mintAmountInput').value = maxMintAmount;
                     updateMultiHopCalculation();
-                    showStatus(`Set to maximum mintable amount: ${maxMintAmount.toLocaleString()} (calculated using contract)`, 'success');
+                    showStatus(`Set to maximum mintable amount: ${maxMintAmount.toLocaleString()} (calculated using calculateTotalMultiplier)`, 'success');
                 } else {
                     showStatus('No tokens can be minted with current balance', 'warning');
                 }
                 
             } catch (error) {
-                const fallbackMax = Math.floor(currentSourceBalance / multiHopData.totalMultiplier);
+                console.error('❌ Failed to calculate max amount with calculateTotalMultiplier:', error);
+                
+                // Fallback to simple calculation with base multipliers
+                const fallbackMax = Math.floor(currentSourceBalance / (multiHopData.totalMultiplier || 2));
                 if (fallbackMax > 0) {
                     document.getElementById('mintAmountInput').value = fallbackMax;
                     updateMultiHopCalculation();
