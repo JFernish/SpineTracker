@@ -293,6 +293,17 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
+        /* Hide spinner arrows on number input */
+        .form-group input[type="number"]::-webkit-outer-spin-button,
+        .form-group input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .form-group input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
         .max-btn {
             padding: 15px 20px;
             border: 2px solid rgba(6, 255, 165, 0.3);
@@ -1174,6 +1185,11 @@
                 multiHopData.sourceToken = '';
                 multiHopData.sourceIndex = -1;
                 hideHopDetails();
+                // Clear any existing MAX button message when source changes
+                const existingMessage = document.getElementById('maxButtonMessage');
+                if (existingMessage) {
+                    existingMessage.remove();
+                }
                 return;
             }
             
@@ -1187,6 +1203,12 @@
             // Reset approval status when source token changes
             currentMintStep = 1;
             isApprovalSufficient = false;
+            
+            // Clear any existing MAX button message when source changes
+            const existingMessage = document.getElementById('maxButtonMessage');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
             
             document.getElementById('sourceSymbol').textContent = selectedToken.name;
             
@@ -1984,7 +2006,12 @@
                     }
                     
                     // Step 4: All attempts failed - show edge case message
-                    showMaxButtonMessage('Max mint amount will cause a significant increase in multipliers. Try manually adding mint amount.', 'warning');
+                    const suggestedAmount = currentSourceBalance / multiHopData.totalMultiplier;
+                    const suggestedAmountFormatted = suggestedAmount.toString().includes('e') ? 
+                        suggestedAmount.toFixed(18).replace(/\.?0+$/, '') : 
+                        suggestedAmount.toString();
+                    
+                    showMaxButtonMessage(`Max mint amount will cause a significant increase in multipliers. Try starting with ${suggestedAmountFormatted} amount based on original multiplier and gradually reduce.`, 'warning');
                     
                 } catch (contractError) {
                     console.error('❌ Contract error during MAX calculation:', contractError);
