@@ -642,7 +642,7 @@
             {"type":"event","name":"MultiHopMint","inputs":[{"name":"user","type":"address","indexed":true,"internalType":"address"},{"name":"sourceToken","type":"address","indexed":true,"internalType":"address"},{"name":"targetToken","type":"address","indexed":true,"internalType":"address"},{"name":"targetAmount","type":"uint256","indexed":false,"internalType":"uint256"},{"name":"sourceCost","type":"uint256","indexed":false,"internalType":"uint256"},{"name":"stepsCount","type":"uint256","indexed":false,"internalType":"uint256"}],"anonymous":false}
         ];
 
-        // ERC20 ABI for token operations
+        // ERC20 ABI for token operation
         const ERC20_ABI = [
             {"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
             {"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
