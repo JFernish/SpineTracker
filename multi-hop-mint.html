@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -893,6 +894,7 @@
             }
             
             hideHopDetails();
+            updateMintButtonState();
         }
 
         function onTargetTokenChange() {
@@ -903,6 +905,7 @@
                 multiHopData.targetToken = '';
                 multiHopData.targetIndex = -1;
                 hideHopDetails();
+                updateMintButtonState();
                 return;
             }
             
@@ -922,6 +925,7 @@
             buildFullChainPath();
             showHopDetails();
             updateSecurityWarning();
+            updateMintButtonState();
             
             if (isWalletConnected) {
                 loadWalletBalances();
@@ -1106,6 +1110,7 @@
             document.getElementById('balanceSection').style.display = 'none';
             
             showStatus('Wallet disconnected', 'warning');
+            updateMintButtonState();
         }
 
         function showStatus(message, type = 'info') {
@@ -1189,6 +1194,8 @@
                 mintBtn.style.background = 'linear-gradient(45deg, #06ffa5, #3a86ff)';
             }
         }
+
+        async function refreshBalances() {
             if (!isWalletConnected) {
                 showStatus('Connect wallet to refresh balances', 'warning');
                 return;
@@ -1255,6 +1262,8 @@
                 }, 50);
             }
         }
+
+        function updateMintButtonState() {
             const mintBtn = document.getElementById('multiHopMintBtn');
             const amount = parseFloat(document.getElementById('mintAmountInput').value);
             
@@ -1489,3 +1498,4 @@
     </script>
 </body>
 </html>
+                        
