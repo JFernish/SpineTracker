@@ -55,21 +55,6 @@
             text-align: center;
         }
 
-        .multi-hop-info h3 {
-            color: #3a86ff;
-            margin-bottom: 15px;
-            font-size: 1.2rem;
-        }
-            background: rgba(6, 255, 165, 0.1);
-            border: 1px solid rgba(6, 255, 165, 0.3);
-            color: #06ffa5;
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-size: 0.9rem;
-            text-align: center;
-        }
-
         .no-data-warning {
             background: rgba(255, 87, 87, 0.15);
             border: 2px solid rgba(255, 87, 87, 0.4);
@@ -482,14 +467,6 @@
             margin: 10px 0;
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
-            background: rgba(0, 0, 0, 0.3);
-            padding: 10px;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
-            margin: 10px 0;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
     </style>
 </head>
 <body>
@@ -504,7 +481,8 @@
             </p>
             <div class="contract-address">
                 📄 MultiHopMinter Contract: 0xFD17eBc0B90dcfa51f3eE9b377Ff0b14a8dC9C2C
-                <!-- Wallet Balances Section -->
+            </div>
+            <!-- Wallet Balances Section -->
             <div id="balanceSection" class="balance-section" style="display: none;">
                 <div class="balance-title">💰 Current Wallet Balances</div>
                 <div class="balance-row">
@@ -519,7 +497,6 @@
                     🔄 Refresh Balances
                 </button>
             </div>
-        </div>
         </div>
 
         <!-- Integration Status -->
@@ -675,6 +652,12 @@
         // Store current balances for calculations
         let currentSourceBalance = 0;
         let currentTargetBalance = 0;
+
+        // Session storage for wallet persistence
+        const WALLET_SESSION_KEY = 'walletConnected';
+        
+        // Multi-hop data object
+        let multiHopData = {
             sourceToken: '',
             sourceName: '',
             targetToken: '',
@@ -682,7 +665,7 @@
             sourceIndex: -1,
             targetIndex: -1,
             totalMultiplier: 1,
-            fullChainPath: [] // Store complete chain path for optimized function
+            fullChainPath: []
         };
 
         // Enhanced data loading with multiple methods and validation
@@ -704,7 +687,6 @@
                             console.log('✅ Loaded token chain from URL:', discoveredTokens.length, 'tokens');
                             dataLoaded = true;
                             
-                            // Load multipliers if available
                             if (params.get('multipliers')) {
                                 try {
                                     const decodedMultipliers = decodeURIComponent(params.get('multipliers'));
@@ -778,22 +760,6 @@
                     }
                 }
 
-                // Method 4: Check if data was passed directly to window
-                if (!dataLoaded && window.discoveredTokens) {
-                    try {
-                        if (Array.isArray(window.discoveredTokens) && window.discoveredTokens.length > 0) {
-                            discoveredTokens = [...window.discoveredTokens];
-                            if (window.tokenMultipliers) {
-                                tokenMultipliers = { ...window.tokenMultipliers };
-                            }
-                            console.log('✅ Loaded data from window properties:', discoveredTokens.length, 'tokens');
-                            dataLoaded = true;
-                        }
-                    } catch (e) {
-                        console.log('❌ Error loading from window properties:', e.message);
-                    }
-                }
-
             } catch (error) {
                 console.error('❌ Error in parseUrlParams:', error);
             }
@@ -844,11 +810,6 @@
             if (discoveredTokens.length > 0) {
                 countEl.textContent = discoveredTokens.length;
                 statusEl.style.display = 'block';
-                
-                console.log('📊 Integration status updated:', {
-                    tokensCount: discoveredTokens.length,
-                    multipliersCount: Object.keys(tokenMultipliers).length
-                });
             } else {
                 statusEl.style.display = 'none';
             }
@@ -869,12 +830,9 @@
         }
 
         function populateTokenDropdowns() {
-            console.log('🔄 Populating dropdowns with discovered tokens:', discoveredTokens.length);
-            
             const sourceDropdown = document.getElementById('sourceTokenDropdown');
             const targetDropdown = document.getElementById('targetTokenDropdown');
             
-            // Clear existing options
             sourceDropdown.innerHTML = '';
             targetDropdown.innerHTML = '<option value="">Select source token first...</option>';
             
@@ -883,10 +841,8 @@
                 return;
             }
 
-            // Add default option
             sourceDropdown.innerHTML = '<option value="">Select source token...</option>';
             
-            // Populate source dropdown with all tokens
             discoveredTokens.forEach((token, index) => {
                 const option = document.createElement('option');
                 option.value = token.address;
@@ -901,7 +857,6 @@
             const targetDropdown = document.getElementById('targetTokenDropdown');
             const selectedAddress = sourceDropdown.value;
             
-            // Clear target dropdown
             targetDropdown.innerHTML = '<option value="">Select target token...</option>';
             
             if (!selectedAddress) {
@@ -911,7 +866,6 @@
                 return;
             }
             
-            // Find selected token info
             const selectedIndex = parseInt(sourceDropdown.options[sourceDropdown.selectedIndex].dataset.index);
             const selectedToken = discoveredTokens[selectedIndex];
             
@@ -919,12 +873,8 @@
             multiHopData.sourceName = selectedToken.name;
             multiHopData.sourceIndex = selectedIndex;
             
-            console.log('🎯 Source token selected:', selectedToken.name, 'at index', selectedIndex);
-            
-            // Update balance labels
             document.getElementById('sourceSymbol').textContent = selectedToken.name;
             
-            // Populate target dropdown with tokens that come after the source in the chain
             for (let i = selectedIndex + 1; i < discoveredTokens.length; i++) {
                 const token = discoveredTokens[i];
                 const option = document.createElement('option');
@@ -935,7 +885,7 @@
             }
             
             if (targetDropdown.children.length === 1) {
-                targetDropdown.innerHTML = '<option value="">No valid target tokens (select a token higher in the chain)</option>';
+                targetDropdown.innerHTML = '<option value="">No valid target tokens</option>';
             }
             
             hideHopDetails();
@@ -952,7 +902,6 @@
                 return;
             }
             
-            // Find selected token info
             const selectedIndex = parseInt(targetDropdown.options[targetDropdown.selectedIndex].dataset.index);
             const selectedToken = discoveredTokens[selectedIndex];
             
@@ -960,40 +909,27 @@
             multiHopData.targetName = selectedToken.name;
             multiHopData.targetIndex = selectedIndex;
             
-            console.log('🎯 Target token selected:', selectedToken.name, 'at index', selectedIndex);
-            
-            // Update balance labels
             document.getElementById('targetSymbol').textContent = selectedToken.name;
             
-            // Build the full chain path for optimized minting
             buildFullChainPath();
-            
-            // Show hop details
             showHopDetails();
             updateSecurityWarning();
             
-            // Load balances for new source/target selection
             if (isWalletConnected) {
                 loadWalletBalances();
             }
         }
 
-        // Build the full chain path required for multiHopMintOptimized
         function buildFullChainPath() {
             if (multiHopData.sourceIndex === -1 || multiHopData.targetIndex === -1) {
                 multiHopData.fullChainPath = [];
                 return;
             }
             
-            // Build path from source to target (inclusive)
             multiHopData.fullChainPath = [];
             for (let i = multiHopData.sourceIndex; i <= multiHopData.targetIndex; i++) {
                 multiHopData.fullChainPath.push(discoveredTokens[i].address);
             }
-            
-            console.log('🔗 Built full chain path:', multiHopData.fullChainPath.map((addr, i) => 
-                `${discoveredTokens[multiHopData.sourceIndex + i].name} (${addr.slice(0, 6)}...)`
-            ));
         }
 
         function showHopDetails() {
@@ -1006,7 +942,6 @@
             const hopPath = document.getElementById('hopPath');
             const totalMultiplierEl = document.getElementById('totalMultiplier');
             
-            // Build visual path
             let pathHtml = '';
             let totalMultiplier = 1;
             
@@ -1014,7 +949,6 @@
                 const token = discoveredTokens[i];
                 if (i > multiHopData.sourceIndex) {
                     pathHtml += '<span class="hop-arrow">→</span>';
-                    // Calculate multiplier for this hop
                     const multiplier = tokenMultipliers[token.address.toLowerCase()] || 2;
                     totalMultiplier *= multiplier;
                 }
@@ -1026,12 +960,6 @@
             multiHopData.totalMultiplier = totalMultiplier;
             
             hopDetails.style.display = 'block';
-            
-            console.log('🎯 Multi-hop path built:', {
-                hops: multiHopData.targetIndex - multiHopData.sourceIndex,
-                totalMultiplier: totalMultiplier,
-                fullChainPath: multiHopData.fullChainPath
-            });
         }
 
         function hideHopDetails() {
@@ -1053,54 +981,98 @@
         }
 
         function refreshChainData() {
-            console.log('🔄 Refreshing chain data...');
             parseUrlParams();
         }
 
-        // Navigation functions
         function goToDirectMint() {
-            window.location.href = 'mint.html';
+            if (multiHopData.sourceToken && multiHopData.targetToken) {
+                const params = new URLSearchParams({
+                    childToken: multiHopData.targetToken,
+                    childName: multiHopData.targetName,
+                    parentToken: multiHopData.sourceToken,
+                    parentName: multiHopData.sourceName,
+                    multiplier: multiHopData.totalMultiplier.toString(),
+                    tokenIndex: multiHopData.targetIndex.toString(),
+                    tokenChain: encodeURIComponent(JSON.stringify(discoveredTokens)),
+                    multipliers: encodeURIComponent(JSON.stringify(tokenMultipliers))
+                });
+                window.location.href = `mint.html?${params.toString()}`;
+            } else {
+                window.location.href = 'mint.html';
+            }
         }
 
         function goToMainWebsite() {
+            if (discoveredTokens.length > 0) {
+                try {
+                    localStorage.setItem('discoveredTokens', JSON.stringify(discoveredTokens));
+                    localStorage.setItem('tokenMultipliers', JSON.stringify(tokenMultipliers));
+                } catch (error) {
+                    console.log('⚠️ Could not store token data:', error);
+                }
+            }
             window.location.href = 'index.html';
         }
 
-        // Wallet connection functions
-        async function connectWallet() {
-            console.log('🔗 Connecting wallet...');
-            
-            if (typeof window.ethereum !== 'undefined') {
-                try {
-                    // Initialize Web3
-                    web3 = new Web3(window.ethereum);
-                    
-                    // Request account access
-                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        // Check if wallet was previously connected this session
+        function checkWalletSession() {
+            const wasConnected = sessionStorage.getItem(WALLET_SESSION_KEY);
+            if (wasConnected === 'true' && typeof window.ethereum !== 'undefined') {
+                autoConnectWallet();
+            }
+        }
+
+        // Auto-connect wallet without user prompt
+        async function autoConnectWallet() {
+            try {
+                web3 = new Web3(window.ethereum);
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                
+                if (accounts.length > 0) {
                     walletAccount = accounts[0];
                     isWalletConnected = true;
                     
-                    // Initialize contract
                     multiHopContract = new web3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
                     
-                    // Update UI
                     document.getElementById('walletNotConnected').style.display = 'none';
                     document.getElementById('walletConnected').style.display = 'block';
                     document.getElementById('walletAddress').textContent = `${walletAccount.slice(0, 6)}...${walletAccount.slice(-4)}`;
                     document.getElementById('mintForm').style.display = 'block';
                     document.getElementById('balanceSection').style.display = 'block';
                     
-                    console.log('✅ Wallet connected:', walletAccount);
+                    await loadWalletBalances();
+                    updateMintButtonState();
+                }
+            } catch (error) {
+                sessionStorage.removeItem(WALLET_SESSION_KEY);
+            }
+        }
+
+        async function connectWallet() {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    web3 = new Web3(window.ethereum);
+                    
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    walletAccount = accounts[0];
+                    isWalletConnected = true;
+                    
+                    sessionStorage.setItem(WALLET_SESSION_KEY, 'true');
+                    
+                    multiHopContract = new web3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
+                    
+                    document.getElementById('walletNotConnected').style.display = 'none';
+                    document.getElementById('walletConnected').style.display = 'block';
+                    document.getElementById('walletAddress').textContent = `${walletAccount.slice(0, 6)}...${walletAccount.slice(-4)}`;
+                    document.getElementById('mintForm').style.display = 'block';
+                    document.getElementById('balanceSection').style.display = 'block';
+                    
                     showStatus('Wallet connected successfully!', 'success');
                     
-                    // Load balances when wallet connects
                     await loadWalletBalances();
-                    
-                    // Update button states
                     updateMintButtonState();
                     
                 } catch (error) {
-                    console.error('❌ Failed to connect wallet:', error);
                     showStatus('Failed to connect wallet: ' + error.message, 'error');
                 }
             } else {
@@ -1114,36 +1086,31 @@
             web3 = null;
             multiHopContract = null;
             
+            sessionStorage.removeItem(WALLET_SESSION_KEY);
+            
             document.getElementById('walletNotConnected').style.display = 'block';
             document.getElementById('walletConnected').style.display = 'none';
             document.getElementById('mintForm').style.display = 'none';
             document.getElementById('balanceSection').style.display = 'none';
             
-            console.log('👋 Wallet disconnected');
             showStatus('Wallet disconnected', 'warning');
         }
 
-        // Status message functions
         function showStatus(message, type = 'info') {
             const statusEl = document.getElementById('statusMessage');
             statusEl.className = `status-message status-${type}`;
             statusEl.textContent = message;
             statusEl.style.display = 'block';
             
-            // Auto-hide after 5 seconds
             setTimeout(() => {
                 statusEl.style.display = 'none';
             }, 5000);
         }
 
-        // Load wallet balances for source and target tokens
         async function loadWalletBalances() {
             if (!web3 || !walletAccount || !multiHopData.sourceToken || !multiHopData.targetToken) return;
             
-            console.log('💰 Loading wallet balances for source and target tokens...');
-            
             try {
-                // Load source token balance
                 const sourceContract = new web3.eth.Contract(ERC20_ABI, multiHopData.sourceToken);
                 const sourceBalance = await sourceContract.methods.balanceOf(walletAccount).call();
                 const sourceBalanceFormatted = web3.utils.fromWei(sourceBalance, 'ether');
@@ -1152,7 +1119,6 @@
                 document.getElementById('sourceBalance').textContent = `${parseFloat(sourceBalanceFormatted).toLocaleString()}`;
                 document.getElementById('sourceBalance').className = 'balance-value';
                 
-                // Load target token balance
                 const targetContract = new web3.eth.Contract(ERC20_ABI, multiHopData.targetToken);
                 const targetBalance = await targetContract.methods.balanceOf(walletAccount).call();
                 const targetBalanceFormatted = web3.utils.fromWei(targetBalance, 'ether');
@@ -1161,21 +1127,14 @@
                 document.getElementById('targetBalance').textContent = `${parseFloat(targetBalanceFormatted).toLocaleString()}`;
                 document.getElementById('targetBalance').className = 'balance-value';
                 
-                console.log('✅ Balances loaded successfully');
-                
-                // Enable MAX button now that we have balance data
                 document.getElementById('maxBtn').disabled = false;
                 
             } catch (error) {
-                console.error('❌ Failed to load balances:', error);
                 document.getElementById('sourceBalance').textContent = 'Error';
                 document.getElementById('targetBalance').textContent = 'Error';
-                document.getElementById('sourceBalance').className = 'balance-value balance-loading';
-                document.getElementById('targetBalance').className = 'balance-value balance-loading';
             }
         }
 
-        // Refresh balances function
         async function refreshBalances() {
             if (!isWalletConnected) {
                 showStatus('Connect wallet to refresh balances', 'warning');
@@ -1187,19 +1146,15 @@
                 return;
             }
             
-            console.log('🔄 Refreshing balances...');
             showStatus('Refreshing balances...', 'warning');
             
-            // Show loading state
             document.getElementById('sourceBalance').textContent = 'Loading...';
             document.getElementById('targetBalance').textContent = 'Loading...';
-            document.getElementById('sourceBalance').className = 'balance-value balance-loading';
-            document.getElementById('targetBalance').className = 'balance-value balance-loading';
             
             await loadWalletBalances();
             showStatus('Balances refreshed!', 'success');
         }
-        // Multi-hop calculation and minting functions
+
         function updateMultiHopCalculation() {
             const amountInput = document.getElementById('mintAmountInput');
             const costCalc = document.getElementById('costCalculation');
@@ -1208,13 +1163,20 @@
             
             if (!amount || amount <= 0 || !multiHopData.totalMultiplier || multiHopData.totalMultiplier === 1) {
                 costCalc.textContent = '💡 Enter amount to see source token cost with multi-hop multiplier';
+                costCalc.style.color = '#ffc107';
                 updateMintButtonState();
                 return;
             }
             
             const sourceCost = amount * multiHopData.totalMultiplier;
-            costCalc.innerHTML = `💰 Source cost: <strong>${sourceCost.toLocaleString()}</strong> ${multiHopData.sourceName} (${multiHopData.totalMultiplier}x multiplier)`;
-            costCalc.style.color = '#06ffa5';
+            
+            if (currentSourceBalance > 0 && sourceCost > currentSourceBalance) {
+                costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ${sourceCost.toLocaleString()} ${multiHopData.sourceName}<br>Have: ${currentSourceBalance.toLocaleString()} ${multiHopData.sourceName}<br>Shortfall: ${(sourceCost - currentSourceBalance).toLocaleString()} ${multiHopData.sourceName}`;
+                costCalc.style.color = '#f44336';
+            } else {
+                costCalc.innerHTML = `💰 Source cost: <strong>${sourceCost.toLocaleString()}</strong> ${multiHopData.sourceName} (${multiHopData.totalMultiplier}x multiplier)`;
+                costCalc.style.color = '#06ffa5';
+            }
             
             updateMintButtonState();
         }
@@ -1232,42 +1194,82 @@
             mintBtn.disabled = !canMint;
         }
 
-        function setMaxAmount() {
+        async function setMaxAmount() {
             if (!isWalletConnected) {
                 showStatus('Connect wallet to use MAX button', 'warning');
                 return;
             }
             
             if (!currentSourceBalance || currentSourceBalance <= 0) {
-                showStatus('Source token balance not available', 'warning');
+                showStatus('Source token balance not available or zero', 'warning');
                 return;
             }
             
-            if (!multiHopData.totalMultiplier || multiHopData.totalMultiplier <= 1) {
-                showStatus('Select tokens to calculate max amount', 'warning');
+            if (!multiHopContract || multiHopData.fullChainPath.length < 2) {
+                showStatus('Select tokens and connect wallet to calculate max amount', 'warning');
                 return;
             }
             
-            const maxMintAmount = Math.floor(currentSourceBalance / multiHopData.totalMultiplier);
+            showStatus('Calculating maximum mintable amount using contract...', 'warning');
             
-            if (maxMintAmount > 0) {
-                document.getElementById('mintAmountInput').value = maxMintAmount;
-                updateMultiHopCalculation();
-                showStatus(`Set to maximum mintable amount: ${maxMintAmount.toLocaleString()}`, 'success');
-            } else {
-                showStatus('Insufficient source token balance for minting', 'warning');
+            try {
+                let low = 0;
+                let high = Math.floor(currentSourceBalance * 10);
+                let maxMintAmount = 0;
+                
+                const chainPathExcludingSource = multiHopData.fullChainPath.slice(1);
+                
+                while (low <= high) {
+                    const mid = Math.floor((low + high) / 2);
+                    
+                    try {
+                        const targetAmountWei = web3.utils.toWei(mid.toString(), 'ether');
+                        
+                        const previewResult = await multiHopContract.methods
+                            .previewMultiHopMintOptimized(targetAmountWei, chainPathExcludingSource)
+                            .call();
+                        
+                        const sourceCostWei = previewResult.sourceCost;
+                        const sourceCostEther = parseFloat(web3.utils.fromWei(sourceCostWei, 'ether'));
+                        
+                        if (sourceCostEther <= currentSourceBalance) {
+                            maxMintAmount = mid;
+                            low = mid + 1;
+                        } else {
+                            high = mid - 1;
+                        }
+                    } catch (error) {
+                        high = mid - 1;
+                    }
+                    
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+                
+                if (maxMintAmount > 0) {
+                    document.getElementById('mintAmountInput').value = maxMintAmount;
+                    updateMultiHopCalculation();
+                    showStatus(`Set to maximum mintable amount: ${maxMintAmount.toLocaleString()} (calculated using contract)`, 'success');
+                } else {
+                    showStatus('No tokens can be minted with current balance', 'warning');
+                }
+                
+            } catch (error) {
+                const fallbackMax = Math.floor(currentSourceBalance / multiHopData.totalMultiplier);
+                if (fallbackMax > 0) {
+                    document.getElementById('mintAmountInput').value = fallbackMax;
+                    updateMultiHopCalculation();
+                    showStatus(`Set to estimated max amount: ${fallbackMax.toLocaleString()} (fallback calculation)`, 'warning');
+                } else {
+                    showStatus('Insufficient source token balance for minting', 'warning');
+                }
             }
         }
 
-        // Optimized multi-hop mint function
         async function handleOptimizedMultiHopMint() {
-            console.log('⚡ Starting optimized multi-hop mint...');
-            
             const mintBtn = document.getElementById('multiHopMintBtn');
             const originalText = mintBtn.textContent;
             
             try {
-                // Validate inputs
                 const amount = parseFloat(document.getElementById('mintAmountInput').value);
                 if (!amount || amount <= 0) {
                     throw new Error('Please enter a valid amount');
@@ -1281,24 +1283,18 @@
                     throw new Error('Invalid chain path - need at least source and target');
                 }
                 
+                const estimatedCost = amount * multiHopData.totalMultiplier;
+                if (currentSourceBalance > 0 && estimatedCost > currentSourceBalance) {
+                    throw new Error(`Insufficient ${multiHopData.sourceName} balance! Need ${estimatedCost.toLocaleString()}, but you only have ${currentSourceBalance.toLocaleString()}.`);
+                }
+                
                 mintBtn.disabled = true;
                 mintBtn.textContent = '⚡ Preparing...';
                 
-                // Convert amount to Wei (multiply by 10^18)
                 const targetAmountWei = web3.utils.toWei(amount.toString(), 'ether');
-                
-                console.log('🔍 Previewing optimized multi-hop mint:', {
-                    targetAmount: amount,
-                    targetAmountWei: targetAmountWei,
-                    fullChainPath: multiHopData.fullChainPath,
-                    chainLength: multiHopData.fullChainPath.length
-                });
-                
-                // First, preview the mint to get the source cost
-                mintBtn.textContent = '⚡ Calculating costs...';
-                
-                // Create chain path excluding source (for preview function)
                 const chainPathExcludingSource = multiHopData.fullChainPath.slice(1);
+                
+                mintBtn.textContent = '⚡ Calculating costs...';
                 
                 const previewResult = await multiHopContract.methods
                     .previewMultiHopMintOptimized(targetAmountWei, chainPathExcludingSource)
@@ -1307,13 +1303,6 @@
                 const sourceCostWei = previewResult.sourceCost;
                 const sourceCostEther = web3.utils.fromWei(sourceCostWei, 'ether');
                 
-                console.log('💰 Preview result:', {
-                    sourceCostWei: sourceCostWei,
-                    sourceCostEther: sourceCostEther,
-                    steps: previewResult.steps
-                });
-                
-                // Check user's source token balance
                 mintBtn.textContent = '⚡ Checking balance...';
                 const sourceTokenContract = new web3.eth.Contract(ERC20_ABI, multiHopData.sourceToken);
                 const userBalance = await sourceTokenContract.methods.balanceOf(walletAccount).call();
@@ -1323,12 +1312,10 @@
                     throw new Error(`Insufficient ${multiHopData.sourceName} balance. Need: ${sourceCostEther}, Have: ${userBalanceEther}`);
                 }
                 
-                // Check allowance
                 mintBtn.textContent = '⚡ Checking allowance...';
                 const allowance = await sourceTokenContract.methods.allowance(walletAccount, MULTIHOP_CONTRACT_ADDRESS).call();
                 
                 if (web3.utils.toBN(allowance).lt(web3.utils.toBN(sourceCostWei))) {
-                    // Need approval
                     mintBtn.textContent = '⚡ Requesting approval...';
                     showStatus(`Approving ${multiHopData.sourceName} for multi-hop minting...`, 'warning');
                     
@@ -1336,36 +1323,26 @@
                         .approve(MULTIHOP_CONTRACT_ADDRESS, sourceCostWei)
                         .send({ from: walletAccount });
                     
-                    console.log('✅ Approval transaction:', approveTx.transactionHash);
                     showStatus('Approval successful! Proceeding with mint...', 'success');
                 }
                 
-                // Execute the optimized multi-hop mint
                 mintBtn.textContent = '⚡ Executing mint...';
                 showStatus('Executing optimized multi-hop mint...', 'warning');
-                
-                console.log('🚀 Calling multiHopMintOptimized with:', {
-                    targetAmount: targetAmountWei,
-                    fullChainPath: multiHopData.fullChainPath
-                });
                 
                 const mintTx = await multiHopContract.methods
                     .multiHopMintOptimized(targetAmountWei, multiHopData.fullChainPath)
                     .send({ from: walletAccount });
                 
-                console.log('✅ Multi-hop mint successful!', mintTx.transactionHash);
-                
                 showStatus(`✅ Multi-hop mint successful! TX: ${mintTx.transactionHash.slice(0, 10)}...`, 'success');
                 
-                // Update UI with success info
                 document.getElementById('costCalculation').innerHTML = `✅ <strong>Mint Complete!</strong><br>
                     Minted: ${amount} ${multiHopData.targetName}<br>
                     Cost: ${sourceCostEther} ${multiHopData.sourceName}<br>
                     TX: <a href="https://scan.pulsechain.com/tx/${mintTx.transactionHash}" target="_blank" style="color: #06ffa5;">${mintTx.transactionHash.slice(0, 10)}...</a>`;
                 
-            } catch (error) {
-                console.error('❌ Multi-hop mint failed:', error);
+                await loadWalletBalances();
                 
+            } catch (error) {
                 let errorMessage = error.message;
                 if (error.message.includes('User denied')) {
                     errorMessage = 'Transaction cancelled by user';
@@ -1382,73 +1359,41 @@
 
         // Initialize page on load
         window.addEventListener('DOMContentLoaded', function() {
-            console.log('⚡ Enhanced Multi-Hop Mint V4 Token (Optimized) Loading...');
-            
-            // Parse URL parameters and load token data
             const dataLoaded = parseUrlParams();
             
             if (!dataLoaded) {
                 console.log('⚠️ No token data available - showing warning');
             }
             
-            // Add event listeners to ensure they're attached
-            const connectBtn = document.getElementById('connectWalletBtn');
-            const disconnectBtn = document.getElementById('disconnectWalletBtn');
-            const mintAmountInput = document.getElementById('mintAmountInput');
-            
-            if (connectBtn) {
-                connectBtn.addEventListener('click', connectWallet);
-                console.log('✅ Connect wallet button event listener attached');
-            }
-            
-            if (disconnectBtn) {
-                disconnectBtn.addEventListener('click', disconnectWallet);
-                console.log('✅ Disconnect wallet button event listener attached');
-            }
-            
-            if (mintAmountInput) {
-                mintAmountInput.addEventListener('input', updateMultiHopCalculation);
-                mintAmountInput.addEventListener('change', updateMultiHopCalculation);
-                console.log('✅ Amount input event listeners attached');
-            }
-            
-            console.log('✅ Optimized multi-hop mint page loaded');
-            console.log('⚡ Using multiHopMintOptimized for gas efficiency');
-            console.log('🔗 Contract:', MULTIHOP_CONTRACT_ADDRESS);
+            checkWalletSession();
         });
 
-        // Global object for debugging
+        // Handle account and network changes
+        if (typeof window.ethereum !== 'undefined') {
+            window.ethereum.on('accountsChanged', function (accounts) {
+                if (accounts.length === 0) {
+                    disconnectWallet();
+                } else if (accounts[0] !== walletAccount) {
+                    walletAccount = accounts[0];
+                    document.getElementById('walletAddress').textContent = `${walletAccount.slice(0, 6)}...${walletAccount.slice(-4)}`;
+                    loadWalletBalances();
+                }
+            });
+            
+            window.ethereum.on('chainChanged', function (chainId) {
+                if (isWalletConnected) {
+                    loadWalletBalances();
+                }
+            });
+        }
+
+        // Global debugging object
         window.OptimizedMultiHop = {
             discoveredTokens: () => discoveredTokens,
             multiHopData: () => multiHopData,
             tokenMultipliers: () => tokenMultipliers,
-            buildFullChainPath,
-            updateMultiHopCalculation,
             contractAddress: MULTIHOP_CONTRACT_ADDRESS,
-            previewMint: async function(amount) {
-                if (!multiHopContract || multiHopData.fullChainPath.length < 2) {
-                    console.log('❌ Contract not initialized or invalid chain path');
-                    return;
-                }
-                
-                try {
-                    const targetAmountWei = web3.utils.toWei(amount.toString(), 'ether');
-                    const chainPathExcludingSource = multiHopData.fullChainPath.slice(1);
-                    
-                    const result = await multiHopContract.methods
-                        .previewMultiHopMintOptimized(targetAmountWei, chainPathExcludingSource)
-                        .call();
-                    
-                    console.log('Preview result:', {
-                        sourceCost: web3.utils.fromWei(result.sourceCost, 'ether'),
-                        steps: result.steps
-                    });
-                    
-                    return result;
-                } catch (error) {
-                    console.error('Preview failed:', error);
-                }
-            }
+            balances: () => ({ source: currentSourceBalance, target: currentTargetBalance })
         };
     </script>
 </body>
