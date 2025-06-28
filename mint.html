@@ -456,10 +456,7 @@
             </p>
         </div>
        
-        <!-- Multi-Hop Data Status -->
-        <div id="multiHopStatus" class="multihop-status" style="display: none;">
-            📊 Multi-hop data loaded: <span id="tokenChainCount">0</span> tokens in spine
-        </div>
+
         
         <!-- Security Warning for Wallet Connection -->
         <div class="security-warning" id="walletSecurityWarning">
@@ -554,13 +551,13 @@
                     <label>Mint Amount</label>
                     <div class="input-with-button">
                         <input type="number" id="mintAmountInput" placeholder="Enter amount (e.g., 1000)" min="0" step="any" onkeyup="updateCostCalculation()" onchange="updateCostCalculation()">
-                        <button class="max-btn" id="maxBtn" onclick="setMaxAmount()" disabled>
+                        <button class="max-btn" id="maxBtn" onclick="setMaxAmount()">
                             MAX
                         </button>
                     </div>
                     <div class="mint-note">Amount will be multiplied by 10^18 when sent to contract</div>
                     <div class="mint-note" style="color: #ffc107; margin-top: 8px;" id="costCalculation">
-                        💡 With current 2x multiplier: Enter amount to see parent token cost
+                        💡 Enter amount to see parent token cost
                     </div>
                     <div class="mint-note" style="color: #888; margin-top: 8px; font-size: 0.8rem;">
                         ⚠️ Note: Multipliers may increase with additional minting, and parent tokens will be spent based on adjusted multiplier.
@@ -612,6 +609,7 @@
         let walletAccount = null;
         let isWalletConnected = false;
         let currentMintStep = 1;
+        let currentMultiplier = 2; // Track current multiplier
         
         // Token data with defaults
         let tokenData = {
@@ -630,6 +628,9 @@
         // Store discovered tokens and multipliers for multi-hop integration
         let discoveredTokens = [];
         let tokenMultipliers = {};
+
+        // Session storage for wallet persistence
+        const WALLET_SESSION_KEY = 'walletConnected';
 
         // ERC20 ABI for basic token operations
         const ERC20_ABI = [
@@ -662,6 +663,8 @@
                     multiplier: params.get('multiplier'),
                     tokenIndex: params.get('tokenIndex')
                 };
+                // Update current multiplier
+                currentMultiplier = parseInt(tokenData.multiplier) || 2;
                 console.log('✅ Loaded token data from URL parameters');
             }
 
@@ -812,24 +815,48 @@
             // Update balance labels
             document.getElementById('parentSymbol').textContent = tokenData.parentName || 'Parent';
             document.getElementById('childSymbol').textContent = tokenData.childName || 'Child';
+            
+            // Update cost calculation display
+            updateCostCalculation();
         }
 
-        // Update multi-hop status UI
+        // Update multi-hop status UI (now hidden)
         function updateMultiHopStatusUI() {
-            const statusEl = document.getElementById('multiHopStatus');
-            const countEl = document.getElementById('tokenChainCount');
-            
-            if (discoveredTokens.length > 0) {
-                countEl.textContent = discoveredTokens.length;
-                statusEl.style.display = 'block';
+            // Status box is now hidden, but we still log for debugging
+            console.log('📊 Multi-hop status updated:', {
+                tokensCount: discoveredTokens.length,
+                multipliersCount: Object.keys(tokenMultipliers).length,
+                tokens: discoveredTokens.map(t => ({ name: t.name, type: t.type }))
+            });
+        }
+
+        // Check if wallet was previously connected this session
+        function checkWalletSession() {
+            const wasConnected = sessionStorage.getItem(WALLET_SESSION_KEY);
+            if (wasConnected === 'true' && typeof window.ethereum !== 'undefined') {
+                // Auto-reconnect if wallet was connected this session
+                autoConnectWallet();
+            }
+        }
+
+        // Auto-connect wallet without user prompt
+        async function autoConnectWallet() {
+            try {
+                web3 = new Web3(window.ethereum);
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
                 
-                console.log('📊 Multi-hop status updated:', {
-                    tokensCount: discoveredTokens.length,
-                    multipliersCount: Object.keys(tokenMultipliers).length,
-                    tokens: discoveredTokens.map(t => ({ name: t.name, type: t.type }))
-                });
-            } else {
-                statusEl.style.display = 'none';
+                if (accounts.length > 0) {
+                    walletAccount = accounts[0];
+                    isWalletConnected = true;
+                    console.log('✅ Auto-reconnected wallet:', walletAccount);
+                    
+                    updateWalletUI();
+                    await loadWalletBalances();
+                    await updateStepUIWithApprovalCheck();
+                }
+            } catch (error) {
+                console.log('⚠️ Auto-reconnect failed:', error.message);
+                sessionStorage.removeItem(WALLET_SESSION_KEY);
             }
         }
 
@@ -846,6 +873,9 @@
                     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                     walletAccount = accounts[0];
                     isWalletConnected = true;
+                    
+                    // Store wallet connection state for this session
+                    sessionStorage.setItem(WALLET_SESSION_KEY, 'true');
                     
                     console.log('✅ Wallet connected:', walletAccount);
                     
@@ -875,6 +905,9 @@
             walletAccount = null;
             isWalletConnected = false;
             web3 = null;
+            
+            // Clear session storage
+            sessionStorage.removeItem(WALLET_SESSION_KEY);
             
             updateWalletUI();
             
@@ -935,6 +968,9 @@
                 }
                 
                 console.log('✅ Balances loaded successfully');
+                
+                // Enable MAX button now that we have balance data
+                document.getElementById('maxBtn').disabled = false;
                 
             } catch (error) {
                 console.error('❌ Failed to load balances:', error);
@@ -1003,6 +1039,75 @@
             }
         }
 
+        // Get advanced multiplier that accounts for the amount being minted
+        async function getAdvancedMultiplier(mintAmount) {
+            if (!web3 || !tokenData.childToken) {
+                return currentMultiplier;
+            }
+            
+            try {
+                const childContract = new web3.eth.Contract(V4_TOKEN_ABI, tokenData.childToken);
+                const amountWei = web3.utils.toWei(mintAmount.toString(), 'ether');
+                const multiplier = await childContract.methods.Multiplier(amountWei).call();
+                
+                console.log(`🔢 Advanced multiplier for ${mintAmount} tokens: ${multiplier}`);
+                return parseInt(multiplier);
+                
+            } catch (error) {
+                console.error('❌ Failed to get advanced multiplier:', error);
+                return currentMultiplier;
+            }
+        }
+
+        // Update cost calculation with advanced multiplier logic
+        async function updateCostCalculation() {
+            const amountInput = document.getElementById('mintAmountInput');
+            const costCalc = document.getElementById('costCalculation');
+            
+            const amount = parseFloat(amountInput.value);
+            
+            if (!amount || amount <= 0) {
+                costCalc.innerHTML = `💡 With current ${currentMultiplier}x multiplier: Enter amount to see parent token cost`;
+                costCalc.style.color = '#ffc107';
+                return;
+            }
+            
+            // Show current estimate while loading advanced multiplier
+            const currentEstimate = amount * currentMultiplier;
+            costCalc.innerHTML = `💰 Estimating cost... (Current estimate: ${currentEstimate.toLocaleString()} ${tokenData.parentName})`;
+            costCalc.style.color = '#ffc107';
+            
+            // Get advanced multiplier for the specific amount
+            try {
+                const advancedMultiplier = await getAdvancedMultiplier(amount);
+                const parentCost = amount * advancedMultiplier;
+                
+                // Check if user has enough parent tokens
+                if (currentParentBalance > 0 && parentCost > currentParentBalance) {
+                    costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ${parentCost.toLocaleString()} ${tokenData.parentName}<br>Have: ${currentParentBalance.toLocaleString()} ${tokenData.parentName}<br>Shortfall: ${(parentCost - currentParentBalance).toLocaleString()} ${tokenData.parentName}`;
+                    costCalc.style.color = '#f44336';
+                } else {
+                    let multiplierNote = '';
+                    if (advancedMultiplier !== currentMultiplier) {
+                        multiplierNote = ` (multiplier adjusted to ${advancedMultiplier}x for this amount)`;
+                    }
+                    costCalc.innerHTML = `💰 Cost: <strong>${parentCost.toLocaleString()}</strong> ${tokenData.parentName}${multiplierNote}`;
+                    costCalc.style.color = '#06ffa5';
+                }
+                
+                // Update current multiplier if it changed
+                if (advancedMultiplier !== currentMultiplier) {
+                    currentMultiplier = advancedMultiplier;
+                }
+                
+            } catch (error) {
+                console.error('❌ Failed to calculate advanced cost:', error);
+                const fallbackCost = amount * currentMultiplier;
+                costCalc.innerHTML = `💰 Cost (estimate): <strong>${fallbackCost.toLocaleString()}</strong> ${tokenData.parentName} (${currentMultiplier}x multiplier)`;
+                costCalc.style.color = '#ffc107';
+            }
+        }
+
         // Handle mint action (approve or mint based on current step)
         async function handleMintAction() {
             if (!web3 || !walletAccount) {
@@ -1014,6 +1119,22 @@
             if (!amount || amount <= 0) {
                 showStatus('Please enter a valid amount', 'error');
                 return;
+            }
+            
+            // Check if user has enough parent tokens before proceeding
+            if (currentMintStep === 2) {
+                try {
+                    const advancedMultiplier = await getAdvancedMultiplier(amount);
+                    const requiredParent = amount * advancedMultiplier;
+                    
+                    if (currentParentBalance > 0 && requiredParent > currentParentBalance) {
+                        showStatus(`❌ Insufficient parent token balance! Need ${requiredParent.toLocaleString()} ${tokenData.parentName}, but you only have ${currentParentBalance.toLocaleString()}.`, 'error');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('❌ Failed to validate balance:', error);
+                    showStatus('⚠️ Could not validate balance. Proceeding with caution...', 'warning');
+                }
             }
             
             const actionBtn = document.getElementById('actionBtn');
@@ -1097,40 +1218,60 @@
             document.getElementById('costCalculation').innerHTML = `✅ <strong>Mint Complete!</strong> Minted ${amount} ${tokenData.childName}`;
         }
 
-        // Update cost calculation
-        function updateCostCalculation() {
-            const amountInput = document.getElementById('mintAmountInput');
-            const costCalc = document.getElementById('costCalculation');
-            
-            const amount = parseFloat(amountInput.value);
-            const multiplier = parseInt(tokenData.multiplier) || 2;
-            
-            if (!amount || amount <= 0) {
-                costCalc.textContent = `💡 With current ${multiplier}x multiplier: Enter amount to see parent token cost`;
-                return;
-            }
-            
-            const parentCost = amount * multiplier;
-            costCalc.innerHTML = `💰 Cost: <strong>${parentCost.toLocaleString()}</strong> ${tokenData.parentName} (${multiplier}x multiplier)`;
-            costCalc.style.color = '#06ffa5';
-        }
-
-        // Set max amount based on parent balance
-        function setMaxAmount() {
+        // Set max amount based on parent balance and current multiplier
+        async function setMaxAmount() {
             if (!currentParentBalance || currentParentBalance <= 0) {
-                showStatus('Parent token balance not available', 'warning');
+                showStatus('Parent token balance not available or zero', 'warning');
                 return;
             }
             
-            const multiplier = parseInt(tokenData.multiplier) || 2;
-            const maxMintAmount = Math.floor(currentParentBalance / multiplier);
+            showStatus('Calculating maximum mintable amount...', 'warning');
             
-            if (maxMintAmount > 0) {
-                document.getElementById('mintAmountInput').value = maxMintAmount;
-                updateCostCalculation();
-                showStatus(`Set to maximum mintable amount: ${maxMintAmount}`, 'success');
-            } else {
-                showStatus('Insufficient parent token balance for minting', 'warning');
+            try {
+                // Use binary search to find the maximum amount that can be minted
+                let low = 0;
+                let high = Math.floor(currentParentBalance / currentMultiplier);
+                let maxMintAmount = 0;
+                
+                // Binary search for the maximum amount (accounting for dynamic multiplier)
+                while (low <= high) {
+                    const mid = Math.floor((low + high) / 2);
+                    
+                    try {
+                        const requiredMultiplier = await getAdvancedMultiplier(mid);
+                        const requiredParent = mid * requiredMultiplier;
+                        
+                        if (requiredParent <= currentParentBalance) {
+                            maxMintAmount = mid;
+                            low = mid + 1;
+                        } else {
+                            high = mid - 1;
+                        }
+                    } catch (error) {
+                        console.error('❌ Error in binary search:', error);
+                        high = mid - 1;
+                    }
+                }
+                
+                if (maxMintAmount > 0) {
+                    document.getElementById('mintAmountInput').value = maxMintAmount;
+                    await updateCostCalculation();
+                    showStatus(`Set to maximum mintable amount: ${maxMintAmount.toLocaleString()}`, 'success');
+                } else {
+                    showStatus('No tokens can be minted with current balance', 'warning');
+                }
+                
+            } catch (error) {
+                console.error('❌ Failed to calculate max amount:', error);
+                // Fallback to simple calculation
+                const fallbackMax = Math.floor(currentParentBalance / currentMultiplier);
+                if (fallbackMax > 0) {
+                    document.getElementById('mintAmountInput').value = fallbackMax;
+                    await updateCostCalculation();
+                    showStatus(`Set to estimated max amount: ${fallbackMax.toLocaleString()} (fallback calculation)`, 'warning');
+                } else {
+                    showStatus('Insufficient parent token balance for minting', 'warning');
+                }
             }
         }
 
@@ -1145,9 +1286,10 @@
             
             try {
                 const childContract = new web3.eth.Contract(V4_TOKEN_ABI, tokenData.childToken);
-                const testAmount = web3.utils.toWei('1000', 'ether'); // Test with 1000 tokens
+                const testAmount = web3.utils.toWei('0', 'ether'); // Test with 0 tokens for base multiplier
                 const multiplier = await childContract.methods.Multiplier(testAmount).call();
                 
+                currentMultiplier = parseInt(multiplier);
                 tokenData.multiplier = multiplier.toString();
                 document.getElementById('multiplierValue').textContent = `${multiplier}x`;
                 
@@ -1280,8 +1422,11 @@
 
         // Initialize page
         window.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 V4 Mint Page with Wallet Connection Ready!');
+            console.log('🚀 V4 Mint Page with Enhanced Wallet Connection Ready!');
             parseUrlParams();
+            
+            // Check for existing wallet connection
+            checkWalletSession();
             
             console.log('📊 Enhanced Multi-Hop Integration Status:', {
                 discoveredTokensCount: discoveredTokens.length,
@@ -1290,6 +1435,30 @@
                 integrationMethods: ['URL parameters', 'localStorage', 'opener window', 'minimal fallback']
             });
         });
+
+        // Handle account changes
+        if (typeof window.ethereum !== 'undefined') {
+            window.ethereum.on('accountsChanged', function (accounts) {
+                if (accounts.length === 0) {
+                    // User disconnected wallet
+                    disconnectWallet();
+                } else if (accounts[0] !== walletAccount) {
+                    // User switched accounts
+                    walletAccount = accounts[0];
+                    console.log('🔄 Account changed to:', walletAccount);
+                    updateWalletUI();
+                    loadWalletBalances();
+                }
+            });
+            
+            window.ethereum.on('chainChanged', function (chainId) {
+                console.log('🌐 Network changed to:', chainId);
+                // Reload balances for new network
+                if (isWalletConnected) {
+                    loadWalletBalances();
+                }
+            });
+        }
 
         // Expose enhanced functions for debugging and integration
         window.DirectMint = {
@@ -1302,26 +1471,52 @@
             loadMultiHopData,
             createMinimalTokenChain,
             updateMultiHopStatusUI,
+            getAdvancedMultiplier,
+            setMaxAmount,
+            updateCostCalculation,
             // Enhanced debugging
             debugMultiHopData: () => {
                 console.log('=== MULTI-HOP DEBUG INFO ===');
                 console.log('Discovered Tokens:', discoveredTokens);
                 console.log('Token Multipliers:', tokenMultipliers);
                 console.log('Current Token Data:', tokenData);
+                console.log('Current Multiplier:', currentMultiplier);
+                console.log('Parent Balance:', currentParentBalance);
+                console.log('Child Balance:', currentChildBalance);
                 console.log('URL Parameters:', Object.fromEntries(new URLSearchParams(window.location.search)));
                 console.log('LocalStorage Keys:', Object.keys(localStorage).filter(k => k.includes('token') || k.includes('multiHop')));
                 return {
                     discoveredTokens,
                     tokenMultipliers,
                     tokenData,
+                    currentMultiplier,
+                    balances: { parent: currentParentBalance, child: currentChildBalance },
                     urlParams: Object.fromEntries(new URLSearchParams(window.location.search))
                 };
+            },
+            // Test functions
+            testMaxCalculation: async () => {
+                console.log('=== TESTING MAX CALCULATION ===');
+                console.log('Parent Balance:', currentParentBalance);
+                console.log('Current Multiplier:', currentMultiplier);
+                
+                for (let amount = 1; amount <= 10; amount++) {
+                    try {
+                        const multiplier = await getAdvancedMultiplier(amount);
+                        const cost = amount * multiplier;
+                        console.log(`Amount: ${amount}, Multiplier: ${multiplier}, Cost: ${cost}`);
+                    } catch (error) {
+                        console.log(`Amount: ${amount}, Error: ${error.message}`);
+                    }
+                }
             }
         };
 
-        console.log('🎯 Enhanced Direct Mint Page loaded with working wallet connection!');
-        console.log('💡 Multi-hop integration includes 4 fallback methods for maximum reliability');
+        console.log('🎯 Enhanced Direct Mint Page loaded with advanced features!');
+        console.log('💡 Features: Session wallet persistence, advanced multiplier calculation, balance validation');
+        console.log('🔧 Fixed: MAX button functionality, insufficient balance detection, accurate cost calculation');
         console.log('🔗 Use DirectMint.debugMultiHopData() to inspect all integration data');
+        console.log('🧪 Use DirectMint.testMaxCalculation() to test multiplier calculations');
         console.log('🚀 Use DirectMint.connectWallet() to test wallet connection');
     </script>
 </body>
