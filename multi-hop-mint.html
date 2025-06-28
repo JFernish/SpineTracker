@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -482,21 +481,6 @@
             <div class="contract-address">
                 📄 MultiHopMinter Contract: 0xFD17eBc0B90dcfa51f3eE9b377Ff0b14a8dC9C2C
             </div>
-            <!-- Wallet Balances Section -->
-            <div id="balanceSection" class="balance-section" style="display: none;">
-                <div class="balance-title">💰 Current Wallet Balances</div>
-                <div class="balance-row">
-                    <span class="balance-label">Source (<span id="sourceSymbol">...</span>):</span>
-                    <span class="balance-value balance-loading" id="sourceBalance">Loading...</span>
-                </div>
-                <div class="balance-row">
-                    <span class="balance-label">Target (<span id="targetSymbol">...</span>):</span>
-                    <span class="balance-value balance-loading" id="targetBalance">Loading...</span>
-                </div>
-                <button onclick="refreshBalances()" id="refreshBalanceBtn" style="background: rgba(6, 255, 165, 0.2); border: 1px solid rgba(6, 255, 165, 0.3); color: #06ffa5; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; margin-top: 8px; width: 100%;">
-                    🔄 Refresh Balances
-                </button>
-            </div>
         </div>
 
         <!-- Integration Status -->
@@ -561,6 +545,22 @@
                 <button class="wallet-btn" id="disconnectWalletBtn" onclick="disconnectWallet()" style="background: linear-gradient(45deg, #f44336, #e91e63);">
                     Disconnect
                 </button>
+                
+                <!-- Wallet Balances Section - Moved here -->
+                <div id="balanceSection" class="balance-section" style="display: none;">
+                    <div class="balance-title">💰 Current Wallet Balances</div>
+                    <div class="balance-row">
+                        <span class="balance-label">Source (<span id="sourceSymbol">...</span>):</span>
+                        <span class="balance-value balance-loading" id="sourceBalance">Loading...</span>
+                    </div>
+                    <div class="balance-row">
+                        <span class="balance-label">Target (<span id="targetSymbol">...</span>):</span>
+                        <span class="balance-value balance-loading" id="targetBalance">Loading...</span>
+                    </div>
+                    <button onclick="refreshBalances()" id="refreshBalanceBtn" style="background: rgba(6, 255, 165, 0.2); border: 1px solid rgba(6, 255, 165, 0.3); color: #06ffa5; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; margin-top: 8px; width: 100%;">
+                        🔄 Refresh Balances
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -652,6 +652,10 @@
         // Store current balances for calculations
         let currentSourceBalance = 0;
         let currentTargetBalance = 0;
+
+        // Store current step (1 = approve, 2 = mint)
+        let currentMintStep = 1;
+        let isApprovalSufficient = false;
 
         // Session storage for wallet persistence
         const WALLET_SESSION_KEY = 'walletConnected';
@@ -909,6 +913,10 @@
             multiHopData.targetName = selectedToken.name;
             multiHopData.targetIndex = selectedIndex;
             
+            // Store the selected values to preserve them
+            multiHopData.selectedSourceValue = document.getElementById('sourceTokenDropdown').value;
+            multiHopData.selectedTargetValue = selectedAddress;
+            
             document.getElementById('targetSymbol').textContent = selectedToken.name;
             
             buildFullChainPath();
@@ -949,8 +957,10 @@
                 const token = discoveredTokens[i];
                 if (i > multiHopData.sourceIndex) {
                     pathHtml += '<span class="hop-arrow">→</span>';
+                    // Get the actual multiplier from tokenMultipliers, default to 2 if not found
                     const multiplier = tokenMultipliers[token.address.toLowerCase()] || 2;
                     totalMultiplier *= multiplier;
+                    console.log(`Token ${token.name} at ${token.address}: multiplier = ${multiplier}`);
                 }
                 pathHtml += `<span>${token.name}</span>`;
             }
@@ -958,6 +968,8 @@
             hopPath.innerHTML = pathHtml;
             totalMultiplierEl.textContent = `${totalMultiplier}x`;
             multiHopData.totalMultiplier = totalMultiplier;
+            
+            console.log(`Total multiplier calculated: ${totalMultiplier}x for path from ${discoveredTokens[multiHopData.sourceIndex].name} to ${discoveredTokens[multiHopData.targetIndex].name}`);
             
             hopDetails.style.display = 'block';
         }
@@ -1129,13 +1141,54 @@
                 
                 document.getElementById('maxBtn').disabled = false;
                 
+                // Check approval status when balances are loaded
+                await checkApprovalStatus();
+                
             } catch (error) {
                 document.getElementById('sourceBalance').textContent = 'Error';
                 document.getElementById('targetBalance').textContent = 'Error';
             }
         }
 
-        async function refreshBalances() {
+        // Check approval status and update button text
+        async function checkApprovalStatus() {
+            if (!web3 || !walletAccount || !multiHopData.sourceToken) return;
+            
+            try {
+                const sourceTokenContract = new web3.eth.Contract(ERC20_ABI, multiHopData.sourceToken);
+                const allowance = await sourceTokenContract.methods.allowance(walletAccount, MULTIHOP_CONTRACT_ADDRESS).call();
+                const allowanceEther = parseFloat(web3.utils.fromWei(allowance, 'ether'));
+                
+                // Consider approval sufficient if allowance is > 1 million tokens
+                isApprovalSufficient = allowanceEther > 1000000;
+                
+                currentMintStep = isApprovalSufficient ? 2 : 1;
+                updateMintButtonText();
+                
+                console.log(`Approval status: ${isApprovalSufficient ? 'Sufficient' : 'Needed'}, allowance: ${allowanceEther}`);
+                
+            } catch (error) {
+                console.error('Error checking approval status:', error);
+                isApprovalSufficient = false;
+                currentMintStep = 1;
+                updateMintButtonText();
+            }
+        }
+
+        // Update mint button text based on current step
+        function updateMintButtonText() {
+            const mintBtn = document.getElementById('multiHopMintBtn');
+            
+            if (currentMintStep === 1) {
+                mintBtn.textContent = '📝 Approve Source Token';
+                mintBtn.className = 'action-btn secondary';
+                mintBtn.style.background = 'linear-gradient(45deg, #ff6b35, #f7931e)';
+            } else {
+                mintBtn.textContent = '⚡ Optimized Multi-Hop Mint';
+                mintBtn.className = 'action-btn optimized';
+                mintBtn.style.background = 'linear-gradient(45deg, #06ffa5, #3a86ff)';
+            }
+        }
             if (!isWalletConnected) {
                 showStatus('Connect wallet to refresh balances', 'warning');
                 return;
@@ -1181,7 +1234,27 @@
             updateMintButtonState();
         }
 
-        function updateMintButtonState() {
+        // Preserve dropdown selections after successful transactions
+        function preserveDropdownSelections() {
+            if (multiHopData.selectedSourceValue && multiHopData.selectedTargetValue) {
+                setTimeout(() => {
+                    const sourceDropdown = document.getElementById('sourceTokenDropdown');
+                    const targetDropdown = document.getElementById('targetTokenDropdown');
+                    
+                    // Restore source selection
+                    sourceDropdown.value = multiHopData.selectedSourceValue;
+                    onSourceTokenChange();
+                    
+                    // Restore target selection after a brief delay
+                    setTimeout(() => {
+                        targetDropdown.value = multiHopData.selectedTargetValue;
+                        // Trigger the change event to restore all the data
+                        const event = new Event('change');
+                        targetDropdown.dispatchEvent(event);
+                    }, 100);
+                }, 50);
+            }
+        }
             const mintBtn = document.getElementById('multiHopMintBtn');
             const amount = parseFloat(document.getElementById('mintAmountInput').value);
             
@@ -1192,6 +1265,9 @@
                            multiHopData.fullChainPath.length > 0;
             
             mintBtn.disabled = !canMint;
+            
+            // Update button text based on approval status
+            updateMintButtonText();
         }
 
         async function setMaxAmount() {
@@ -1289,11 +1365,11 @@
                 }
                 
                 mintBtn.disabled = true;
-                mintBtn.textContent = '⚡ Preparing...';
                 
                 const targetAmountWei = web3.utils.toWei(amount.toString(), 'ether');
                 const chainPathExcludingSource = multiHopData.fullChainPath.slice(1);
                 
+                // Get the exact cost from contract
                 mintBtn.textContent = '⚡ Calculating costs...';
                 
                 const previewResult = await multiHopContract.methods
@@ -1303,44 +1379,57 @@
                 const sourceCostWei = previewResult.sourceCost;
                 const sourceCostEther = web3.utils.fromWei(sourceCostWei, 'ether');
                 
-                mintBtn.textContent = '⚡ Checking balance...';
                 const sourceTokenContract = new web3.eth.Contract(ERC20_ABI, multiHopData.sourceToken);
-                const userBalance = await sourceTokenContract.methods.balanceOf(walletAccount).call();
-                const userBalanceEther = web3.utils.fromWei(userBalance, 'ether');
                 
-                if (web3.utils.toBN(userBalance).lt(web3.utils.toBN(sourceCostWei))) {
-                    throw new Error(`Insufficient ${multiHopData.sourceName} balance. Need: ${sourceCostEther}, Have: ${userBalanceEther}`);
-                }
-                
-                mintBtn.textContent = '⚡ Checking allowance...';
-                const allowance = await sourceTokenContract.methods.allowance(walletAccount, MULTIHOP_CONTRACT_ADDRESS).call();
-                
-                if (web3.utils.toBN(allowance).lt(web3.utils.toBN(sourceCostWei))) {
-                    mintBtn.textContent = '⚡ Requesting approval...';
+                if (currentMintStep === 1) {
+                    // Step 1: Approve
+                    mintBtn.textContent = '📝 Requesting approval...';
                     showStatus(`Approving ${multiHopData.sourceName} for multi-hop minting...`, 'warning');
                     
                     const approveTx = await sourceTokenContract.methods
                         .approve(MULTIHOP_CONTRACT_ADDRESS, sourceCostWei)
                         .send({ from: walletAccount });
                     
-                    showStatus('Approval successful! Proceeding with mint...', 'success');
+                    console.log('✅ Approval transaction:', approveTx.transactionHash);
+                    showStatus('✅ Approval successful! You can now mint.', 'success');
+                    
+                    // Update to step 2
+                    isApprovalSufficient = true;
+                    currentMintStep = 2;
+                    updateMintButtonText();
+                    
+                    // Preserve selections after approval
+                    preserveDropdownSelections();
+                    
+                } else {
+                    // Step 2: Mint
+                    mintBtn.textContent = '⚡ Checking balance...';
+                    const userBalance = await sourceTokenContract.methods.balanceOf(walletAccount).call();
+                    const userBalanceEther = web3.utils.fromWei(userBalance, 'ether');
+                    
+                    if (web3.utils.toBN(userBalance).lt(web3.utils.toBN(sourceCostWei))) {
+                        throw new Error(`Insufficient ${multiHopData.sourceName} balance. Need: ${sourceCostEther}, Have: ${userBalanceEther}`);
+                    }
+                    
+                    mintBtn.textContent = '⚡ Executing mint...';
+                    showStatus('Executing optimized multi-hop mint...', 'warning');
+                    
+                    const mintTx = await multiHopContract.methods
+                        .multiHopMintOptimized(targetAmountWei, multiHopData.fullChainPath)
+                        .send({ from: walletAccount });
+                    
+                    showStatus(`✅ Multi-hop mint successful! TX: ${mintTx.transactionHash.slice(0, 10)}...`, 'success');
+                    
+                    document.getElementById('costCalculation').innerHTML = `✅ <strong>Mint Complete!</strong><br>
+                        Minted: ${amount} ${multiHopData.targetName}<br>
+                        Cost: ${sourceCostEther} ${multiHopData.sourceName}<br>
+                        TX: <a href="https://scan.pulsechain.com/tx/${mintTx.transactionHash}" target="_blank" style="color: #06ffa5;">${mintTx.transactionHash.slice(0, 10)}...</a>`;
+                    
+                    await loadWalletBalances();
+                    
+                    // Preserve selections after minting
+                    preserveDropdownSelections();
                 }
-                
-                mintBtn.textContent = '⚡ Executing mint...';
-                showStatus('Executing optimized multi-hop mint...', 'warning');
-                
-                const mintTx = await multiHopContract.methods
-                    .multiHopMintOptimized(targetAmountWei, multiHopData.fullChainPath)
-                    .send({ from: walletAccount });
-                
-                showStatus(`✅ Multi-hop mint successful! TX: ${mintTx.transactionHash.slice(0, 10)}...`, 'success');
-                
-                document.getElementById('costCalculation').innerHTML = `✅ <strong>Mint Complete!</strong><br>
-                    Minted: ${amount} ${multiHopData.targetName}<br>
-                    Cost: ${sourceCostEther} ${multiHopData.sourceName}<br>
-                    TX: <a href="https://scan.pulsechain.com/tx/${mintTx.transactionHash}" target="_blank" style="color: #06ffa5;">${mintTx.transactionHash.slice(0, 10)}...</a>`;
-                
-                await loadWalletBalances();
                 
             } catch (error) {
                 let errorMessage = error.message;
@@ -1350,7 +1439,7 @@
                     errorMessage = 'Insufficient funds for gas';
                 }
                 
-                showStatus(`❌ Multi-hop mint failed: ${errorMessage}`, 'error');
+                showStatus(`❌ ${currentMintStep === 1 ? 'Approval' : 'Mint'} failed: ${errorMessage}`, 'error');
             } finally {
                 mintBtn.disabled = false;
                 mintBtn.textContent = originalText;
@@ -1393,7 +1482,9 @@
             multiHopData: () => multiHopData,
             tokenMultipliers: () => tokenMultipliers,
             contractAddress: MULTIHOP_CONTRACT_ADDRESS,
-            balances: () => ({ source: currentSourceBalance, target: currentTargetBalance })
+            balances: () => ({ source: currentSourceBalance, target: currentTargetBalance }),
+            currentStep: () => currentMintStep,
+            approvalStatus: () => isApprovalSufficient
         };
     </script>
 </body>
