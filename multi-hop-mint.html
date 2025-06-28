@@ -1880,7 +1880,8 @@
                 }
                 
                 // Step 1: Calculate initial MAX based on current multiplier (subtract 1 wei)
-                const initialMax = (currentSourceBalance / multiHopData.totalMultiplier) - 0.000000000000000001;
+                const rawInitialMax = (currentSourceBalance / multiHopData.totalMultiplier) - 0.000000000000000001;
+                const initialMax = parseFloat(rawInitialMax.toFixed(18)); // Limit to 18 decimal places for toWei()
                 
                 console.log(`🔍 MAX calculation: Starting with ${initialMax} based on balance ${currentSourceBalance} / multiplier ${multiHopData.totalMultiplier} (minus 1 wei)`);
                 
@@ -1918,11 +1919,14 @@
                     const reductionFactor = 0.95; // 5% reduction each time
                     
                     for (let attempt = 1; attempt <= 3; attempt++) {
-                        testAmount = (testAmount * reductionFactor) - 0.000000000000000001; // Subtract 1 wei
+                        const rawTestAmount = (testAmount * reductionFactor) - 0.000000000000000001; // Subtract 1 wei
+                        testAmount = parseFloat(rawTestAmount.toFixed(18)); // Limit to 18 decimal places for toWei()
                         
                         if (testAmount <= 0) {
                             break;
                         }
+                        
+                        console.log(`🔍 Attempt ${attempt}: Testing ${testAmount} tokens`);
                         
                         try {
                             targetAmountWei = readWeb3.utils.toWei(testAmount.toString(), 'ether');
