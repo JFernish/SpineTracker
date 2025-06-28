@@ -814,7 +814,7 @@
             }
             
             console.log('🔍 Fetching missing multipliers from contracts...');
-            showStatus('🔍 Fetching multipliers from blockchain...', 'warning');
+            // Remove the "Fetching multipliers..." status message to avoid interim messages
             
             let foundMultipliers = 0;
             let skippedMultipliers = 0;
@@ -850,15 +850,13 @@
             
             console.log(`🎯 Results: ${foundMultipliers} found, ${skippedMultipliers} already cached, ${failedMultipliers} failed`);
             
-            // Update the UI based on results
+            // Only show final results, no interim messages
             if (foundMultipliers > 0) {
-                showStatus(`✅ Found ${foundMultipliers} new multipliers from blockchain!`, 'success');
+                console.log(`✅ Successfully loaded ${foundMultipliers} new multipliers from blockchain`);
             } else if (skippedMultipliers > 0) {
-                showStatus(`✅ All ${totalTokensToCheck} multipliers already loaded!`, 'success');
+                console.log(`✅ All ${totalTokensToCheck} multipliers already available`);
             } else if (failedMultipliers > 0) {
-                showStatus(`❌ Failed to fetch ${failedMultipliers} multipliers. Check network connection.`, 'error');
-            } else {
-                showStatus('⚠️ No tokens to check for multipliers.', 'warning');
+                console.log(`❌ Failed to fetch ${failedMultipliers} multipliers`);
             }
             
             // Refresh the hop details display if we have a selected path
@@ -1633,8 +1631,16 @@
                     
                     const hopContract = new readWeb3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
                     
-                    // Convert X to Wei (add 18 zeros)
-                    const targetAmountWei = readWeb3.utils.toWei(amount.toString(), 'ether');
+                    // Convert X to Wei (add 18 zeros) - handle scientific notation
+                    let targetAmountWei;
+                    try {
+                        // Ensure we don't have scientific notation issues
+                        const amountStr = amount < 1 ? amount.toFixed(18) : amount.toString();
+                        targetAmountWei = readWeb3.utils.toWei(amountStr, 'ether');
+                    } catch (conversionError) {
+                        console.error('❌ Amount conversion error:', conversionError);
+                        throw new Error(`Invalid amount format: ${amount}`);
+                    }
                     
                     // Call discoverAndPreview
                     const result = await hopContract.methods
@@ -1749,36 +1755,37 @@
                     const mid = Math.floor((low + high) / 2);
                     
                     try {
-                        // Get accurate total multiplier for this amount
-                        const totalMultiplier = await getTotalMultiplierFromContract(
-                            multiHopData.sourceToken,
-                            multiHopData.targetToken,
-                            mid
-                        );
+                        // Get accurate cost from contract for this amount
+                        let targetAmountWei;
+                        try {
+                            // Handle scientific notation for very small numbers
+                            const amountStr = mid < 1 ? mid.toFixed(18) : mid.toString();
+                            targetAmountWei = readWeb3.utils.toWei(amountStr, 'ether');
+                        } catch (conversionError) {
+                            console.error(`❌ Amount conversion error for ${mid}:`, conversionError);
+                            high = mid - 1;
+                            continue;
+                        }
                         
-                        if (totalMultiplier !== null) {
-                            const requiredCost = mid * totalMultiplier;
+                        try {
+                            // Call discoverAndPreview directly for MAX calculation
+                            const hopContract = new readWeb3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
                             
-                            if (requiredCost <= currentSourceBalance) {
+                            const result = await hopContract.methods
+                                .discoverAndPreview(multiHopData.sourceToken, multiHopData.targetToken, targetAmountWei)
+                                .call();
+                            
+                            const sourceCostEther = parseFloat(readWeb3.utils.fromWei(result.sourceCost, 'ether'));
+                            
+                            if (sourceCostEther <= currentSourceBalance) {
                                 maxMintAmount = mid;
                                 low = mid + 1;
                             } else {
                                 high = mid - 1;
                             }
-                        } else {
-                            // Fallback to contract preview if calculateTotalMultiplier fails
-                            const accurateCost = await getAccurateCostFromContract(
-                                multiHopData.sourceToken,
-                                multiHopData.targetToken,
-                                mid
-                            );
-                            
-                            if (accurateCost !== null && accurateCost <= currentSourceBalance) {
-                                maxMintAmount = mid;
-                                low = mid + 1;
-                            } else {
-                                high = mid - 1;
-                            }
+                        } catch (contractError) {
+                            console.error(`❌ Contract call error for amount ${mid}:`, contractError);
+                            high = mid - 1;
                         }
                     } catch (error) {
                         console.error(`❌ Error in binary search at amount ${mid}:`, error);
