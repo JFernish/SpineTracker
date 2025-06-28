@@ -1391,9 +1391,26 @@
                 console.log('⚠️ No token data available - showing warning');
             }
             
-            // Add event listeners
-            document.getElementById('mintAmountInput').addEventListener('input', updateMultiHopCalculation);
-            document.getElementById('mintAmountInput').addEventListener('change', updateMultiHopCalculation);
+            // Add event listeners to ensure they're attached
+            const connectBtn = document.getElementById('connectWalletBtn');
+            const disconnectBtn = document.getElementById('disconnectWalletBtn');
+            const mintAmountInput = document.getElementById('mintAmountInput');
+            
+            if (connectBtn) {
+                connectBtn.addEventListener('click', connectWallet);
+                console.log('✅ Connect wallet button event listener attached');
+            }
+            
+            if (disconnectBtn) {
+                disconnectBtn.addEventListener('click', disconnectWallet);
+                console.log('✅ Disconnect wallet button event listener attached');
+            }
+            
+            if (mintAmountInput) {
+                mintAmountInput.addEventListener('input', updateMultiHopCalculation);
+                mintAmountInput.addEventListener('change', updateMultiHopCalculation);
+                console.log('✅ Amount input event listeners attached');
+            }
             
             console.log('✅ Optimized multi-hop mint page loaded');
             console.log('⚡ Using multiHopMintOptimized for gas efficiency');
