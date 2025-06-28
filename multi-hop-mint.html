@@ -1894,7 +1894,16 @@
                 const hopContract = new readWeb3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
                 
                 try {
-                    let targetAmountWei = readWeb3.utils.toWei(initialMax.toString(), 'ether');
+                    // Convert to string with proper formatting to avoid scientific notation
+                    let amountStr;
+                    if (initialMax.toString().includes('e')) {
+                        // Handle scientific notation
+                        amountStr = initialMax.toFixed(18).replace(/\.?0+$/, '');
+                    } else {
+                        amountStr = initialMax.toString();
+                    }
+                    
+                    let targetAmountWei = readWeb3.utils.toWei(amountStr, 'ether');
                     
                     const result = await hopContract.methods
                         .discoverAndPreview(multiHopData.sourceToken, multiHopData.targetToken, targetAmountWei)
@@ -1929,7 +1938,16 @@
                         console.log(`🔍 Attempt ${attempt}: Testing ${testAmount} tokens`);
                         
                         try {
-                            targetAmountWei = readWeb3.utils.toWei(testAmount.toString(), 'ether');
+                            // Convert to string with proper formatting to avoid scientific notation
+                            let amountStr;
+                            if (testAmount.toString().includes('e')) {
+                                // Handle scientific notation
+                                amountStr = testAmount.toFixed(18).replace(/\.?0+$/, '');
+                            } else {
+                                amountStr = testAmount.toString();
+                            }
+                            
+                            targetAmountWei = readWeb3.utils.toWei(amountStr, 'ether');
                             
                             const adjustedResult = await hopContract.methods
                                 .discoverAndPreview(multiHopData.sourceToken, multiHopData.targetToken, targetAmountWei)
@@ -2123,7 +2141,77 @@
             }
         }
 
-        // Initialize page on load
+        // Update revoke button state based on approval status
+        function updateRevokeButtonState() {
+            const revokeBtn = document.getElementById('revokeApprovalBtn');
+            
+            if (!isWalletConnected || !multiHopData.sourceToken) {
+                revokeBtn.disabled = true;
+                revokeBtn.textContent = '🚫 Revoke Approval';
+                return;
+            }
+            
+            if (isApprovalSufficient) {
+                revokeBtn.disabled = false;
+                revokeBtn.textContent = `🚫 Revoke ${multiHopData.sourceName} Approval`;
+            } else {
+                revokeBtn.disabled = true;
+                revokeBtn.textContent = '🚫 No Approval to Revoke';
+            }
+        }
+
+        async function revokeApproval() {
+            if (!isWalletConnected || !web3 || !walletAccount) {
+                showStatus('Connect wallet to revoke approval', 'warning');
+                return;
+            }
+            
+            if (!multiHopData.sourceToken) {
+                showStatus('Select a source token first', 'warning');
+                return;
+            }
+            
+            const revokeBtn = document.getElementById('revokeApprovalBtn');
+            const originalText = revokeBtn.textContent;
+            
+            try {
+                revokeBtn.disabled = true;
+                revokeBtn.textContent = '🚫 Revoking...';
+                
+                showStatus(`Revoking approval for ${multiHopData.sourceName}...`, 'warning');
+                
+                const sourceTokenContract = new web3.eth.Contract(ERC20_ABI, multiHopData.sourceToken);
+                
+                // Set approval to 0 to revoke
+                const revokeTx = await sourceTokenContract.methods
+                    .approve(MULTIHOP_CONTRACT_ADDRESS, '0')
+                    .send({ from: walletAccount });
+                
+                console.log('✅ Revoke approval transaction:', revokeTx.transactionHash);
+                showStatus(`✅ Approval revoked for ${multiHopData.sourceName}! TX: ${revokeTx.transactionHash.slice(0, 10)}...`, 'success');
+                
+                // Update approval status
+                isApprovalSufficient = false;
+                currentMintStep = 1;
+                updateMintButtonText();
+                
+                // Update revoke button state
+                updateRevokeButtonState();
+                
+            } catch (error) {
+                let errorMessage = error.message;
+                if (error.message.includes('User denied')) {
+                    errorMessage = 'Transaction cancelled by user';
+                } else if (error.message.includes('insufficient funds')) {
+                    errorMessage = 'Insufficient funds for gas';
+                }
+                
+                showStatus(`❌ Failed to revoke approval: ${errorMessage}`, 'error');
+            } finally {
+                revokeBtn.disabled = false;
+                revokeBtn.textContent = originalText;
+            }
+        }
         window.addEventListener('DOMContentLoaded', function() {
             const dataLoaded = parseUrlParams();
             
