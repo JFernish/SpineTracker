@@ -1577,18 +1577,19 @@
                 ${type === 'warning' ? 'background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); color: #ffc107;' : ''}
                 ${type === 'error' ? 'background: rgba(244, 67, 54, 0.1); border: 1px solid rgba(244, 67, 54, 0.3); color: #f44336;' : ''}
             `;
-            messageEl.textContent = message;
+            messageEl.innerHTML = message;
             
             // Insert after the input-with-button div
             const inputWithButton = document.querySelector('.input-with-button');
             inputWithButton.parentNode.insertBefore(messageEl, inputWithButton.nextSibling);
             
-            // Auto-remove after 4 seconds
+            // Auto-remove after different times based on message type
+            const removeTimeout = type === 'warning' ? 15000 : 4000; // 15 seconds for warnings, 4 seconds for others
             setTimeout(() => {
                 if (messageEl && messageEl.parentNode) {
                     messageEl.remove();
                 }
-            }, 4000);
+            }, removeTimeout);
         }
 
         async function loadWalletBalances() {
@@ -2011,7 +2012,9 @@
                         suggestedAmount.toFixed(18).replace(/\.?0+$/, '') : 
                         suggestedAmount.toString();
                     
-                    showMaxButtonMessage(`Max mint amount will cause a significant increase in multipliers. Try starting with ${suggestedAmountFormatted} amount based on original multiplier and gradually reduce.`, 'warning');
+                    const clickableMessage = `Max mint amount will cause a significant increase in multipliers. Try starting with <span style="cursor: pointer; text-decoration: underline; font-weight: bold;" onclick="document.getElementById('mintAmountInput').value='${suggestedAmountFormatted}'; updateMultiHopCalculation();">${suggestedAmountFormatted}</span> amount based on original multiplier and gradually reduce.`;
+                    
+                    showMaxButtonMessage(clickableMessage, 'warning');
                     
                 } catch (contractError) {
                     console.error('❌ Contract error during MAX calculation:', contractError);
