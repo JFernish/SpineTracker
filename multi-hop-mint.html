@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Hop Mint V4 Token (Optimized)</title>
+    <title>Multi-Hop Mint V4 Token</title>
     <style>
         * {
             margin: 0;
@@ -1530,6 +1530,41 @@
             }, 5000);
         }
 
+        // Show MAX button specific messages near the MAX button
+        function showMaxButtonMessage(message, type = 'info') {
+            // Remove any existing max message
+            const existingMessage = document.getElementById('maxButtonMessage');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+            
+            // Create new message element
+            const messageEl = document.createElement('div');
+            messageEl.id = 'maxButtonMessage';
+            messageEl.style.cssText = `
+                margin-top: 8px;
+                padding: 8px 12px;
+                border-radius: 8px;
+                font-size: 0.85rem;
+                font-weight: 500;
+                ${type === 'success' ? 'background: rgba(6, 255, 165, 0.1); border: 1px solid rgba(6, 255, 165, 0.3); color: #06ffa5;' : ''}
+                ${type === 'warning' ? 'background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); color: #ffc107;' : ''}
+                ${type === 'error' ? 'background: rgba(244, 67, 54, 0.1); border: 1px solid rgba(244, 67, 54, 0.3); color: #f44336;' : ''}
+            `;
+            messageEl.textContent = message;
+            
+            // Insert after the input-with-button div
+            const inputWithButton = document.querySelector('.input-with-button');
+            inputWithButton.parentNode.insertBefore(messageEl, inputWithButton.nextSibling);
+            
+            // Auto-remove after 4 seconds
+            setTimeout(() => {
+                if (messageEl && messageEl.parentNode) {
+                    messageEl.remove();
+                }
+            }, 4000);
+        }
+
         async function loadWalletBalances() {
             if (!web3 || !walletAccount || !multiHopData.sourceToken || !multiHopData.targetToken) return;
             
@@ -1552,8 +1587,10 @@
                 
                 document.getElementById('maxBtn').disabled = false;
                 
-                // Check approval status when balances are loaded
-                await checkApprovalStatus();
+                // Only check approval status during initial load, not after successful approvals
+                if (currentMintStep === 1) {
+                    await checkApprovalStatus();
+                }
                 
             } catch (error) {
                 document.getElementById('sourceBalance').textContent = 'Error';
@@ -1574,19 +1611,24 @@
                 const allowance = await sourceTokenContract.methods.allowance(walletAccount, MULTIHOP_CONTRACT_ADDRESS).call();
                 const allowanceEther = parseFloat(web3.utils.fromWei(allowance, 'ether'));
                 
-                // Consider approval sufficient if allowance is > 1 million tokens
-                isApprovalSufficient = allowanceEther > 1000000;
-                
-                currentMintStep = isApprovalSufficient ? 2 : 1;
-                updateMintButtonText();
+                // Only update approval status if we haven't already completed an approval in this session
+                // This prevents the button from reverting back to "Approve" after a successful approval
+                if (currentMintStep === 1) {
+                    // Consider approval sufficient if allowance is > 1 million tokens
+                    isApprovalSufficient = allowanceEther > 1000000;
+                    currentMintStep = isApprovalSufficient ? 2 : 1;
+                    updateMintButtonText();
+                }
                 
                 console.log(`✅ Approval status: ${isApprovalSufficient ? 'Sufficient' : 'Needed'}, allowance: ${allowanceEther.toLocaleString()}`);
                 
             } catch (error) {
                 console.error('❌ Error checking approval status:', error);
-                isApprovalSufficient = false;
-                currentMintStep = 1;
-                updateMintButtonText();
+                // Only reset if we haven't completed an approval
+                if (currentMintStep === 1) {
+                    isApprovalSufficient = false;
+                    updateMintButtonText();
+                }
             }
         }
 
@@ -1789,21 +1831,21 @@
 
         async function setMaxAmount() {
             if (!isWalletConnected) {
-                showStatus('Connect wallet to use MAX button', 'warning');
+                showMaxButtonMessage('Connect wallet to use MAX button', 'warning');
                 return;
             }
             
             if (!currentSourceBalance || currentSourceBalance <= 0) {
-                showStatus('Source token balance not available or zero', 'warning');
+                showMaxButtonMessage('Source token balance not available or zero', 'warning');
                 return;
             }
             
             if (!multiHopData.sourceToken || !multiHopData.targetToken) {
-                showStatus('Select source and target tokens first', 'warning');
+                showMaxButtonMessage('Select source and target tokens first', 'warning');
                 return;
             }
             
-            showStatus('Calculating maximum mintable amount using calculateTotalMultiplier...', 'warning');
+            showMaxButtonMessage('Calculating maximum mintable amount...', 'warning');
             
             try {
                 // Use binary search with calculateTotalMultiplier for accurate max calculation
@@ -1868,9 +1910,9 @@
                 if (maxMintAmount > 0) {
                     document.getElementById('mintAmountInput').value = maxMintAmount;
                     updateMultiHopCalculation();
-                    showStatus(`Set to maximum mintable amount: ${maxMintAmount.toLocaleString()} (calculated using calculateTotalMultiplier)`, 'success');
+                    showMaxButtonMessage(`Set to maximum: ${maxMintAmount.toLocaleString()}`, 'success');
                 } else {
-                    showStatus('No tokens can be minted with current balance', 'warning');
+                    showMaxButtonMessage('No tokens can be minted with current balance', 'warning');
                 }
                 
             } catch (error) {
@@ -1881,9 +1923,9 @@
                 if (fallbackMax > 0) {
                     document.getElementById('mintAmountInput').value = fallbackMax;
                     updateMultiHopCalculation();
-                    showStatus(`Set to estimated max amount: ${fallbackMax.toLocaleString()} (fallback calculation)`, 'warning');
+                    showMaxButtonMessage(`Set to estimated max: ${fallbackMax.toLocaleString()}`, 'warning');
                 } else {
-                    showStatus('Insufficient source token balance for minting', 'warning');
+                    showMaxButtonMessage('Insufficient source token balance for minting', 'warning');
                 }
             }
         }
@@ -2073,4 +2115,3 @@
     </script>
 </body>
 </html>
-                        
