@@ -817,6 +817,8 @@
             showStatus('🔍 Fetching multipliers from blockchain...', 'warning');
             
             let foundMultipliers = 0;
+            let skippedMultipliers = 0;
+            let failedMultipliers = 0;
             let totalTokensToCheck = discoveredTokens.length - 1; // Skip parent token
             
             // Check each child token (skip parent at index 0)
@@ -827,6 +829,7 @@
                 // Skip if we already have this multiplier
                 if (tokenMultipliers[addressKey] && tokenMultipliers[addressKey] > 1) {
                     console.log(`✅ Already have multiplier for ${token.name}: ${tokenMultipliers[addressKey]}x`);
+                    skippedMultipliers++;
                     continue;
                 }
                 
@@ -838,25 +841,30 @@
                     console.log(`✅ Found base multiplier for ${token.name}: ${multiplier}x`);
                 } else {
                     console.warn(`❌ Could not get multiplier for ${token.name} (${token.address})`);
+                    failedMultipliers++;
                 }
                 
                 // Small delay to avoid overwhelming the RPC
                 await new Promise(resolve => setTimeout(resolve, 150));
             }
             
-            console.log(`🎯 Fetched ${foundMultipliers} multipliers from ${totalTokensToCheck} tokens in chain`);
+            console.log(`🎯 Results: ${foundMultipliers} found, ${skippedMultipliers} already cached, ${failedMultipliers} failed`);
             
-            // Update the UI if we found any multipliers
+            // Update the UI based on results
             if (foundMultipliers > 0) {
-                showStatus(`✅ Found ${foundMultipliers} of ${totalTokensToCheck} multipliers from blockchain!`, 'success');
-                
-                // Refresh the hop details display
-                if (multiHopData.sourceIndex !== -1 && multiHopData.targetIndex !== -1) {
-                    showHopDetails();
-                    updateMultiHopCalculation();
-                }
+                showStatus(`✅ Found ${foundMultipliers} new multipliers from blockchain!`, 'success');
+            } else if (skippedMultipliers > 0) {
+                showStatus(`✅ All ${totalTokensToCheck} multipliers already loaded!`, 'success');
+            } else if (failedMultipliers > 0) {
+                showStatus(`❌ Failed to fetch ${failedMultipliers} multipliers. Check network connection.`, 'error');
             } else {
-                showStatus('❌ Could not fetch multipliers from contracts. Try connecting wallet.', 'error');
+                showStatus('⚠️ No tokens to check for multipliers.', 'warning');
+            }
+            
+            // Refresh the hop details display if we have a selected path
+            if (multiHopData.sourceIndex !== -1 && multiHopData.targetIndex !== -1) {
+                showHopDetails();
+                updateMultiHopCalculation();
             }
         }
 
