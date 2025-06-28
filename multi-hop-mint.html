@@ -1605,7 +1605,7 @@
                 return;
             }
             
-            // Check if we have unknown multipliers
+            // Check if we have unknown multipliers for initial display
             if (multiHopData.totalMultiplier === null) {
                 costCalc.innerHTML = `❌ <strong>Cannot Calculate Cost!</strong><br>One or more multipliers are unknown. Please return to the main site to discover proper multiplier data before minting.`;
                 costCalc.style.color = '#f44336';
@@ -1613,72 +1613,59 @@
                 return;
             }
             
-            if (!multiHopData.totalMultiplier || multiHopData.totalMultiplier === 1) {
-                costCalc.textContent = '💡 Enter amount to see source token cost with multi-hop multiplier';
-                costCalc.style.color = '#ffc107';
-                updateMintButtonState();
-                return;
-            }
-            
             // Show initial estimate with base multipliers
-            const estimatedCost = amount * multiHopData.totalMultiplier;
+            const estimatedCost = amount * (multiHopData.totalMultiplier || 1);
             costCalc.innerHTML = `💰 Estimated cost: <strong>${estimatedCost.toLocaleString()}</strong> ${multiHopData.sourceName} <em>(calculating exact cost...)</em>`;
             costCalc.style.color = '#ffc107';
             
-            // Get accurate total multiplier and cost from contract (async)
+            // Get accurate cost from contract using discoverAndPreview
             setTimeout(async () => {
                 if (!multiHopData.sourceToken || !multiHopData.targetToken) return;
                 
                 try {
-                    // Get accurate total multiplier for this specific amount
-                    const accurateTotalMultiplier = await getTotalMultiplierFromContract(
-                        multiHopData.sourceToken, 
-                        multiHopData.targetToken, 
-                        amount
-                    );
-                    
-                    if (accurateTotalMultiplier !== null) {
-                        const accurateCost = amount * accurateTotalMultiplier;
-                        
-                        // Check if user has enough source tokens
-                        if (currentSourceBalance > 0 && accurateCost > currentSourceBalance) {
-                            costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ${accurateCost.toLocaleString()} ${multiHopData.sourceName}<br>Have: ${currentSourceBalance.toLocaleString()} ${multiHopData.sourceName}<br>Shortfall: ${(accurateCost - currentSourceBalance).toLocaleString()} ${multiHopData.sourceName}`;
-                            costCalc.style.color = '#f44336';
-                        } else {
-                            costCalc.innerHTML = `💰 Exact cost: <strong>${accurateCost.toLocaleString()}</strong> ${multiHopData.sourceName} (${accurateTotalMultiplier}x total multiplier)`;
-                            costCalc.style.color = '#06ffa5';
-                        }
-                    } else {
-                        // Fallback to contract preview method
-                        const accurateCost = await getAccurateCostFromContract(
-                            multiHopData.sourceToken, 
-                            multiHopData.targetToken, 
-                            amount
-                        );
-                        
-                        if (accurateCost !== null) {
-                            const effectiveMultiplier = Math.round(accurateCost / amount);
-                            
-                            if (currentSourceBalance > 0 && accurateCost > currentSourceBalance) {
-                                costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ${accurateCost.toLocaleString()} ${multiHopData.sourceName}<br>Have: ${currentSourceBalance.toLocaleString()} ${multiHopData.sourceName}<br>Shortfall: ${(accurateCost - currentSourceBalance).toLocaleString()} ${multiHopData.sourceName}`;
-                                costCalc.style.color = '#f44336';
-                            } else {
-                                costCalc.innerHTML = `💰 Exact cost: <strong>${accurateCost.toLocaleString()}</strong> ${multiHopData.sourceName} (${effectiveMultiplier}x total multiplier)`;
-                                costCalc.style.color = '#06ffa5';
-                            }
-                        } else {
-                            // Final fallback to estimated cost
-                            if (currentSourceBalance > 0 && estimatedCost > currentSourceBalance) {
-                                costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ~${estimatedCost.toLocaleString()} ${multiHopData.sourceName}<br>Have: ${currentSourceBalance.toLocaleString()} ${multiHopData.sourceName}<br>Shortfall: ~${(estimatedCost - currentSourceBalance).toLocaleString()} ${multiHopData.sourceName}`;
-                                costCalc.style.color = '#f44336';
-                            } else {
-                                costCalc.innerHTML = `💰 Estimated cost: <strong>${estimatedCost.toLocaleString()}</strong> ${multiHopData.sourceName} (${multiHopData.totalMultiplier}x base multiplier)`;
-                                costCalc.style.color = '#06ffa5';
-                            }
-                        }
+                    // Create a read-only web3 instance if needed
+                    let readWeb3 = web3;
+                    if (!readWeb3) {
+                        readWeb3 = new Web3('https://rpc-pulsechain.g4mm4.io');
                     }
+                    
+                    const hopContract = new readWeb3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
+                    
+                    // Convert X to Wei (add 18 zeros)
+                    const targetAmountWei = readWeb3.utils.toWei(amount.toString(), 'ether');
+                    
+                    // Call discoverAndPreview
+                    const result = await hopContract.methods
+                        .discoverAndPreview(multiHopData.sourceToken, multiHopData.targetToken, targetAmountWei)
+                        .call();
+                    
+                    // Convert Y from Wei to real number (remove 18 zeros)
+                    const sourceCostEther = parseFloat(readWeb3.utils.fromWei(result.sourceCost, 'ether'));
+                    
+                    // Calculate effective multiplier as Y/X
+                    const effectiveMultiplier = Math.round(sourceCostEther / amount);
+                    
+                    console.log(`🔍 MINT CALC: ${amount} target → ${sourceCostEther} source (${effectiveMultiplier}x multiplier)`);
+                    
+                    // Check if user has enough source tokens
+                    if (currentSourceBalance > 0 && sourceCostEther > currentSourceBalance) {
+                        costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ${sourceCostEther.toLocaleString()} ${multiHopData.sourceName}<br>Have: ${currentSourceBalance.toLocaleString()} ${multiHopData.sourceName}<br>Shortfall: ${(sourceCostEther - currentSourceBalance).toLocaleString()} ${multiHopData.sourceName}`;
+                        costCalc.style.color = '#f44336';
+                    } else {
+                        costCalc.innerHTML = `💰 Exact cost: <strong>${sourceCostEther.toLocaleString()}</strong> ${multiHopData.sourceName} (${effectiveMultiplier}x multiplier)`;
+                        costCalc.style.color = '#06ffa5';
+                    }
+                    
                 } catch (error) {
-                    console.error('❌ Error calculating accurate cost:', error);
+                    console.error('❌ Error calculating cost with discoverAndPreview:', error);
+                    // Fallback to estimated cost
+                    if (currentSourceBalance > 0 && estimatedCost > currentSourceBalance) {
+                        costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ~${estimatedCost.toLocaleString()} ${multiHopData.sourceName}<br>Have: ${currentSourceBalance.toLocaleString()} ${multiHopData.sourceName}<br>Shortfall: ~${(estimatedCost - currentSourceBalance).toLocaleString()} ${multiHopData.sourceName}`;
+                        costCalc.style.color = '#f44336';
+                    } else {
+                        costCalc.innerHTML = `💰 Estimated cost: <strong>${estimatedCost.toLocaleString()}</strong> ${multiHopData.sourceName} (${multiHopData.totalMultiplier || 1}x base multiplier)`;
+                        costCalc.style.color = '#06ffa5';
+                    }
                 }
             }, 100);
             
