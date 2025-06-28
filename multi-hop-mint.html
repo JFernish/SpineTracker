@@ -683,12 +683,15 @@
                 const hopContract = new readWeb3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
                 const targetAmountWei = readWeb3.utils.toWei(targetAmount.toString(), 'ether');
                 
-                const totalMultiplier = await hopContract.methods
+                const totalMultiplierWei = await hopContract.methods
                     .calculateTotalMultiplier(sourceToken, targetToken, targetAmountWei)
                     .call();
                 
+                // Convert from Wei to integer multiplier (divide by 10^18)
+                const totalMultiplier = parseInt(readWeb3.utils.fromWei(totalMultiplierWei, 'ether'));
+                
                 console.log(`🔢 Total multiplier from contract for ${targetAmount} tokens: ${totalMultiplier}x`);
-                return parseInt(totalMultiplier);
+                return totalMultiplier;
                 
             } catch (error) {
                 console.error(`❌ Failed to get total multiplier from contract:`, error);
@@ -709,10 +712,13 @@
                 const hopContract = new readWeb3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
                 const amountWei = readWeb3.utils.toWei(amount.toString(), 'ether');
                 
-                const multiplier = await hopContract.methods.getMultiplier(tokenAddress, amountWei).call();
+                const multiplierWei = await hopContract.methods.getMultiplier(tokenAddress, amountWei).call();
+                
+                // Convert from Wei to integer multiplier (divide by 10^18)
+                const multiplier = parseInt(readWeb3.utils.fromWei(multiplierWei, 'ether'));
                 
                 console.log(`🔢 Amount-aware multiplier for ${tokenAddress} with ${amount} tokens: ${multiplier}x`);
-                return parseInt(multiplier);
+                return multiplier;
                 
             } catch (error) {
                 console.error(`❌ Failed to get amount-aware multiplier for ${tokenAddress}:`, error);
