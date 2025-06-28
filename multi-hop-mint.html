@@ -211,6 +211,12 @@
             margin: 15px 0;
             font-family: 'Courier New', monospace;
             font-size: 0.9rem;
+            flex-wrap: wrap;
+            line-height: 1.5;
+        }
+
+        .hop-path span {
+            margin: 2px 5px;
         }
 
         .hop-arrow {
@@ -428,7 +434,54 @@
             line-height: 1.4;
         }
 
+        .balance-section {
+            background: rgba(6, 255, 165, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            border: 1px solid rgba(6, 255, 165, 0.2);
+        }
+       
+        .balance-title {
+            font-weight: 600;
+            color: #06ffa5;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+            text-align: center;
+        }
+       
+        .balance-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+       
+        .balance-label {
+            font-weight: 500;
+            color: #c0c0c0;
+            font-size: 0.85rem;
+        }
+       
+        .balance-value {
+            font-family: 'Courier New', monospace;
+            color: #06ffa5;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+       
         .contract-address {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            margin: 10px 0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
             background: rgba(0, 0, 0, 0.3);
             padding: 10px;
             border-radius: 8px;
@@ -451,7 +504,22 @@
             </p>
             <div class="contract-address">
                 📄 MultiHopMinter Contract: 0xFD17eBc0B90dcfa51f3eE9b377Ff0b14a8dC9C2C
+                <!-- Wallet Balances Section -->
+            <div id="balanceSection" class="balance-section" style="display: none;">
+                <div class="balance-title">💰 Current Wallet Balances</div>
+                <div class="balance-row">
+                    <span class="balance-label">Source (<span id="sourceSymbol">...</span>):</span>
+                    <span class="balance-value balance-loading" id="sourceBalance">Loading...</span>
+                </div>
+                <div class="balance-row">
+                    <span class="balance-label">Target (<span id="targetSymbol">...</span>):</span>
+                    <span class="balance-value balance-loading" id="targetBalance">Loading...</span>
+                </div>
+                <button onclick="refreshBalances()" id="refreshBalanceBtn" style="background: rgba(6, 255, 165, 0.2); border: 1px solid rgba(6, 255, 165, 0.3); color: #06ffa5; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; margin-top: 8px; width: 100%;">
+                    🔄 Refresh Balances
+                </button>
             </div>
+        </div>
         </div>
 
         <!-- Integration Status -->
@@ -604,7 +672,9 @@
         let web3 = null;
         let multiHopContract = null;
         
-        let multiHopData = {
+        // Store current balances for calculations
+        let currentSourceBalance = 0;
+        let currentTargetBalance = 0;
             sourceToken: '',
             sourceName: '',
             targetToken: '',
@@ -851,6 +921,9 @@
             
             console.log('🎯 Source token selected:', selectedToken.name, 'at index', selectedIndex);
             
+            // Update balance labels
+            document.getElementById('sourceSymbol').textContent = selectedToken.name;
+            
             // Populate target dropdown with tokens that come after the source in the chain
             for (let i = selectedIndex + 1; i < discoveredTokens.length; i++) {
                 const token = discoveredTokens[i];
@@ -889,12 +962,20 @@
             
             console.log('🎯 Target token selected:', selectedToken.name, 'at index', selectedIndex);
             
+            // Update balance labels
+            document.getElementById('targetSymbol').textContent = selectedToken.name;
+            
             // Build the full chain path for optimized minting
             buildFullChainPath();
             
             // Show hop details
             showHopDetails();
             updateSecurityWarning();
+            
+            // Load balances for new source/target selection
+            if (isWalletConnected) {
+                loadWalletBalances();
+            }
         }
 
         // Build the full chain path required for multiHopMintOptimized
@@ -1007,9 +1088,13 @@
                     document.getElementById('walletConnected').style.display = 'block';
                     document.getElementById('walletAddress').textContent = `${walletAccount.slice(0, 6)}...${walletAccount.slice(-4)}`;
                     document.getElementById('mintForm').style.display = 'block';
+                    document.getElementById('balanceSection').style.display = 'block';
                     
                     console.log('✅ Wallet connected:', walletAccount);
                     showStatus('Wallet connected successfully!', 'success');
+                    
+                    // Load balances when wallet connects
+                    await loadWalletBalances();
                     
                     // Update button states
                     updateMintButtonState();
@@ -1032,6 +1117,7 @@
             document.getElementById('walletNotConnected').style.display = 'block';
             document.getElementById('walletConnected').style.display = 'none';
             document.getElementById('mintForm').style.display = 'none';
+            document.getElementById('balanceSection').style.display = 'none';
             
             console.log('👋 Wallet disconnected');
             showStatus('Wallet disconnected', 'warning');
@@ -1050,6 +1136,69 @@
             }, 5000);
         }
 
+        // Load wallet balances for source and target tokens
+        async function loadWalletBalances() {
+            if (!web3 || !walletAccount || !multiHopData.sourceToken || !multiHopData.targetToken) return;
+            
+            console.log('💰 Loading wallet balances for source and target tokens...');
+            
+            try {
+                // Load source token balance
+                const sourceContract = new web3.eth.Contract(ERC20_ABI, multiHopData.sourceToken);
+                const sourceBalance = await sourceContract.methods.balanceOf(walletAccount).call();
+                const sourceBalanceFormatted = web3.utils.fromWei(sourceBalance, 'ether');
+                currentSourceBalance = parseFloat(sourceBalanceFormatted);
+                
+                document.getElementById('sourceBalance').textContent = `${parseFloat(sourceBalanceFormatted).toLocaleString()}`;
+                document.getElementById('sourceBalance').className = 'balance-value';
+                
+                // Load target token balance
+                const targetContract = new web3.eth.Contract(ERC20_ABI, multiHopData.targetToken);
+                const targetBalance = await targetContract.methods.balanceOf(walletAccount).call();
+                const targetBalanceFormatted = web3.utils.fromWei(targetBalance, 'ether');
+                currentTargetBalance = parseFloat(targetBalanceFormatted);
+                
+                document.getElementById('targetBalance').textContent = `${parseFloat(targetBalanceFormatted).toLocaleString()}`;
+                document.getElementById('targetBalance').className = 'balance-value';
+                
+                console.log('✅ Balances loaded successfully');
+                
+                // Enable MAX button now that we have balance data
+                document.getElementById('maxBtn').disabled = false;
+                
+            } catch (error) {
+                console.error('❌ Failed to load balances:', error);
+                document.getElementById('sourceBalance').textContent = 'Error';
+                document.getElementById('targetBalance').textContent = 'Error';
+                document.getElementById('sourceBalance').className = 'balance-value balance-loading';
+                document.getElementById('targetBalance').className = 'balance-value balance-loading';
+            }
+        }
+
+        // Refresh balances function
+        async function refreshBalances() {
+            if (!isWalletConnected) {
+                showStatus('Connect wallet to refresh balances', 'warning');
+                return;
+            }
+            
+            if (!multiHopData.sourceToken || !multiHopData.targetToken) {
+                showStatus('Select source and target tokens first', 'warning');
+                return;
+            }
+            
+            console.log('🔄 Refreshing balances...');
+            showStatus('Refreshing balances...', 'warning');
+            
+            // Show loading state
+            document.getElementById('sourceBalance').textContent = 'Loading...';
+            document.getElementById('targetBalance').textContent = 'Loading...';
+            document.getElementById('sourceBalance').className = 'balance-value balance-loading';
+            document.getElementById('targetBalance').className = 'balance-value balance-loading';
+            
+            await loadWalletBalances();
+            showStatus('Balances refreshed!', 'success');
+        }
         // Multi-hop calculation and minting functions
         function updateMultiHopCalculation() {
             const amountInput = document.getElementById('mintAmountInput');
@@ -1084,9 +1233,30 @@
         }
 
         function setMaxAmount() {
-            // This would require getting the user's balance of the source token
-            // For now, just show a placeholder
-            showStatus('MAX button would set to user\'s source token balance', 'warning');
+            if (!isWalletConnected) {
+                showStatus('Connect wallet to use MAX button', 'warning');
+                return;
+            }
+            
+            if (!currentSourceBalance || currentSourceBalance <= 0) {
+                showStatus('Source token balance not available', 'warning');
+                return;
+            }
+            
+            if (!multiHopData.totalMultiplier || multiHopData.totalMultiplier <= 1) {
+                showStatus('Select tokens to calculate max amount', 'warning');
+                return;
+            }
+            
+            const maxMintAmount = Math.floor(currentSourceBalance / multiHopData.totalMultiplier);
+            
+            if (maxMintAmount > 0) {
+                document.getElementById('mintAmountInput').value = maxMintAmount;
+                updateMultiHopCalculation();
+                showStatus(`Set to maximum mintable amount: ${maxMintAmount.toLocaleString()}`, 'success');
+            } else {
+                showStatus('Insufficient source token balance for minting', 'warning');
+            }
         }
 
         // Optimized multi-hop mint function
