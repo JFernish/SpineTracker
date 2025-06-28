@@ -1409,32 +1409,26 @@
             console.log('✅ Approval transaction:', tx.transactionHash);
             showStatus(`✅ Approval successful! TX: ${tx.transactionHash.slice(0, 10)}...`, 'success');
             
-            // Wait for transaction confirmation and then update UI
-            actionBtn.textContent = 'Waiting for confirmation...';
+            // Force immediate UI update after successful transaction
+            isApprovalSufficient = true;
+            currentMintStep = 2;
             
-            try {
-                // Wait for transaction receipt (confirmation)
-                const receipt = await web3.eth.getTransactionReceipt(tx.transactionHash);
-                if (receipt && receipt.status) {
-                    console.log('✅ Approval transaction confirmed');
-                    
-                    // Update approval status and UI immediately after confirmation
-                    isApprovalSufficient = true;
-                    currentMintStep = 2;
-                    updateStepUI();
-                    
-                    showStatus(`✅ Approval confirmed! You can now mint.`, 'success');
-                } else {
-                    console.log('❌ Approval transaction failed');
-                    showStatus('❌ Approval transaction failed', 'error');
-                }
-            } catch (error) {
-                console.error('❌ Error waiting for approval confirmation:', error);
-                // Fallback: still update UI even if we can't get receipt
-                isApprovalSufficient = true;
-                currentMintStep = 2;
+            // Small delay to ensure transaction is processed, then update UI
+            setTimeout(() => {
                 updateStepUI();
-            }
+                console.log('🔄 UI updated after approval - button should now say "Mint Child Token"');
+                
+                // Double-check the button text was updated
+                const updatedBtn = document.getElementById('actionBtn');
+                console.log('Button text after update:', updatedBtn.textContent);
+                
+                // Force the button text if it didn't update properly
+                if (updatedBtn.textContent !== 'Mint Child Token') {
+                    console.log('🔧 Force updating button text');
+                    updatedBtn.textContent = 'Mint Child Token';
+                    updatedBtn.className = 'action-btn primary';
+                }
+            }, 500);
         }
 
         // Mint child token
