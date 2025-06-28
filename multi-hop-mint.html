@@ -1666,11 +1666,22 @@
                     
                     const hopContract = new readWeb3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
                     
-                    // Convert X to Wei (add 18 zeros) - handle scientific notation
+                    // Convert X to Wei (add 18 zeros) - handle scientific notation properly
                     let targetAmountWei;
                     try {
-                        // Ensure we don't have scientific notation issues
-                        const amountStr = amount < 1 ? amount.toFixed(18) : amount.toString();
+                        // Convert scientific notation to proper decimal string
+                        let amountStr;
+                        if (amount.toString().includes('e')) {
+                            // Handle scientific notation like 1e-9
+                            amountStr = amount.toFixed(20).replace(/\.?0+$/, '');
+                        } else if (amount < 1) {
+                            // Handle small decimals
+                            amountStr = amount.toFixed(18).replace(/\.?0+$/, '');
+                        } else {
+                            amountStr = amount.toString();
+                        }
+                        
+                        console.log(`🔍 AMOUNT CONVERSION: ${amount} → "${amountStr}"`);
                         targetAmountWei = readWeb3.utils.toWei(amountStr, 'ether');
                     } catch (conversionError) {
                         console.error('❌ Amount conversion error:', conversionError);
@@ -1807,8 +1818,17 @@
                         // Get accurate cost from contract for this amount
                         let targetAmountWei;
                         try {
-                            // Handle scientific notation for very small numbers
-                            const amountStr = mid < 1 ? mid.toFixed(18) : mid.toString();
+                            // Handle scientific notation for very small numbers in MAX calculation
+                            let amountStr;
+                            if (mid.toString().includes('e')) {
+                                // Handle scientific notation like 1e-9
+                                amountStr = mid.toFixed(20).replace(/\.?0+$/, '');
+                            } else if (mid < 1) {
+                                amountStr = mid.toFixed(18).replace(/\.?0+$/, '');
+                            } else {
+                                amountStr = mid.toString();
+                            }
+                            
                             targetAmountWei = readWeb3.utils.toWei(amountStr, 'ether');
                         } catch (conversionError) {
                             console.error(`❌ Amount conversion error for ${mid}:`, conversionError);
