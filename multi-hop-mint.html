@@ -493,6 +493,7 @@
         <div id="statusMessage" class="status-message" style="display: none;"></div>
 
         <!-- No Token Data Warning -->
+        <!-- No Token Data Warning -->
         <div id="noDataWarning" class="no-data-warning" style="display: none;">
             <h3>🚫 No Token Chain Data Available</h3>
             <p>This page requires token chain data from the main website. Either navigate here from the main website after discovering tokens or:</p>
@@ -692,14 +693,30 @@
                             console.log('✅ Loaded token chain from URL:', discoveredTokens.length, 'tokens');
                             dataLoaded = true;
                             
+                            // Enhanced multiplier loading from URL
                             if (params.get('multipliers')) {
                                 try {
                                     const decodedMultipliers = decodeURIComponent(params.get('multipliers'));
                                     tokenMultipliers = JSON.parse(decodedMultipliers);
-                                    console.log('✅ Loaded multipliers from URL');
+                                    console.log('✅ Loaded multipliers from URL:', tokenMultipliers);
                                 } catch (e) {
                                     console.log('⚠️ Failed to parse URL multipliers:', e.message);
                                 }
+                            }
+                            
+                            // Extract multipliers from token objects if not found in separate parameter
+                            if (Object.keys(tokenMultipliers).length === 0) {
+                                console.log('🔍 Extracting multipliers from token objects...');
+                                discoveredTokens.forEach(token => {
+                                    if (token.multiplier) {
+                                        tokenMultipliers[token.address.toLowerCase()] = parseInt(token.multiplier);
+                                        console.log(`📊 Found multiplier in token ${token.name}: ${token.multiplier}x`);
+                                    }
+                                    if (token.mintMultiplier) {
+                                        tokenMultipliers[token.address.toLowerCase()] = parseInt(token.mintMultiplier);
+                                        console.log(`📊 Found mintMultiplier in token ${token.name}: ${token.mintMultiplier}x`);
+                                    }
+                                });
                             }
                         }
                     } catch (e) {
@@ -711,6 +728,7 @@
                 if (!dataLoaded) {
                     const storedTokens = localStorage.getItem('discoveredTokens');
                     const storedMultipliers = localStorage.getItem('tokenMultipliers');
+                    const storedMultiHopData = localStorage.getItem('multiHopData');
                     
                     if (storedTokens) {
                         try {
@@ -720,10 +738,38 @@
                                 console.log('✅ Loaded token chain from localStorage:', discoveredTokens.length, 'tokens');
                                 dataLoaded = true;
                                 
+                                // Try to load multipliers from multiple sources
                                 if (storedMultipliers) {
-                                    tokenMultipliers = JSON.parse(storedMultipliers);
-                                    console.log('✅ Loaded multipliers from localStorage');
+                                    try {
+                                        const parsedMultipliers = JSON.parse(storedMultipliers);
+                                        tokenMultipliers = { ...tokenMultipliers, ...parsedMultipliers };
+                                        console.log('✅ Loaded multipliers from localStorage');
+                                    } catch (e) {
+                                        console.log('⚠️ Failed to parse stored multipliers:', e.message);
+                                    }
                                 }
+                                
+                                // Try to load from enhanced multiHopData
+                                if (storedMultiHopData) {
+                                    try {
+                                        const multiHopData = JSON.parse(storedMultiHopData);
+                                        if (multiHopData.multipliers) {
+                                            const additionalMultipliers = JSON.parse(multiHopData.multipliers);
+                                            tokenMultipliers = { ...tokenMultipliers, ...additionalMultipliers };
+                                            console.log('✅ Loaded additional multipliers from multiHopData');
+                                        }
+                                    } catch (e) {
+                                        console.log('⚠️ Failed to parse multiHopData:', e.message);
+                                    }
+                                }
+                                
+                                // Extract from token objects in localStorage
+                                discoveredTokens.forEach(token => {
+                                    if (token.multiplier && !tokenMultipliers[token.address.toLowerCase()]) {
+                                        tokenMultipliers[token.address.toLowerCase()] = parseInt(token.multiplier);
+                                        console.log(`📊 Extracted multiplier from localStorage token ${token.name}: ${token.multiplier}x`);
+                                    }
+                                });
                             }
                         } catch (e) {
                             console.log('❌ Failed to parse stored tokens:', e.message);
@@ -731,18 +777,29 @@
                     }
                 }
 
-                // Method 3: Window.opener access (if opened from direct mint page)
+                // Method 3: Enhanced window.opener access (if opened from direct mint page)
                 if (!dataLoaded && window.opener && !window.opener.closed) {
                     try {
                         if (window.opener.DirectMint) {
                             const openerTokens = window.opener.DirectMint.discoveredTokens();
                             const openerMultipliers = window.opener.DirectMint.tokenMultipliers();
+                            const openerTokenData = window.opener.DirectMint.tokenData();
                             
                             if (openerTokens && Array.isArray(openerTokens) && openerTokens.length > 0) {
                                 discoveredTokens = [...openerTokens];
-                                tokenMultipliers = { ...openerMultipliers };
                                 console.log('✅ Loaded data from opener (DirectMint):', discoveredTokens.length, 'tokens');
                                 dataLoaded = true;
+                                
+                                if (openerMultipliers && typeof openerMultipliers === 'object') {
+                                    tokenMultipliers = { ...tokenMultipliers, ...openerMultipliers };
+                                    console.log('✅ Loaded multipliers from DirectMint opener');
+                                }
+                                
+                                // Extract multiplier from current token data
+                                if (openerTokenData && openerTokenData.childToken && openerTokenData.multiplier) {
+                                    tokenMultipliers[openerTokenData.childToken.toLowerCase()] = parseInt(openerTokenData.multiplier);
+                                    console.log(`📊 Added current token multiplier from DirectMint: ${openerTokenData.childName} = ${openerTokenData.multiplier}x`);
+                                }
                             }
                         }
                         
@@ -754,7 +811,7 @@
                             if (openerTokens && Array.isArray(openerTokens) && openerTokens.length > 0) {
                                 discoveredTokens = [...openerTokens];
                                 if (openerMultipliers && typeof openerMultipliers === 'object') {
-                                    tokenMultipliers = { ...openerMultipliers };
+                                    tokenMultipliers = { ...tokenMultipliers, ...openerMultipliers };
                                 }
                                 console.log('✅ Loaded data from opener (DynamicTracker):', discoveredTokens.length, 'tokens');
                                 dataLoaded = true;
@@ -765,8 +822,47 @@
                     }
                 }
 
+                // Method 4: Check for direct URL parameters from direct mint page
+                if (params.get('sourceToken') && params.get('targetToken')) {
+                    console.log('🔍 Found direct token parameters, building minimal chain...');
+                    const sourceToken = params.get('sourceToken');
+                    const sourceName = params.get('sourceName');
+                    const targetToken = params.get('targetToken');
+                    const targetName = params.get('targetName');
+                    
+                    // If we don't have discovered tokens yet, create from direct params
+                    if (discoveredTokens.length === 0) {
+                        discoveredTokens = [
+                            { name: sourceName || 'Source Token', address: sourceToken, type: 'parent' },
+                            { name: targetName || 'Target Token', address: targetToken, type: 'child' }
+                        ];
+                        dataLoaded = true;
+                        console.log('✅ Created token chain from direct parameters');
+                    }
+                    
+                    // Add multiplier if available in params (from direct mint page calculation)
+                    if (params.get('multiplier')) {
+                        const multiplier = parseInt(params.get('multiplier'));
+                        if (multiplier && multiplier > 1) {
+                            tokenMultipliers[targetToken.toLowerCase()] = multiplier;
+                            console.log(`📊 Added multiplier from URL params: ${targetName} = ${multiplier}x`);
+                        }
+                    }
+                }
+
             } catch (error) {
                 console.error('❌ Error in parseUrlParams:', error);
+            }
+
+            // Final validation and logging
+            console.log('📊 Final multiplier detection results:');
+            console.log('- Discovered tokens:', discoveredTokens.map(t => `${t.name} (${t.address})`));
+            console.log('- Token multipliers:', tokenMultipliers);
+            
+            // DO NOT apply default multipliers - let users know if multipliers are missing
+            if (Object.keys(tokenMultipliers).length === 0 && discoveredTokens.length > 1) {
+                console.warn('⚠️ NO MULTIPLIERS FOUND - Users will see "UNKNOWN" multipliers');
+                console.warn('⚠️ This will prevent minting until proper multiplier data is available');
             }
 
             if (dataLoaded) {
@@ -956,24 +1052,72 @@
             
             let pathHtml = '';
             let totalMultiplier = 1;
+            let hasUnknownMultiplier = false;
             
             for (let i = multiHopData.sourceIndex; i <= multiHopData.targetIndex; i++) {
                 const token = discoveredTokens[i];
                 if (i > multiHopData.sourceIndex) {
                     pathHtml += '<span class="hop-arrow">→</span>';
-                    // Get the actual multiplier from tokenMultipliers, default to 2 if not found
-                    const multiplier = tokenMultipliers[token.address.toLowerCase()] || 2;
-                    totalMultiplier *= multiplier;
-                    console.log(`Token ${token.name} at ${token.address}: multiplier = ${multiplier}`);
+                    
+                    // Try multiple ways to get the actual multiplier
+                    let multiplier = null;
+                    let multiplierSource = 'not found';
+                    
+                    // Method 1: Check tokenMultipliers with exact address
+                    if (tokenMultipliers[token.address]) {
+                        multiplier = tokenMultipliers[token.address];
+                        multiplierSource = 'tokenMultipliers (exact)';
+                    }
+                    // Method 2: Check with lowercase address
+                    else if (tokenMultipliers[token.address.toLowerCase()]) {
+                        multiplier = tokenMultipliers[token.address.toLowerCase()];
+                        multiplierSource = 'tokenMultipliers (lowercase)';
+                    }
+                    // Method 3: Check if token has multiplier property
+                    else if (token.multiplier) {
+                        multiplier = token.multiplier;
+                        multiplierSource = 'token.multiplier';
+                    }
+                    // Method 4: Check if token has mintMultiplier property
+                    else if (token.mintMultiplier) {
+                        multiplier = token.mintMultiplier;
+                        multiplierSource = 'token.mintMultiplier';
+                    }
+                    
+                    if (multiplier !== null && multiplier > 0) {
+                        totalMultiplier *= multiplier;
+                        console.log(`Token ${token.name} at ${token.address}: multiplier = ${multiplier} (from ${multiplierSource})`);
+                        
+                        // Add multiplier display to the path
+                        pathHtml += `<span style="font-size: 0.8rem; color: #ffc107; margin-left: 5px;">(${multiplier}x)</span>`;
+                    } else {
+                        hasUnknownMultiplier = true;
+                        console.warn(`Token ${token.name} at ${token.address}: multiplier NOT FOUND`);
+                        
+                        // Add "unknown" display to the path
+                        pathHtml += `<span style="font-size: 0.8rem; color: #f44336; margin-left: 5px; font-weight: bold;">(UNKNOWN)</span>`;
+                    }
                 }
                 pathHtml += `<span>${token.name}</span>`;
             }
             
             hopPath.innerHTML = pathHtml;
-            totalMultiplierEl.textContent = `${totalMultiplier}x`;
-            multiHopData.totalMultiplier = totalMultiplier;
             
-            console.log(`Total multiplier calculated: ${totalMultiplier}x for path from ${discoveredTokens[multiHopData.sourceIndex].name} to ${discoveredTokens[multiHopData.targetIndex].name}`);
+            if (hasUnknownMultiplier) {
+                totalMultiplierEl.textContent = 'UNKNOWN';
+                totalMultiplierEl.style.color = '#f44336';
+                totalMultiplierEl.style.fontWeight = 'bold';
+                multiHopData.totalMultiplier = null; // Set to null to indicate unknown
+            } else {
+                totalMultiplierEl.textContent = `${totalMultiplier}x`;
+                totalMultiplierEl.style.color = '#06ffa5';
+                totalMultiplierEl.style.fontWeight = '600';
+                multiHopData.totalMultiplier = totalMultiplier;
+            }
+            
+            console.log(`Total multiplier calculated: ${hasUnknownMultiplier ? 'UNKNOWN (contains unknown multipliers)' : totalMultiplier + 'x'} for path from ${discoveredTokens[multiHopData.sourceIndex].name} to ${discoveredTokens[multiHopData.targetIndex].name}`);
+            console.log('Available tokenMultipliers:', tokenMultipliers);
+            console.log('Token objects:', discoveredTokens.slice(multiHopData.sourceIndex, multiHopData.targetIndex + 1));
             
             hopDetails.style.display = 'block';
         }
@@ -1007,14 +1151,14 @@
                     childName: multiHopData.targetName,
                     parentToken: multiHopData.sourceToken,
                     parentName: multiHopData.sourceName,
-                    multiplier: multiHopData.totalMultiplier.toString(),
+                    multiplier: multiHopData.totalMultiplier ? multiHopData.totalMultiplier.toString() : '2',
                     tokenIndex: multiHopData.targetIndex.toString(),
                     tokenChain: encodeURIComponent(JSON.stringify(discoveredTokens)),
                     multipliers: encodeURIComponent(JSON.stringify(tokenMultipliers))
                 });
-                window.location.href = `mint.html?${params.toString()}`;
+                window.location.href = `https://spinetracker.vercel.app/mint.html?${params.toString()}`;
             } else {
-                window.location.href = 'mint.html';
+                window.location.href = 'https://spinetracker.vercel.app/mint.html';
             }
         }
 
@@ -1027,7 +1171,7 @@
                     console.log('⚠️ Could not store token data:', error);
                 }
             }
-            window.location.href = 'index.html';
+            window.location.href = 'https://spinetracker.vercel.app/';
         }
 
         // Check if wallet was previously connected this session
@@ -1187,11 +1331,13 @@
             if (currentMintStep === 1) {
                 mintBtn.textContent = '📝 Approve Source Token';
                 mintBtn.className = 'action-btn secondary';
-                mintBtn.style.background = 'linear-gradient(45deg, #ff6b35, #f7931e)';
+                mintBtn.style.background = 'linear-gradient(45deg, #06ffa5, #00cc7a)';
+                mintBtn.style.boxShadow = '0 6px 20px rgba(6, 255, 165, 0.4)';
             } else {
                 mintBtn.textContent = '⚡ Optimized Multi-Hop Mint';
                 mintBtn.className = 'action-btn optimized';
                 mintBtn.style.background = 'linear-gradient(45deg, #06ffa5, #3a86ff)';
+                mintBtn.style.boxShadow = '0 6px 20px rgba(6, 255, 165, 0.4)';
             }
         }
 
@@ -1221,7 +1367,22 @@
             
             const amount = parseFloat(amountInput.value);
             
-            if (!amount || amount <= 0 || !multiHopData.totalMultiplier || multiHopData.totalMultiplier === 1) {
+            if (!amount || amount <= 0) {
+                costCalc.textContent = '💡 Enter amount to see source token cost with multi-hop multiplier';
+                costCalc.style.color = '#ffc107';
+                updateMintButtonState();
+                return;
+            }
+            
+            // Check if we have unknown multipliers
+            if (multiHopData.totalMultiplier === null) {
+                costCalc.innerHTML = `❌ <strong>Cannot Calculate Cost!</strong><br>One or more multipliers are unknown. Please return to the main site to discover proper multiplier data before minting.`;
+                costCalc.style.color = '#f44336';
+                updateMintButtonState();
+                return;
+            }
+            
+            if (!multiHopData.totalMultiplier || multiHopData.totalMultiplier === 1) {
                 costCalc.textContent = '💡 Enter amount to see source token cost with multi-hop multiplier';
                 costCalc.style.color = '#ffc107';
                 updateMintButtonState();
@@ -1271,12 +1432,21 @@
                            multiHopData.sourceToken && 
                            multiHopData.targetToken && 
                            amount > 0 &&
-                           multiHopData.fullChainPath.length > 0;
+                           multiHopData.fullChainPath.length > 0 &&
+                           multiHopData.totalMultiplier !== null; // Ensure multipliers are known
             
             mintBtn.disabled = !canMint;
             
             // Update button text based on approval status
             updateMintButtonText();
+            
+            // Show warning if multipliers are unknown
+            if (multiHopData.totalMultiplier === null) {
+                mintBtn.textContent = '❌ Cannot Mint - Unknown Multipliers';
+                mintBtn.style.background = 'linear-gradient(45deg, #f44336, #d32f2f)';
+                mintBtn.style.boxShadow = '0 6px 20px rgba(244, 67, 54, 0.4)';
+                mintBtn.disabled = true;
+            }
         }
 
         async function setMaxAmount() {
