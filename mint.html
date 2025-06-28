@@ -1149,12 +1149,21 @@
                             
                         costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ${parentCostDisplay} ${tokenData.parentName}<br>Have: ${parentBalanceDisplay} ${tokenData.parentName}<br>Shortfall: ${shortfallDisplay} ${tokenData.parentName}`;
                         costCalc.style.color = '#f44336';
+                        
+                        // Show error message and disable mint button
+                        showStatus(`❌ Cannot mint ${amount} tokens - would require ${parentCostDisplay} ${tokenData.parentName} but you only have ${parentBalanceDisplay}`, 'error');
+                        document.getElementById('actionBtn').disabled = true;
                     } else {
                         const parentCostDisplay = parentCost < 1 ? 
                             parentCost.toFixed(8).replace(/\.?0+$/, '') : 
                             parentCost.toLocaleString();
                         costCalc.innerHTML = `💰 Exact cost: <strong>${parentCostDisplay}</strong> ${tokenData.parentName} (${advancedMultiplier}x multiplier)`;
                         costCalc.style.color = '#06ffa5';
+                        
+                        // Re-enable mint button if it was disabled
+                        if (isWalletConnected && multiplierLoaded) {
+                            document.getElementById('actionBtn').disabled = false;
+                        }
                     }
                     
                     // Update current multiplier if it changed
@@ -1169,9 +1178,18 @@
                     if (currentParentBalance > 0 && fallbackCost > currentParentBalance) {
                         costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ~${fallbackCost.toLocaleString()} ${tokenData.parentName}<br>Have: ${currentParentBalance.toLocaleString()} ${tokenData.parentName}<br>Shortfall: ~${(fallbackCost - currentParentBalance).toLocaleString()} ${tokenData.parentName}`;
                         costCalc.style.color = '#f44336';
+                        
+                        // Show error message and disable mint button
+                        showStatus(`❌ Cannot mint ${amount} tokens - estimated cost ${fallbackCost.toLocaleString()} ${tokenData.parentName} exceeds balance of ${currentParentBalance.toLocaleString()}`, 'error');
+                        document.getElementById('actionBtn').disabled = true;
                     } else {
                         costCalc.innerHTML = `💰 Estimated cost: <strong>${fallbackCost.toLocaleString()}</strong> ${tokenData.parentName} (${currentMultiplier}x base multiplier)<br><em>⚠️ Unable to get exact cost from contract</em>`;
                         costCalc.style.color = '#ffc107';
+                        
+                        // Re-enable mint button if it was disabled
+                        if (isWalletConnected && multiplierLoaded) {
+                            document.getElementById('actionBtn').disabled = false;
+                        }
                     }
                 }
             }, 100);
@@ -1228,100 +1246,73 @@
             showMaxButtonMessage('Calculating maximum mintable amount...', 'warning');
             
             try {
-                // Calculate initial MAX based on current multiplier (subtract 1 wei)
-                const rawInitialMax = (currentParentBalance / currentMultiplier) - 0.000000000000000001;
-                const initialMax = parseFloat(rawInitialMax.toFixed(18));
+                // For fixed multipliers (like 2x), use simple division with proper precision
+                // Calculate max as: balance / multiplier, then subtract a small buffer for precision
+                const rawMax = currentParentBalance / currentMultiplier;
                 
-                console.log(`🔍 MAX calculation: Starting with ${initialMax} based on balance ${currentParentBalance} / multiplier ${currentMultiplier} (minus 1 wei)`);
+                // Create a small buffer (0.1% of the calculated max or minimum 0.000001)
+                const buffer = Math.max(rawMax * 0.001, 0.000001);
+                const safeMax = rawMax - buffer;
                 
-                if (initialMax <= 0) {
+                // Round to 15 decimal places to avoid precision issues
+                const maxAmount = Math.floor(safeMax * 1000000000000000) / 1000000000000000;
+                
+                console.log(`🔍 MAX calculation: Balance ${currentParentBalance} / Multiplier ${currentMultiplier} = ${rawMax}`);
+                console.log(`🔍 Safe MAX with buffer: ${maxAmount} (buffer: ${buffer})`);
+                
+                if (maxAmount <= 0) {
                     showMaxButtonMessage('Insufficient balance for any minting with current multiplier', 'warning');
                     return;
                 }
                 
-                // Test if initial MAX is possible
+                // Test if this amount works (only if multiplier might be dynamic)
                 try {
-                    const requiredMultiplier = await getAdvancedMultiplier(initialMax);
-                    const requiredParent = initialMax * requiredMultiplier;
+                    const testMultiplier = await getAdvancedMultiplier(maxAmount);
+                    const testCost = maxAmount * testMultiplier;
                     
-                    console.log(`🔍 Initial MAX test: ${initialMax} tokens costs ${requiredParent}, balance: ${currentParentBalance}`);
+                    console.log(`🔍 Testing: ${maxAmount} tokens with ${testMultiplier}x = ${testCost} cost vs ${currentParentBalance} balance`);
                     
-                    if (requiredParent <= currentParentBalance) {
-                        // Initial MAX works!
-                        const displayAmount = initialMax.toString().includes('e') ? 
-                            initialMax.toFixed(18).replace(/\.?0+$/, '') : 
-                            initialMax.toString();
-                        
-                        document.getElementById('mintAmountInput').value = displayAmount;
+                    if (testCost <= currentParentBalance) {
+                        // Amount works!
+                        document.getElementById('mintAmountInput').value = maxAmount;
                         updateCostCalculation();
-                        showMaxButtonMessage(`Set to maximum: ${displayAmount}`, 'success');
+                        showMaxButtonMessage(`Set to maximum: ${maxAmount}`, 'success');
+                        return;
+                    } else {
+                        // If test fails, try an even smaller amount
+                        const extraSafeMax = maxAmount * 0.99; // 1% reduction
+                        const extraSafeRounded = Math.floor(extraSafeMax * 1000000000000000) / 1000000000000000;
+                        
+                        console.log(`🔍 Test failed, trying extra safe amount: ${extraSafeRounded}`);
+                        
+                        document.getElementById('mintAmountInput').value = extraSafeRounded;
+                        updateCostCalculation();
+                        showMaxButtonMessage(`Set to safe maximum: ${extraSafeRounded} (reduced for precision)`, 'success');
                         return;
                     }
-                    
-                    // Try downward adjustments (3 attempts)
-                    console.log(`⚠️ Initial MAX ${initialMax} is too expensive (${requiredParent} > ${currentParentBalance}), trying downward adjustments...`);
-                    
-                    let testAmount = initialMax;
-                    const reductionFactor = 0.99;
-                    
-                    for (let attempt = 1; attempt <= 3; attempt++) {
-                        const rawTestAmount = (testAmount * reductionFactor) - 0.000000000000000001;
-                        testAmount = parseFloat(rawTestAmount.toFixed(18));
-                        
-                        if (testAmount <= 0) break;
-                        
-                        console.log(`🔍 Attempt ${attempt}: Testing ${testAmount} tokens`);
-                        
-                        try {
-                            const adjustedMultiplier = await getAdvancedMultiplier(testAmount);
-                            const adjustedCost = testAmount * adjustedMultiplier;
-                            
-                            console.log(`🔍 Attempt ${attempt}: ${testAmount} tokens costs ${adjustedCost}`);
-                            
-                            if (adjustedCost <= currentParentBalance) {
-                                const displayAmount = testAmount.toString().includes('e') ? 
-                                    testAmount.toFixed(18).replace(/\.?0+$/, '') : 
-                                    testAmount.toString();
-                                
-                                document.getElementById('mintAmountInput').value = displayAmount;
-                                updateCostCalculation();
-                                showMaxButtonMessage(`Set to adjusted max: ${displayAmount} (${attempt * 1}% reduction due to dynamic multipliers)`, 'success');
-                                return;
-                            }
-                        } catch (contractError) {
-                            console.error(`❌ Contract error on attempt ${attempt}:`, contractError);
-                            continue;
-                        }
-                        
-                        await new Promise(resolve => setTimeout(resolve, 100));
-                    }
-                    
-                    // All attempts failed
-                    const suggestedAmount = currentParentBalance / currentMultiplier;
-                    const suggestedAmountFormatted = suggestedAmount.toString().includes('e') ? 
-                        suggestedAmount.toFixed(18).replace(/\.?0+$/, '') : 
-                        suggestedAmount.toString();
-                    
-                    const clickableMessage = `Max mint amount will cause a significant increase in multipliers. Try starting with <span style="cursor: pointer; text-decoration: underline; font-weight: bold;" onclick="document.getElementById('mintAmountInput').value='${suggestedAmountFormatted}'; updateCostCalculation();">${suggestedAmountFormatted}</span> amount based on original multiplier and gradually reduce.`;
-                    
-                    showMaxButtonMessage(clickableMessage, 'warning');
-                    
                 } catch (contractError) {
-                    console.error('❌ Contract error during MAX calculation:', contractError);
+                    console.error('❌ Contract test failed, using safe calculation:', contractError);
                     
-                    const fallbackMax = Math.floor(currentParentBalance / currentMultiplier);
-                    if (fallbackMax > 0) {
-                        document.getElementById('mintAmountInput').value = fallbackMax;
-                        updateCostCalculation();
-                        showMaxButtonMessage(`Set to estimated max: ${fallbackMax.toLocaleString()} (contract preview unavailable)`, 'warning');
-                    } else {
-                        showMaxButtonMessage('Unable to calculate maximum - try entering amount manually', 'warning');
-                    }
+                    // If contract test fails, just use the safe calculated amount
+                    document.getElementById('mintAmountInput').value = maxAmount;
+                    updateCostCalculation();
+                    showMaxButtonMessage(`Set to calculated maximum: ${maxAmount}`, 'success');
+                    return;
                 }
                 
             } catch (error) {
                 console.error('❌ Failed to calculate max amount:', error);
-                showMaxButtonMessage('Error calculating maximum - check console for details', 'error');
+                
+                // Ultimate fallback - simple division with extra safety
+                const fallbackMax = Math.floor((currentParentBalance / currentMultiplier) * 0.99 * 1000000000000000) / 1000000000000000;
+                
+                if (fallbackMax > 0) {
+                    document.getElementById('mintAmountInput').value = fallbackMax;
+                    updateCostCalculation();
+                    showMaxButtonMessage(`Set to fallback max: ${fallbackMax}`, 'warning');
+                } else {
+                    showMaxButtonMessage('Unable to calculate maximum mintable amount', 'error');
+                }
             }
         }
 
