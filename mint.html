@@ -587,7 +587,7 @@
                     <label>Mint Amount</label>
                     <div class="input-with-button">
                         <input type="number" id="mintAmountInput" placeholder="Enter amount (e.g., 1000)" min="0" step="any" onkeyup="updateCostCalculation()" onchange="updateCostCalculation()">
-                        <button class="max-btn" id="maxBtn" onclick="setMaxAmount()">
+                        <button class="max-btn" id="maxBtn" onclick="setMaxAmount()" disabled>
                             MAX
                         </button>
                     </div>
@@ -645,8 +645,9 @@
         let walletAccount = null;
         let isWalletConnected = false;
         let currentMintStep = 1;
-        let currentMultiplier = null; // Changed to null to detect if not loaded
-        let multiplierLoaded = false; // Track if multiplier was loaded from data
+        let currentMultiplier = null;
+        let multiplierLoaded = false;
+        let isApprovalSufficient = false;
         
         // Token data with defaults
         let tokenData = {
@@ -654,7 +655,7 @@
             childName: 'Joyluck',
             parentToken: '0x7e33f799f5431d34a04c0017cd13207de55bbb1d',
             parentName: 'Jess',
-            multiplier: null, // Changed to null
+            multiplier: null,
             tokenIndex: '1'
         };
 
@@ -789,13 +790,13 @@
                             const openerMultipliers = window.opener.DynamicTracker.tokenMultipliers();
                             
                             if (openerTokens && Array.isArray(openerTokens) && openerTokens.length > 0) {
-                                discoveredTokens = [...openerTokens]; // Create a copy
+                                discoveredTokens = [...openerTokens];
                                 console.log('✅ Loaded token chain from opener window:', discoveredTokens.length, 'tokens');
                                 dataLoaded = true;
                             }
                             
                             if (openerMultipliers && typeof openerMultipliers === 'object') {
-                                tokenMultipliers = { ...openerMultipliers }; // Create a copy
+                                tokenMultipliers = { ...openerMultipliers };
                                 console.log('✅ Loaded multipliers from opener window');
                             }
                         }
@@ -814,9 +815,6 @@
                 console.error('❌ Error in loadMultiHopData:', error);
                 createMinimalTokenChain();
             }
-            
-            // Update UI to show multi-hop status
-            updateMultiHopStatusUI();
         }
 
         // Create minimal token chain from current token data
@@ -879,21 +877,10 @@
             updateCostCalculation();
         }
 
-        // Update multi-hop status UI (now hidden)
-        function updateMultiHopStatusUI() {
-            // Status box is now hidden, but we still log for debugging
-            console.log('📊 Multi-hop status updated:', {
-                tokensCount: discoveredTokens.length,
-                multipliersCount: Object.keys(tokenMultipliers).length,
-                tokens: discoveredTokens.map(t => ({ name: t.name, type: t.type }))
-            });
-        }
-
         // Check if wallet was previously connected this session
         function checkWalletSession() {
             const wasConnected = sessionStorage.getItem(WALLET_SESSION_KEY);
             if (wasConnected === 'true' && typeof window.ethereum !== 'undefined') {
-                // Auto-reconnect if wallet was connected this session
                 autoConnectWallet();
             }
         }
@@ -911,7 +898,7 @@
                     
                     updateWalletUI();
                     await loadWalletBalances();
-                    await updateStepUIWithApprovalCheck();
+                    await checkApprovalStatus();
                 }
             } catch (error) {
                 console.log('⚠️ Auto-reconnect failed:', error.message);
@@ -931,31 +918,20 @@
             
             if (typeof window.ethereum !== 'undefined') {
                 try {
-                    // Initialize Web3
                     web3 = new Web3(window.ethereum);
-                    
-                    // Request account access
                     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                     walletAccount = accounts[0];
                     isWalletConnected = true;
                     
-                    // Store wallet connection state for this session
                     sessionStorage.setItem(WALLET_SESSION_KEY, 'true');
                     
                     console.log('✅ Wallet connected:', walletAccount);
                     
-                    // Check network
-                    const chainId = await web3.eth.getChainId();
-                    console.log('🌐 Connected to chain ID:', chainId);
-                    
-                    // Update UI
                     updateWalletUI();
-                    
                     showStatus('Wallet connected successfully!', 'success');
                     
-                    // Load balances and check approval status
                     await loadWalletBalances();
-                    await updateStepUIWithApprovalCheck();
+                    await checkApprovalStatus();
                     
                 } catch (error) {
                     console.error('❌ Failed to connect wallet:', error);
@@ -970,11 +946,13 @@
             walletAccount = null;
             isWalletConnected = false;
             web3 = null;
+            isApprovalSufficient = false;
+            currentMintStep = 1;
             
-            // Clear session storage
             sessionStorage.removeItem(WALLET_SESSION_KEY);
             
             updateWalletUI();
+            updateStepUI();
             
             console.log('👋 Wallet disconnected');
             showStatus('Wallet disconnected', 'warning');
@@ -993,17 +971,17 @@
                 addressSpan.textContent = formatAddress(walletAccount);
                 document.getElementById('mintForm').style.display = multiplierLoaded ? 'block' : 'none';
                 balanceSection.style.display = 'block';
-                walletSecurityWarning.style.display = 'none'; // Hide security warning once connected
+                walletSecurityWarning.style.display = 'none';
             } else {
                 notConnected.style.display = 'block';
                 connected.style.display = 'none';
                 document.getElementById('mintForm').style.display = 'none';
                 balanceSection.style.display = 'none';
-                walletSecurityWarning.style.display = multiplierLoaded ? 'block' : 'none'; // Show security warning when not connected (but only if multiplier loaded)
+                walletSecurityWarning.style.display = multiplierLoaded ? 'block' : 'none';
             }
         }
 
-        // Load wallet balances
+        // Load wallet balances with enhanced display
         async function loadWalletBalances() {
             if (!web3 || !walletAccount) return;
             
@@ -1017,7 +995,12 @@
                     const parentBalanceFormatted = web3.utils.fromWei(parentBalance, 'ether');
                     currentParentBalance = parseFloat(parentBalanceFormatted);
                     
-                    document.getElementById('parentBalance').textContent = `${parseFloat(parentBalanceFormatted).toLocaleString()}`;
+                    // Show more decimal places for small balances like multi-hop page
+                    const parentDisplayBalance = currentParentBalance < 1 ? 
+                        parseFloat(parentBalanceFormatted).toFixed(8).replace(/\.?0+$/, '') : 
+                        parseFloat(parentBalanceFormatted).toLocaleString();
+                    
+                    document.getElementById('parentBalance').textContent = parentDisplayBalance;
                     document.getElementById('parentBalance').className = 'balance-value';
                 }
                 
@@ -1028,13 +1011,16 @@
                     const childBalanceFormatted = web3.utils.fromWei(childBalance, 'ether');
                     currentChildBalance = parseFloat(childBalanceFormatted);
                     
-                    document.getElementById('childBalance').textContent = `${parseFloat(childBalanceFormatted).toLocaleString()}`;
+                    // Show more decimal places for small balances like multi-hop page
+                    const childDisplayBalance = currentChildBalance < 1 ? 
+                        parseFloat(childBalanceFormatted).toFixed(8).replace(/\.?0+$/, '') : 
+                        parseFloat(childBalanceFormatted).toLocaleString();
+                    
+                    document.getElementById('childBalance').textContent = childDisplayBalance;
                     document.getElementById('childBalance').className = 'balance-value';
                 }
                 
                 console.log('✅ Balances loaded successfully');
-                
-                // Enable MAX button now that we have balance data
                 document.getElementById('maxBtn').disabled = false;
                 
             } catch (error) {
@@ -1044,40 +1030,35 @@
             }
         }
 
-        // Check approval status and update step UI
-        async function updateStepUIWithApprovalCheck() {
-            if (!web3 || !walletAccount || !tokenData.parentToken || !tokenData.childToken) return;
-            
-            console.log('🔍 Checking approval status...');
+        // Check approval status like multi-hop page
+        async function checkApprovalStatus() {
+            if (!web3 || !walletAccount || !tokenData.parentToken || !tokenData.childToken) {
+                console.log('⚠️ Cannot check approval - missing requirements');
+                return;
+            }
             
             try {
+                console.log('🔍 Checking approval status...');
                 const parentContract = new web3.eth.Contract(ERC20_ABI, tokenData.parentToken);
                 const allowance = await parentContract.methods.allowance(walletAccount, tokenData.childToken).call();
-                const allowanceFormatted = web3.utils.fromWei(allowance, 'ether');
+                const allowanceEther = parseFloat(web3.utils.fromWei(allowance, 'ether'));
                 
-                console.log('📋 Current allowance:', allowanceFormatted);
+                // Use same threshold as multi-hop page - consider approval sufficient if allowance is > 1 million tokens
+                isApprovalSufficient = allowanceEther > 1000000;
+                currentMintStep = isApprovalSufficient ? 2 : 1;
+                updateStepUI();
                 
-                // Check if approval is sufficient (we use a high threshold to consider it "infinite")
-                const isApproved = parseFloat(allowanceFormatted) > 1000000;
-                
-                if (isApproved) {
-                    // Move to step 2 (mint)
-                    currentMintStep = 2;
-                    updateStepUI();
-                } else {
-                    // Stay on step 1 (approve)
-                    currentMintStep = 1;
-                    updateStepUI();
-                }
+                console.log(`✅ Approval status: ${isApprovalSufficient ? 'Sufficient' : 'Needed'}, allowance: ${allowanceEther > 1000000 ? 'Infinite (>1M)' : allowanceEther.toLocaleString()}`);
                 
             } catch (error) {
-                console.error('❌ Failed to check approval:', error);
+                console.error('❌ Error checking approval status:', error);
+                isApprovalSufficient = false;
                 currentMintStep = 1;
                 updateStepUI();
             }
         }
 
-        // Update step indicator UI
+        // Update step indicator UI with proper button text
         function updateStepUI() {
             const step1 = document.getElementById('step1');
             const step2 = document.getElementById('step2');
@@ -1094,12 +1075,12 @@
                 actionBtn.textContent = 'Approve Infinite Parent Token';
                 actionBtn.className = 'action-btn secondary';
             } else {
-                // Step 2: Mint
+                // Step 2: Mint - THIS IS THE KEY FIX
                 step1.className = 'step completed';
                 step2.className = 'step active';
                 stepLine.className = 'step-line active';
                 stepText.textContent = 'Step 2 of 2: Mint Child Token';
-                actionBtn.textContent = 'Mint Child Token';
+                actionBtn.textContent = 'Mint Child Token'; // Fixed button text
                 actionBtn.className = 'action-btn primary';
             }
         }
@@ -1107,7 +1088,7 @@
         // Get advanced multiplier that accounts for the amount being minted
         async function getAdvancedMultiplier(mintAmount) {
             if (!web3 || !tokenData.childToken || !multiplierLoaded) {
-                return currentMultiplier || 2; // Fallback if no multiplier loaded
+                return currentMultiplier || 2;
             }
             
             try {
@@ -1124,7 +1105,7 @@
             }
         }
 
-        // Update cost calculation with advanced multiplier logic
+        // Enhanced cost calculation matching multi-hop page
         async function updateCostCalculation() {
             const amountInput = document.getElementById('mintAmountInput');
             const costCalc = document.getElementById('costCalculation');
@@ -1138,44 +1119,209 @@
             const amount = parseFloat(amountInput.value);
             
             if (!amount || amount <= 0) {
-                costCalc.innerHTML = `💡 With current ${currentMultiplier}x multiplier: Enter amount to see parent token cost`;
+                costCalc.innerHTML = `💡 Enter amount to see parent token cost with ${currentMultiplier}x multiplier`;
                 costCalc.style.color = '#ffc107';
                 return;
             }
             
-            // Show current estimate while loading advanced multiplier
-            const currentEstimate = amount * currentMultiplier;
-            costCalc.innerHTML = `💰 Estimating cost... (Current estimate: ${currentEstimate.toLocaleString()} ${tokenData.parentName})`;
+            // Show initial estimate with base multiplier
+            const estimatedCost = amount * currentMultiplier;
+            costCalc.innerHTML = `💰 Estimated cost: <strong>${estimatedCost.toLocaleString()}</strong> ${tokenData.parentName} <em>(calculating exact cost...)</em>`;
             costCalc.style.color = '#ffc107';
             
-            // Get advanced multiplier for the specific amount
-            try {
-                const advancedMultiplier = await getAdvancedMultiplier(amount);
-                const parentCost = amount * advancedMultiplier;
-                
-                // Check if user has enough parent tokens
-                if (currentParentBalance > 0 && parentCost > currentParentBalance) {
-                    costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ${parentCost.toLocaleString()} ${tokenData.parentName}<br>Have: ${currentParentBalance.toLocaleString()} ${tokenData.parentName}<br>Shortfall: ${(parentCost - currentParentBalance).toLocaleString()} ${tokenData.parentName}<br>Multiplier: ${advancedMultiplier}x`;
-                    costCalc.style.color = '#f44336';
-                } else {
-                    let multiplierNote = '';
-                    if (advancedMultiplier !== currentMultiplier) {
-                        multiplierNote = ` (multiplier adjusted to ${advancedMultiplier}x for this amount)`;
+            // Get accurate cost from contract 
+            setTimeout(async () => {
+                try {
+                    const advancedMultiplier = await getAdvancedMultiplier(amount);
+                    const parentCost = amount * advancedMultiplier;
+                    
+                    // Check if user has enough parent tokens - show more decimals for small amounts
+                    if (currentParentBalance > 0 && parentCost > currentParentBalance) {
+                        const parentCostDisplay = parentCost < 1 ? 
+                            parentCost.toFixed(8).replace(/\.?0+$/, '') : 
+                            parentCost.toLocaleString();
+                        const parentBalanceDisplay = currentParentBalance < 1 ? 
+                            currentParentBalance.toFixed(8).replace(/\.?0+$/, '') : 
+                            currentParentBalance.toLocaleString();
+                        const shortfallDisplay = (parentCost - currentParentBalance) < 1 ? 
+                            (parentCost - currentParentBalance).toFixed(8).replace(/\.?0+$/, '') : 
+                            (parentCost - currentParentBalance).toLocaleString();
+                            
+                        costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ${parentCostDisplay} ${tokenData.parentName}<br>Have: ${parentBalanceDisplay} ${tokenData.parentName}<br>Shortfall: ${shortfallDisplay} ${tokenData.parentName}`;
+                        costCalc.style.color = '#f44336';
+                    } else {
+                        const parentCostDisplay = parentCost < 1 ? 
+                            parentCost.toFixed(8).replace(/\.?0+$/, '') : 
+                            parentCost.toLocaleString();
+                        costCalc.innerHTML = `💰 Exact cost: <strong>${parentCostDisplay}</strong> ${tokenData.parentName} (${advancedMultiplier}x multiplier)`;
+                        costCalc.style.color = '#06ffa5';
                     }
-                    costCalc.innerHTML = `💰 Cost: <strong>${parentCost.toLocaleString()}</strong> ${tokenData.parentName}<br>Multiplier: ${advancedMultiplier}x${multiplierNote ? '<br>' + multiplierNote : ''}`;
-                    costCalc.style.color = '#06ffa5';
+                    
+                    // Update current multiplier if it changed
+                    if (advancedMultiplier !== currentMultiplier) {
+                        currentMultiplier = advancedMultiplier;
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Failed to calculate advanced cost:', error);
+                    const fallbackCost = amount * currentMultiplier;
+                    
+                    if (currentParentBalance > 0 && fallbackCost > currentParentBalance) {
+                        costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ~${fallbackCost.toLocaleString()} ${tokenData.parentName}<br>Have: ${currentParentBalance.toLocaleString()} ${tokenData.parentName}<br>Shortfall: ~${(fallbackCost - currentParentBalance).toLocaleString()} ${tokenData.parentName}`;
+                        costCalc.style.color = '#f44336';
+                    } else {
+                        costCalc.innerHTML = `💰 Estimated cost: <strong>${fallbackCost.toLocaleString()}</strong> ${tokenData.parentName} (${currentMultiplier}x base multiplier)<br><em>⚠️ Unable to get exact cost from contract</em>`;
+                        costCalc.style.color = '#ffc107';
+                    }
+                }
+            }, 100);
+        }
+
+        // Show MAX button specific messages near the MAX button
+        function showMaxButtonMessage(message, type = 'info') {
+            // Remove any existing max message
+            const existingMessage = document.getElementById('maxButtonMessage');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+            
+            // Create new message element
+            const messageEl = document.createElement('div');
+            messageEl.id = 'maxButtonMessage';
+            messageEl.style.cssText = `
+                margin-top: 8px;
+                padding: 8px 12px;
+                border-radius: 8px;
+                font-size: 0.85rem;
+                font-weight: 500;
+                ${type === 'success' ? 'background: rgba(6, 255, 165, 0.1); border: 1px solid rgba(6, 255, 165, 0.3); color: #06ffa5;' : ''}
+                ${type === 'warning' ? 'background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); color: #ffc107;' : ''}
+                ${type === 'error' ? 'background: rgba(244, 67, 54, 0.1); border: 1px solid rgba(244, 67, 54, 0.3); color: #f44336;' : ''}
+            `;
+            messageEl.innerHTML = message;
+            
+            // Insert after the input-with-button div
+            const inputWithButton = document.querySelector('.input-with-button');
+            inputWithButton.parentNode.insertBefore(messageEl, inputWithButton.nextSibling);
+            
+            // Auto-remove after different times based on message type
+            const removeTimeout = type === 'warning' ? 15000 : 4000;
+            setTimeout(() => {
+                if (messageEl && messageEl.parentNode) {
+                    messageEl.remove();
+                }
+            }, removeTimeout);
+        }
+
+        // Enhanced MAX calculation matching multi-hop page
+        async function setMaxAmount() {
+            if (!multiplierLoaded) {
+                showMaxButtonMessage('❌ Cannot calculate max without multiplier data', 'error');
+                return;
+            }
+            
+            if (!currentParentBalance || currentParentBalance <= 0) {
+                showMaxButtonMessage('Parent token balance not available or zero', 'warning');
+                return;
+            }
+            
+            showMaxButtonMessage('Calculating maximum mintable amount...', 'warning');
+            
+            try {
+                // Calculate initial MAX based on current multiplier (subtract 1 wei)
+                const rawInitialMax = (currentParentBalance / currentMultiplier) - 0.000000000000000001;
+                const initialMax = parseFloat(rawInitialMax.toFixed(18));
+                
+                console.log(`🔍 MAX calculation: Starting with ${initialMax} based on balance ${currentParentBalance} / multiplier ${currentMultiplier} (minus 1 wei)`);
+                
+                if (initialMax <= 0) {
+                    showMaxButtonMessage('Insufficient balance for any minting with current multiplier', 'warning');
+                    return;
                 }
                 
-                // Update current multiplier if it changed
-                if (advancedMultiplier !== currentMultiplier) {
-                    currentMultiplier = advancedMultiplier;
+                // Test if initial MAX is possible
+                try {
+                    const requiredMultiplier = await getAdvancedMultiplier(initialMax);
+                    const requiredParent = initialMax * requiredMultiplier;
+                    
+                    console.log(`🔍 Initial MAX test: ${initialMax} tokens costs ${requiredParent}, balance: ${currentParentBalance}`);
+                    
+                    if (requiredParent <= currentParentBalance) {
+                        // Initial MAX works!
+                        const displayAmount = initialMax.toString().includes('e') ? 
+                            initialMax.toFixed(18).replace(/\.?0+$/, '') : 
+                            initialMax.toString();
+                        
+                        document.getElementById('mintAmountInput').value = displayAmount;
+                        updateCostCalculation();
+                        showMaxButtonMessage(`Set to maximum: ${displayAmount}`, 'success');
+                        return;
+                    }
+                    
+                    // Try downward adjustments (3 attempts)
+                    console.log(`⚠️ Initial MAX ${initialMax} is too expensive (${requiredParent} > ${currentParentBalance}), trying downward adjustments...`);
+                    
+                    let testAmount = initialMax;
+                    const reductionFactor = 0.99;
+                    
+                    for (let attempt = 1; attempt <= 3; attempt++) {
+                        const rawTestAmount = (testAmount * reductionFactor) - 0.000000000000000001;
+                        testAmount = parseFloat(rawTestAmount.toFixed(18));
+                        
+                        if (testAmount <= 0) break;
+                        
+                        console.log(`🔍 Attempt ${attempt}: Testing ${testAmount} tokens`);
+                        
+                        try {
+                            const adjustedMultiplier = await getAdvancedMultiplier(testAmount);
+                            const adjustedCost = testAmount * adjustedMultiplier;
+                            
+                            console.log(`🔍 Attempt ${attempt}: ${testAmount} tokens costs ${adjustedCost}`);
+                            
+                            if (adjustedCost <= currentParentBalance) {
+                                const displayAmount = testAmount.toString().includes('e') ? 
+                                    testAmount.toFixed(18).replace(/\.?0+$/, '') : 
+                                    testAmount.toString();
+                                
+                                document.getElementById('mintAmountInput').value = displayAmount;
+                                updateCostCalculation();
+                                showMaxButtonMessage(`Set to adjusted max: ${displayAmount} (${attempt * 1}% reduction due to dynamic multipliers)`, 'success');
+                                return;
+                            }
+                        } catch (contractError) {
+                            console.error(`❌ Contract error on attempt ${attempt}:`, contractError);
+                            continue;
+                        }
+                        
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                    
+                    // All attempts failed
+                    const suggestedAmount = currentParentBalance / currentMultiplier;
+                    const suggestedAmountFormatted = suggestedAmount.toString().includes('e') ? 
+                        suggestedAmount.toFixed(18).replace(/\.?0+$/, '') : 
+                        suggestedAmount.toString();
+                    
+                    const clickableMessage = `Max mint amount will cause a significant increase in multipliers. Try starting with <span style="cursor: pointer; text-decoration: underline; font-weight: bold;" onclick="document.getElementById('mintAmountInput').value='${suggestedAmountFormatted}'; updateCostCalculation();">${suggestedAmountFormatted}</span> amount based on original multiplier and gradually reduce.`;
+                    
+                    showMaxButtonMessage(clickableMessage, 'warning');
+                    
+                } catch (contractError) {
+                    console.error('❌ Contract error during MAX calculation:', contractError);
+                    
+                    const fallbackMax = Math.floor(currentParentBalance / currentMultiplier);
+                    if (fallbackMax > 0) {
+                        document.getElementById('mintAmountInput').value = fallbackMax;
+                        updateCostCalculation();
+                        showMaxButtonMessage(`Set to estimated max: ${fallbackMax.toLocaleString()} (contract preview unavailable)`, 'warning');
+                    } else {
+                        showMaxButtonMessage('Unable to calculate maximum - try entering amount manually', 'warning');
+                    }
                 }
                 
             } catch (error) {
-                console.error('❌ Failed to calculate advanced cost:', error);
-                const fallbackCost = amount * currentMultiplier;
-                costCalc.innerHTML = `💰 Cost (estimate): <strong>${fallbackCost.toLocaleString()}</strong> ${tokenData.parentName}<br>Multiplier: ${currentMultiplier}x (fallback)`;
-                costCalc.style.color = '#ffc107';
+                console.error('❌ Failed to calculate max amount:', error);
+                showMaxButtonMessage('Error calculating maximum - check console for details', 'error');
             }
         }
 
@@ -1263,13 +1409,10 @@
             console.log('✅ Approval transaction:', tx.transactionHash);
             showStatus(`✅ Approval successful! TX: ${tx.transactionHash.slice(0, 10)}...`, 'success');
             
-            // Move to step 2 and update button text immediately
+            // Move to step 2 and update approval status
+            isApprovalSufficient = true;
             currentMintStep = 2;
             updateStepUI();
-            
-            // Update button text explicitly to ensure it changes
-            actionBtn.textContent = 'Mint Child Token';
-            actionBtn.className = 'action-btn primary';
         }
 
         // Mint child token
@@ -1295,134 +1438,9 @@
             await loadWalletBalances();
             
             // Update cost calculation to show completion
-            document.getElementById('costCalculation').innerHTML = `✅ <strong>Mint Complete!</strong> Minted ${amount} ${tokenData.childName}`;
-        }
-
-        // Set max amount based on parent balance and current multiplier with progressive testing
-        async function setMaxAmount() {
-            if (!multiplierLoaded) {
-                showStatus('❌ Cannot calculate max without multiplier data', 'error');
-                return;
-            }
-            
-            if (!currentParentBalance || currentParentBalance <= 0) {
-                showStatus('Parent token balance not available or zero', 'warning');
-                return;
-            }
-            
-            showStatus('Calculating maximum mintable amount...', 'warning');
-            
-            try {
-                const originalMultiplier = currentMultiplier; // Store the original multiplier
-                
-                // Calculate test amount: wallet amount divided by current multiplier
-                let testAmount = currentParentBalance / currentMultiplier;
-                
-                // Convert to wei, subtract 1 wei, then back to ether for precision
-                const testAmountWei = web3.utils.toWei(testAmount.toString(), 'ether');
-                const testAmountMinusOneWei = web3.utils.toBN(testAmountWei).sub(web3.utils.toBN('1'));
-                testAmount = parseFloat(parseFloat(web3.utils.fromWei(testAmountMinusOneWei, 'ether')).toFixed(18));
-                
-                console.log(`🧮 Testing max amount calculation:`);
-                console.log(`Balance: ${currentParentBalance}, Original Multiplier: ${originalMultiplier}`);
-                console.log(`Starting test amount: ${testAmount}`);
-                
-                // Only proceed if test amount is greater than 0
-                if (testAmount <= 0) {
-                    const message = `Insufficient balance for minting. Need more than ${(1 / originalMultiplier).toFixed(18)} parent tokens with current ${originalMultiplier}x multiplier.`;
-                    showStatus(message, 'warning');
-                    return;
-                }
-                
-                // Test the initial amount
-                try {
-                    const requiredMultiplier = await getAdvancedMultiplier(testAmount);
-                    const requiredParent = testAmount * requiredMultiplier;
-                    
-                    console.log(`Initial test - Amount: ${testAmount}, Multiplier: ${requiredMultiplier}, Required: ${requiredParent}`);
-                    
-                    if (requiredParent <= currentParentBalance) {
-                        // Success with initial calculation
-                        document.getElementById('mintAmountInput').value = testAmount;
-                        await updateCostCalculation();
-                        showStatus(`Set to maximum mintable amount: ${testAmount}`, 'success');
-                        return;
-                    }
-                } catch (error) {
-                    console.error('❌ Error testing initial amount:', error);
-                }
-                
-                // If initial amount failed, try progressively smaller percentages
-                const testPercentages = [99, 98, 97];
-                
-                for (const percentage of testPercentages) {
-                    let percentageAmount = (currentParentBalance * percentage / 100) / originalMultiplier;
-                    
-                    // Convert to wei, subtract 1 wei, then back to ether
-                    const percentageAmountWei = web3.utils.toWei(percentageAmount.toString(), 'ether');
-                    const percentageAmountMinusOneWei = web3.utils.toBN(percentageAmountWei).sub(web3.utils.toBN('1'));
-                    percentageAmount = parseFloat(parseFloat(web3.utils.fromWei(percentageAmountMinusOneWei, 'ether')).toFixed(18));
-                    
-                    if (percentageAmount <= 0) continue;
-                    
-                    try {
-                        const requiredMultiplier = await getAdvancedMultiplier(percentageAmount);
-                        const requiredParent = percentageAmount * requiredMultiplier;
-                        
-                        console.log(`${percentage}% test - Amount: ${percentageAmount}, Multiplier: ${requiredMultiplier}, Required: ${requiredParent}`);
-                        
-                        if (requiredParent <= currentParentBalance) {
-                            // Success with percentage calculation
-                            document.getElementById('mintAmountInput').value = percentageAmount;
-                            await updateCostCalculation();
-                            showStatus(`Set to maximum mintable amount: ${percentageAmount} (${percentage}% of optimal)`, 'success');
-                            return;
-                        }
-                    } catch (error) {
-                        console.error(`❌ Error testing ${percentage}% amount:`, error);
-                        continue;
-                    }
-                }
-                
-                // If none of the percentages worked, show the warning message
-                let suggestedAmount = currentParentBalance / originalMultiplier;
-                
-                // Convert to wei, subtract 1 wei, then back to ether
-                const suggestedAmountWei = web3.utils.toWei(suggestedAmount.toString(), 'ether');
-                const suggestedAmountMinusOneWei = web3.utils.toBN(suggestedAmountWei).sub(web3.utils.toBN('1'));
-                suggestedAmount = parseFloat(parseFloat(web3.utils.fromWei(suggestedAmountMinusOneWei, 'ether')).toFixed(18));
-                
-                const message = `Max mint amount will cause a significant increase in multipliers. Try starting with ${suggestedAmount} amount based on original multiplier and gradually reduce.`;
-                
-                showStatus(message, 'warning');
-                
-                // Set the suggested amount as a starting point
-                if (suggestedAmount > 0) {
-                    document.getElementById('mintAmountInput').value = suggestedAmount;
-                    await updateCostCalculation();
-                }
-                
-                console.log(`⚠️ All percentage tests failed. Suggested starting amount: ${suggestedAmount}`);
-                
-            } catch (error) {
-                console.error('❌ Failed to calculate max amount:', error);
-                
-                // Ultimate fallback
-                let fallbackMax = currentParentBalance / currentMultiplier;
-                
-                // Convert to wei, subtract 1 wei, then back to ether
-                const fallbackMaxWei = web3.utils.toWei(fallbackMax.toString(), 'ether');
-                const fallbackMaxMinusOneWei = web3.utils.toBN(fallbackMaxWei).sub(web3.utils.toBN('1'));
-                fallbackMax = parseFloat(parseFloat(web3.utils.fromWei(fallbackMaxMinusOneWei, 'ether')).toFixed(18));
-                
-                if (fallbackMax > 0) {
-                    document.getElementById('mintAmountInput').value = fallbackMax;
-                    await updateCostCalculation();
-                    showStatus(`Set to estimated max amount: ${fallbackMax} (fallback calculation)`, 'warning');
-                } else {
-                    showStatus('Unable to calculate maximum mintable amount', 'error');
-                }
-            }
+            document.getElementById('costCalculation').innerHTML = `✅ <strong>Mint Complete!</strong><br>
+                Minted: ${amount < 1 ? amount.toFixed(8).replace(/\.?0+$/, '') : amount.toLocaleString()} ${tokenData.childName}<br>
+                TX: <a href="https://scan.pulsechain.com/tx/${tx.transactionHash}" target="_blank" style="color: #06ffa5;">${tx.transactionHash.slice(0, 10)}...</a>`;
         }
 
         // Refresh multiplier from contract
@@ -1436,7 +1454,7 @@
             
             try {
                 const childContract = new web3.eth.Contract(V4_TOKEN_ABI, tokenData.childToken);
-                const testAmount = web3.utils.toWei('0', 'ether'); // Test with 0 tokens for base multiplier
+                const testAmount = web3.utils.toWei('0', 'ether');
                 const multiplier = await childContract.methods.Multiplier(testAmount).call();
                 
                 currentMultiplier = parseInt(multiplier);
@@ -1444,7 +1462,6 @@
                 multiplierLoaded = true;
                 document.getElementById('multiplierValue').textContent = `${multiplier}x`;
                 
-                // Hide error and show token info
                 document.getElementById('multiplierError').style.display = 'none';
                 document.getElementById('tokenInfo').style.display = 'block';
                 
@@ -1497,9 +1514,7 @@
                 targetName: tokenData.childName,
                 tokenChain: JSON.stringify(discoveredTokens),
                 multipliers: JSON.stringify(tokenMultipliers),
-                // Add timestamp for debugging
                 timestamp: Date.now(),
-                // Add source page for debugging
                 source: 'direct-mint'
             };
 
@@ -1515,7 +1530,7 @@
                 source: multiHopData.source
             });
 
-            // Store in localStorage as backup (multiple keys for redundancy)
+            // Store in localStorage as backup
             try {
                 localStorage.setItem('discoveredTokens', multiHopData.tokenChain);
                 localStorage.setItem('tokenMultipliers', multiHopData.multipliers);
@@ -1570,14 +1585,13 @@
             if (window.opener && !window.opener.closed) {
                 window.close();
             } else {
-                // Fallback to main page if no opener
                 window.location.href = 'index.html';
             }
         }
 
         // Initialize page
         window.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 V4 Mint Page with Enhanced Wallet Connection Ready!');
+            console.log('🚀 Enhanced Direct Mint Page Ready!');
             parseUrlParams();
             
             // Check for existing wallet connection only if multiplier is loaded
@@ -1598,24 +1612,23 @@
         if (typeof window.ethereum !== 'undefined') {
             window.ethereum.on('accountsChanged', function (accounts) {
                 if (accounts.length === 0) {
-                    // User disconnected wallet
                     disconnectWallet();
                 } else if (accounts[0] !== walletAccount) {
-                    // User switched accounts
                     walletAccount = accounts[0];
                     console.log('🔄 Account changed to:', walletAccount);
                     updateWalletUI();
                     if (multiplierLoaded) {
                         loadWalletBalances();
+                        checkApprovalStatus();
                     }
                 }
             });
             
             window.ethereum.on('chainChanged', function (chainId) {
                 console.log('🌐 Network changed to:', chainId);
-                // Reload balances for new network
                 if (isWalletConnected && multiplierLoaded) {
                     loadWalletBalances();
+                    checkApprovalStatus();
                 }
             });
         }
@@ -1630,13 +1643,12 @@
             tokenData: () => tokenData,
             loadMultiHopData,
             createMinimalTokenChain,
-            updateMultiHopStatusUI,
             getAdvancedMultiplier,
             setMaxAmount,
             updateCostCalculation,
-            // Enhanced debugging
-            debugMultiHopData: () => {
-                console.log('=== MULTI-HOP DEBUG INFO ===');
+            checkApprovalStatus,
+            debugInfo: () => {
+                console.log('=== ENHANCED DIRECT MINT DEBUG INFO ===');
                 console.log('Discovered Tokens:', discoveredTokens);
                 console.log('Token Multipliers:', tokenMultipliers);
                 console.log('Current Token Data:', tokenData);
@@ -1644,8 +1656,9 @@
                 console.log('Multiplier Loaded:', multiplierLoaded);
                 console.log('Parent Balance:', currentParentBalance);
                 console.log('Child Balance:', currentChildBalance);
+                console.log('Approval Status:', isApprovalSufficient);
+                console.log('Current Step:', currentMintStep);
                 console.log('URL Parameters:', Object.fromEntries(new URLSearchParams(window.location.search)));
-                console.log('LocalStorage Keys:', Object.keys(localStorage).filter(k => k.includes('token') || k.includes('multiHop')));
                 return {
                     discoveredTokens,
                     tokenMultipliers,
@@ -1653,39 +1666,18 @@
                     currentMultiplier,
                     multiplierLoaded,
                     balances: { parent: currentParentBalance, child: currentChildBalance },
+                    approvalStatus: isApprovalSufficient,
+                    currentStep: currentMintStep,
                     urlParams: Object.fromEntries(new URLSearchParams(window.location.search))
                 };
-            },
-            // Test functions
-            testMaxCalculation: async () => {
-                if (!multiplierLoaded) {
-                    console.log('❌ Cannot test without multiplier loaded');
-                    return;
-                }
-                
-                console.log('=== TESTING MAX CALCULATION ===');
-                console.log('Parent Balance:', currentParentBalance);
-                console.log('Current Multiplier:', currentMultiplier);
-                
-                for (let amount = 1; amount <= 10; amount++) {
-                    try {
-                        const multiplier = await getAdvancedMultiplier(amount);
-                        const cost = amount * multiplier;
-                        console.log(`Amount: ${amount}, Multiplier: ${multiplier}, Cost: ${cost}`);
-                    } catch (error) {
-                        console.log(`Amount: ${amount}, Error: ${error.message}`);
-                    }
-                }
             }
         };
 
-        console.log('🎯 Enhanced Direct Mint Page loaded with fixed features!');
-        console.log('🔧 FIXES: Button text updates properly, multiplier validation, cost display improvements');
-        console.log('💡 Features: Session wallet persistence, advanced multiplier calculation, balance validation');
-        console.log('🔧 Fixed: MAX button functionality, insufficient balance detection, accurate cost calculation');
-        console.log('🔗 Use DirectMint.debugMultiHopData() to inspect all integration data');
-        console.log('🧪 Use DirectMint.testMaxCalculation() to test multiplier calculations');
-        console.log('🚀 Use DirectMint.connectWallet() to test wallet connection');
+        console.log('🎯 Enhanced Direct Mint Page loaded with Multi-Hop matching features!');
+        console.log('🔧 FEATURES: Enhanced max calculations, improved cost display, proper balance formatting');
+        console.log('🔧 FIXED: Button text changes to "Mint" when blue (step 2), approval status tracking');
+        console.log('💰 ENHANCED: Multi-hop style balance display, accurate cost calculations, MAX button messaging');
+        console.log('🔗 Use DirectMint.debugInfo() to inspect all data and status');
     </script>
 </body>
 </html>
