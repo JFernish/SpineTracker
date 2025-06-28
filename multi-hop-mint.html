@@ -746,10 +746,11 @@
                     .discoverAndPreview(sourceToken, targetToken, targetAmountWei)
                     .call();
                 
-                const sourceCostEther = readWeb3.utils.fromWei(result.sourceCost, 'ether');
+                // Convert from Wei to Ether for display
+                const sourceCostEther = parseFloat(readWeb3.utils.fromWei(result.sourceCost, 'ether'));
                 
                 console.log(`💰 Accurate cost from contract: ${sourceCostEther} source tokens for ${targetAmount} target tokens`);
-                return parseFloat(sourceCostEther);
+                return sourceCostEther;
                 
             } catch (error) {
                 console.error(`❌ Failed to get accurate cost from contract:`, error);
@@ -793,6 +794,7 @@
             
             if (foundMultipliers > 0) {
                 console.log(`🎯 Fetched ${foundMultipliers} new base multipliers for selected path`);
+                // Don't show status message for partial path fetching - let the main fetch show the overall progress
                 return true;
             }
             
@@ -809,6 +811,7 @@
             showStatus('🔍 Fetching multipliers from blockchain...', 'warning');
             
             let foundMultipliers = 0;
+            let totalTokensToCheck = discoveredTokens.length - 1; // Skip parent token
             
             // Check each child token (skip parent at index 0)
             for (let i = 1; i < discoveredTokens.length; i++) {
@@ -835,11 +838,11 @@
                 await new Promise(resolve => setTimeout(resolve, 150));
             }
             
-            console.log(`🎯 Fetched ${foundMultipliers} multipliers from contracts`);
+            console.log(`🎯 Fetched ${foundMultipliers} multipliers from ${totalTokensToCheck} tokens in chain`);
             
             // Update the UI if we found any multipliers
             if (foundMultipliers > 0) {
-                showStatus(`✅ Found ${foundMultipliers} multipliers from contracts!`, 'success');
+                showStatus(`✅ Found ${foundMultipliers} of ${totalTokensToCheck} multipliers from blockchain!`, 'success');
                 
                 // Refresh the hop details display
                 if (multiHopData.sourceIndex !== -1 && multiHopData.targetIndex !== -1) {
