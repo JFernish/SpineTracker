@@ -1247,10 +1247,10 @@
             if (isWalletConnected) {
                 loadWalletBalances();
                 
-                // Try to fetch missing multipliers from contracts
+                // Check approval status when tokens are selected
                 setTimeout(async () => {
-                    await fetchMissingMultipliers();
-                }, 1000); // Give wallet time to fully connect
+                    await checkApprovalStatus();
+                }, 500);
             }
         }
 
@@ -1429,10 +1429,8 @@
                     await loadWalletBalances();
                     updateMintButtonState();
                     
-                    // Try to fetch missing multipliers from contracts
-                    setTimeout(async () => {
-                        await fetchMissingMultipliers();
-                    }, 1000); // Small delay to ensure wallet is fully ready
+                    // Check approval status immediately after wallet connection
+                    await checkApprovalStatus();
                 }
             } catch (error) {
                 sessionStorage.removeItem(WALLET_SESSION_KEY);
@@ -1530,11 +1528,15 @@
             }
         }
 
-        // Check approval status and update button text
+        // Check approval status and update button state
         async function checkApprovalStatus() {
-            if (!web3 || !walletAccount || !multiHopData.sourceToken) return;
+            if (!web3 || !walletAccount || !multiHopData.sourceToken) {
+                console.log('⚠️ Cannot check approval - missing requirements');
+                return;
+            }
             
             try {
+                console.log('🔍 Checking approval status...');
                 const sourceTokenContract = new web3.eth.Contract(ERC20_ABI, multiHopData.sourceToken);
                 const allowance = await sourceTokenContract.methods.allowance(walletAccount, MULTIHOP_CONTRACT_ADDRESS).call();
                 const allowanceEther = parseFloat(web3.utils.fromWei(allowance, 'ether'));
@@ -1545,10 +1547,10 @@
                 currentMintStep = isApprovalSufficient ? 2 : 1;
                 updateMintButtonText();
                 
-                console.log(`Approval status: ${isApprovalSufficient ? 'Sufficient' : 'Needed'}, allowance: ${allowanceEther}`);
+                console.log(`✅ Approval status: ${isApprovalSufficient ? 'Sufficient' : 'Needed'}, allowance: ${allowanceEther.toLocaleString()}`);
                 
             } catch (error) {
-                console.error('Error checking approval status:', error);
+                console.error('❌ Error checking approval status:', error);
                 isApprovalSufficient = false;
                 currentMintStep = 1;
                 updateMintButtonText();
