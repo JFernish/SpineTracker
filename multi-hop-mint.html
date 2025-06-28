@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Hop Mint V4 Token</title>
+    <title>Mint V4 Token</title>
     <style>
         * {
             margin: 0;
@@ -20,7 +20,7 @@
         }
        
         .container {
-            max-width: 700px;
+            max-width: 600px;
             margin: 0 auto;
             background: rgba(20, 20, 40, 0.95);
             border-radius: 20px;
@@ -44,71 +44,55 @@
             -webkit-text-fill-color: transparent;
         }
 
-        .integration-status {
-            background: rgba(6, 255, 165, 0.1);
-            border: 1px solid rgba(6, 255, 165, 0.3);
+        .demo-badge {
+            background: rgba(6, 255, 165, 0.2);
+            border: 2px solid rgba(6, 255, 165, 0.4);
             color: #06ffa5;
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-size: 0.9rem;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
             text-align: center;
+            font-weight: 600;
         }
-
-        .no-data-warning {
+       
+        .security-warning {
             background: rgba(255, 87, 87, 0.15);
             border: 2px solid rgba(255, 87, 87, 0.4);
             color: #ff9999;
             padding: 20px;
             border-radius: 15px;
             margin-bottom: 25px;
-            text-align: center;
-        }
-
-        .discover-tokens-btn {
-            background: linear-gradient(45deg, #9d4edd, #3a86ff);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(157, 78, 221, 0.3);
-            margin-top: 10px;
-        }
-
-        .discover-tokens-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(157, 78, 221, 0.4);
-        }
-
-        .multi-hop-info {
-            background: rgba(58, 134, 255, 0.1);
-            border: 2px solid rgba(58, 134, 255, 0.3);
-            color: #5DADE2;
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 25px;
             text-align: left;
         }
        
-        .multi-hop-info h3 {
-            color: #3a86ff;
+        .security-warning h3 {
+            color: #ff6b6b;
             margin-bottom: 15px;
             font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
        
-        .multi-hop-info ul {
+        .security-warning ul {
             margin: 10px 0 10px 20px;
         }
        
-        .multi-hop-info li {
+        .security-warning li {
             margin-bottom: 8px;
             line-height: 1.4;
         }
-
+       
+        .security-warning.transaction-warning {
+            background: rgba(255, 193, 7, 0.15);
+            border-color: rgba(255, 193, 7, 0.4);
+            color: #ffd54f;
+        }
+       
+        .security-warning.transaction-warning h3 {
+            color: #ffc107;
+        }
+       
         .token-info {
             background: rgba(102, 126, 234, 0.1);
             border-radius: 15px;
@@ -120,7 +104,7 @@
         .info-row {
             display: flex;
             justify-content: flex-start;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             align-items: center;
         }
        
@@ -137,288 +121,7 @@
             font-size: 0.9rem;
             flex: 1;
         }
-
-        .target-dropdown {
-            flex: 1;
-            padding: 12px 15px;
-            border: 2px solid rgba(58, 134, 255, 0.3);
-            border-radius: 10px;
-            background: rgba(58, 134, 255, 0.1);
-            color: #ffffff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
        
-        .target-dropdown:focus {
-            outline: none;
-            border-color: #3a86ff;
-            box-shadow: 0 0 10px rgba(58, 134, 255, 0.3);
-        }
-       
-        .target-dropdown option {
-            background: rgba(20, 20, 40, 0.95);
-            color: #ffffff;
-            padding: 8px;
-        }
-
-        .refresh-chain-btn {
-            background: rgba(58, 134, 255, 0.2);
-            border: 1px solid rgba(58, 134, 255, 0.3);
-            color: #3a86ff;
-            padding: 8px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            white-space: nowrap;
-            transition: all 0.3s ease;
-            margin-left: 10px;
-            font-weight: 600;
-        }
-       
-        .refresh-chain-btn:hover {
-            background: rgba(58, 134, 255, 0.3);
-        }
-
-        .hop-details {
-            background: rgba(157, 78, 221, 0.1);
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 15px;
-            border: 1px solid rgba(157, 78, 221, 0.2);
-        }
-
-        .hop-path {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 15px 0;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9rem;
-            flex-wrap: wrap;
-            line-height: 1.5;
-        }
-
-        .hop-path span {
-            margin: 2px 5px;
-        }
-
-        .hop-arrow {
-            margin: 0 15px;
-            color: #9d4edd;
-            font-weight: bold;
-            font-size: 1.2rem;
-        }
-
-        .wallet-section {
-            background: rgba(102, 126, 234, 0.1);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 2px solid rgba(102, 126, 234, 0.2);
-            text-align: center;
-        }
-
-        .wallet-btn {
-            background: linear-gradient(45deg, #3a86ff, #06ffa5);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(58, 134, 255, 0.3);
-            margin: 10px;
-        }
-
-        .wallet-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(58, 134, 255, 0.4);
-        }
-
-        .wallet-connected {
-            background: rgba(6, 255, 165, 0.2);
-            color: #06ffa5;
-            border: 1px solid rgba(6, 255, 165, 0.3);
-            padding: 12px 20px;
-            border-radius: 15px;
-            font-size: 1rem;
-            font-weight: 500;
-            margin-bottom: 15px;
-        }
-
-        .mint-section {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 25px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            color: #ffffff;
-            margin-bottom: 8px;
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-
-        .input-with-button {
-            display: flex;
-            gap: 8px;
-            align-items: stretch;
-        }
-
-        .form-group input {
-            flex: 1;
-            padding: 15px;
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.05);
-            color: #ffffff;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: #3a86ff;
-            box-shadow: 0 0 15px rgba(58, 134, 255, 0.3);
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .max-btn {
-            padding: 15px 20px;
-            border: 2px solid rgba(6, 255, 165, 0.3);
-            border-radius: 12px;
-            background: rgba(6, 255, 165, 0.1);
-            color: #06ffa5;
-            font-weight: 600;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            white-space: nowrap;
-        }
-
-        .max-btn:hover {
-            background: rgba(6, 255, 165, 0.2);
-            border-color: rgba(6, 255, 165, 0.5);
-        }
-
-        .max-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .mint-note {
-            font-size: 0.85rem;
-            color: #888;
-            margin-top: 8px;
-            font-style: italic;
-        }
-
-        .action-btn {
-            width: 100%;
-            padding: 18px;
-            border: none;
-            border-radius: 15px;
-            font-weight: 600;
-            font-size: 1.1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-bottom: 15px;
-        }
-
-        .action-btn.optimized {
-            background: linear-gradient(45deg, #06ffa5, #3a86ff);
-            color: white;
-            box-shadow: 0 6px 20px rgba(6, 255, 165, 0.4);
-        }
-
-        .action-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(6, 255, 165, 0.5);
-        }
-
-        .action-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .back-btn {
-            background: rgba(255, 255, 255, 0.1);
-            color: #c0c0c0;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 12px 24px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            margin-right: 10px;
-        }
-
-        .back-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: #ffffff;
-        }
-
-        .status-message {
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-weight: 500;
-        }
-       
-        .status-success {
-            background: rgba(6, 255, 165, 0.1);
-            border: 1px solid rgba(6, 255, 165, 0.3);
-            color: #06ffa5;
-        }
-       
-        .status-error {
-            background: rgba(244, 67, 54, 0.1);
-            border: 1px solid rgba(244, 67, 54, 0.3);
-            color: #f44336;
-        }
-       
-        .status-warning {
-            background: rgba(255, 193, 7, 0.1);
-            border: 1px solid rgba(255, 193, 7, 0.3);
-            color: #ffc107;
-        }
-
-        .security-warning {
-            background: rgba(255, 193, 7, 0.15);
-            border: 2px solid rgba(255, 193, 7, 0.4);
-            color: #ffd54f;
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 25px;
-            text-align: left;
-        }
-
-        .security-warning h3 {
-            color: #ffc107;
-            margin-bottom: 15px;
-            font-size: 1.2rem;
-        }
-
-        .security-warning ul {
-            margin: 10px 0 10px 20px;
-        }
-
-        .security-warning li {
-            margin-bottom: 8px;
-            line-height: 1.4;
-        }
-
         .balance-section {
             background: rgba(6, 255, 165, 0.1);
             border-radius: 10px;
@@ -458,84 +161,364 @@
             font-size: 0.85rem;
         }
        
-        .contract-address {
+        .balance-loading {
+            color: #888;
+            font-style: italic;
+        }
+       
+        .wallet-section {
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            text-align: center;
+        }
+       
+        .wallet-btn {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(58, 134, 255, 0.3);
+            margin: 10px;
+        }
+       
+        .wallet-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(58, 134, 255, 0.4);
+        }
+       
+        .wallet-connected {
+            background: rgba(6, 255, 165, 0.2);
+            color: #06ffa5;
+            border: 1px solid rgba(6, 255, 165, 0.3);
+            padding: 12px 20px;
+            border-radius: 15px;
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+       
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+       
+        .step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+            font-size: 1.1rem;
+        }
+       
+        .step.active {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+            color: white;
+            box-shadow: 0 4px 15px rgba(58, 134, 255, 0.3);
+        }
+       
+        .step.completed {
+            background: linear-gradient(45deg, #06ffa5, #00cc88);
+            color: white;
+            box-shadow: 0 4px 15px rgba(6, 255, 165, 0.3);
+        }
+       
+        .step.inactive {
+            background: rgba(255, 255, 255, 0.1);
+            color: #888;
+        }
+       
+        .step-line {
+            width: 60px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 0 15px;
+            transition: all 0.3s ease;
+        }
+       
+        .step-line.active {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+        }
+       
+        .step-text {
+            text-align: center;
+            color: #c0c0c0;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+       
+        .form-section {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+       
+        .form-group {
+            margin-bottom: 20px;
+        }
+       
+        .form-group label {
+            display: block;
+            color: #ffffff;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+       
+        .input-with-button {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+       
+        .form-group input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+       
+        .form-group input:focus {
+            outline: none;
+            border-color: #3a86ff;
+            box-shadow: 0 0 15px rgba(58, 134, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+        }
+       
+        .max-btn {
+            padding: 15px 20px;
+            border: 2px solid rgba(6, 255, 165, 0.3);
+            border-radius: 12px;
+            background: rgba(6, 255, 165, 0.1);
+            color: #06ffa5;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+       
+        .max-btn:hover {
+            background: rgba(6, 255, 165, 0.2);
+            border-color: rgba(6, 255, 165, 0.5);
+        }
+       
+        .max-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+       
+        .mint-note {
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 8px;
+            font-style: italic;
+        }
+       
+        .action-btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 15px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+       
+        .action-btn.primary {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+            color: white;
+            box-shadow: 0 6px 20px rgba(58, 134, 255, 0.4);
+        }
+       
+        .action-btn.secondary {
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            color: white;
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+        }
+       
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(58, 134, 255, 0.5);
+        }
+       
+        .action-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+       
+        .back-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: #c0c0c0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+       
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+        }
+       
+        .status-message {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+       
+        .status-success {
+            background: rgba(6, 255, 165, 0.1);
+            border: 1px solid rgba(6, 255, 165, 0.3);
+            color: #06ffa5;
+        }
+       
+        .status-error {
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            color: #f44336;
+        }
+       
+        .status-warning {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+        }
+       
+        .tx-hash {
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            word-break: break-all;
             background: rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            border-radius: 6px;
+            margin-top: 8px;
+        }
+       
+        .network-warning {
+            background: rgba(255, 193, 7, 0.2);
+            border: 2px solid rgba(255, 193, 7, 0.4);
+            color: #ffc107;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .multihop-status {
+            background: rgba(157, 78, 221, 0.1);
+            border: 1px solid rgba(157, 78, 221, 0.3);
+            color: #9d4edd;
             padding: 10px;
             border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
-            margin: 10px 0;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            text-align: center;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Multi-Hop Mint V4 Token</h1>
-            <p>One-click optimized minting from a parent token to any child in the chain</p>
+            <h1>Mint V4 Token</h1>
+            <p>Two-step process: Approve Parent → Mint Direct Child</p>
             <p style="margin-top: 10px; font-size: 0.9rem;">
-                <button onclick="goToDirectMint()" style="color: #3a86ff; text-decoration: none; font-weight: 600; border: 1px solid rgba(58, 134, 255, 0.3); padding: 8px 16px; border-radius: 8px; background: rgba(58, 134, 255, 0.1); transition: all 0.3s ease; cursor: pointer;" onmouseover="this.style.background='rgba(58, 134, 255, 0.2)'" onmouseout="this.style.background='rgba(58, 134, 255, 0.1)'">
-                    ← Switch to Direct Minting
+                <button onclick="openMultiHopMint()" style="color: #3a86ff; text-decoration: none; font-weight: 600; border: 1px solid rgba(58, 134, 255, 0.3); padding: 8px 16px; border-radius: 8px; background: rgba(58, 134, 255, 0.1); transition: all 0.3s ease; cursor: pointer;" onmouseover="this.style.background='rgba(58, 134, 255, 0.2)'" onmouseout="this.style.background='rgba(58, 134, 255, 0.1)'">
+                    🎯 Switch to Multi-Hop Minting
                 </button>
             </p>
-            <div class="contract-address">
-                📄 MultiHopMinter Contract: 0xFD17eBc0B90dcfa51f3eE9b377Ff0b14a8dC9C2C
-            </div>
         </div>
+       
 
-        <!-- Integration Status -->
-        <div id="integrationStatus" class="integration-status" style="display: none;">
-            📊 Multi-hop integration active: <span id="tokenChainCount">0</span> tokens loaded from spine discovery
+        
+        <!-- Security Warning for Wallet Connection -->
+        <div class="security-warning" id="walletSecurityWarning">
+            <h3>🛡️ Wallet Connection Security Warning</h3>
+            <ul>
+                <li><strong>Only connect your wallet to trusted websites</strong> - verify the URL is correct</li>
+                <li><strong>Never share your seed phrase or private keys</strong> with anyone</li>
+                <li><strong>Double-check website authenticity</strong> - scammers create fake versions of legitimate sites</li>
+                <li><strong>Use a separate wallet</strong> for experimental DeFi interactions if possible</li>
+                <li><strong>This site is for entertainment/educational purposes only</strong> - always DYOR</li>
+            </ul>
         </div>
-
-        <!-- Status Message Area -->
-        <div id="statusMessage" class="status-message" style="display: none;"></div>
-
-        <!-- No Token Data Warning -->
-        <!-- No Token Data Warning -->
-        <div id="noDataWarning" class="no-data-warning" style="display: none;">
-            <h3>🚫 No Token Chain Data Available</h3>
-            <p>This page requires token chain data from the main website. Either navigate here from the main website after discovering tokens or:</p>
-            <button class="discover-tokens-btn" onclick="goToMainWebsite()">
-                🧬 Go to Token Discovery
-            </button>
-        </div>
-
-        <!-- Token Selection -->
-        <div class="token-info" id="tokenInfoSection">
+       
+        <div class="token-info">
             <div class="info-row">
-                <span class="info-label">Source Token:</span>
-                <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                    <select class="target-dropdown" id="sourceTokenDropdown" onchange="onSourceTokenChange()">
-                        <option value="">Loading discovered tokens...</option>
-                    </select>
-                    <button onclick="refreshChainData()" class="refresh-chain-btn">
-                        🔄 Refresh
-                    </button>
-                </div>
+                <span class="info-label">Child Token:</span>
+                <span class="info-value" id="childTokenName">Joyluck</span>
             </div>
             <div class="info-row">
-                <span class="info-label">Target Token:</span>
-                <select class="target-dropdown" id="targetTokenDropdown" onchange="onTargetTokenChange()">
-                    <option value="">Select source token first...</option>
-                </select>
+                <span class="info-label">Child Address:</span>
+                <span class="info-value" id="childTokenAddress">0xb2cdb1359738e8d845cdf189af3ce06fba708c4b</span>
             </div>
-
-            <!-- Hop Details -->
-            <div id="hopDetails" class="hop-details" style="display: none;">
-                <div style="text-align: center; margin-bottom: 10px; font-weight: 600; color: #9d4edd;">Multi-Hop Path</div>
-                <div id="hopPath" class="hop-path"></div>
-                <div style="text-align: center; margin-top: 10px; font-size: 0.85rem; color: #c0c0c0;">
-                    Total Multiplier: <span id="totalMultiplier" style="color: #06ffa5; font-weight: 600;">1x</span>
+            <div class="info-row">
+                <span class="info-label">Parent Token:</span>
+                <span class="info-value" id="parentTokenName">Jess</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Parent Address:</span>
+                <span class="info-value" id="parentTokenAddress">0x7e33f799f5431d34a04c0017cd13207de55bbb1d</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Multiplier:</span>
+                <span class="info-value" id="multiplierValue">2x</span>
+                <button onclick="refreshMultiplier()" id="refreshMultiplierBtn" style="background: rgba(255, 193, 7, 0.2); border: 1px solid rgba(255, 193, 7, 0.3); color: #ffc107; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; margin-left: 10px;">
+                    🔄 Refresh
+                </button>
+            </div>
+           
+            <!-- Wallet Balances moved here -->
+            <div id="balanceSection" class="balance-section" style="display: none;">
+                <div class="balance-title">💰 Current Wallet Balances</div>
+                <div class="balance-row">
+                    <span class="balance-label" id="parentTokenBalance">Parent (<span id="parentSymbol">...</span>):</span>
+                    <span class="balance-value balance-loading" id="parentBalance">Loading...</span>
                 </div>
+                <div class="balance-row">
+                    <span class="balance-label" id="childTokenBalance">Child (<span id="childSymbol">...</span>):</span>
+                    <span class="balance-value balance-loading" id="childBalance">Loading...</span>
+                </div>
+                <button onclick="refreshBalances()" id="refreshBalanceBtn" style="background: rgba(6, 255, 165, 0.2); border: 1px solid rgba(6, 255, 165, 0.3); color: #06ffa5; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; margin-top: 8px; width: 100%;">
+                    🔄 Refresh Balances
+                </button>
             </div>
         </div>
-
-        <!-- Wallet Connection -->
+       
+        <div id="networkWarning" class="network-warning" style="display: none;">
+            ⚠️ Please switch to PulseChain network to mint V4 tokens
+        </div>
+       
         <div class="wallet-section" id="walletSection">
             <div id="walletNotConnected">
-                <p style="color: #c0c0c0; margin-bottom: 15px;">Connect your wallet to proceed with optimized multi-hop minting</p>
+                <p style="color: #c0c0c0; margin-bottom: 15px;">Connect your wallet to mint V4 tokens</p>
                 <button class="wallet-btn" id="connectWalletBtn" onclick="connectWallet()">
                     🔗 Connect Wallet
                 </button>
@@ -547,342 +530,153 @@
                 <button class="wallet-btn" id="disconnectWalletBtn" onclick="disconnectWallet()" style="background: linear-gradient(45deg, #f44336, #e91e63);">
                     Disconnect
                 </button>
-                
-                <!-- Wallet Balances Section - Moved here -->
-                <div id="balanceSection" class="balance-section" style="display: none;">
-                    <div class="balance-title">💰 Current Wallet Balances</div>
-                    <div class="balance-row">
-                        <span class="balance-label">Source (<span id="sourceSymbol">...</span>):</span>
-                        <span class="balance-value balance-loading" id="sourceBalance">Loading...</span>
+            </div>
+        </div>
+       
+        <div id="mintForm" style="display: none;">
+            <div class="step-indicator">
+                <div class="step active" id="step1">1</div>
+                <div class="step-line" id="stepLine"></div>
+                <div class="step inactive" id="step2">2</div>
+            </div>
+           
+            <div class="step-text" id="stepText">
+                Step 1 of 2: Approve Parent Token (Infinite)
+            </div>
+           
+            <div id="statusMessage" class="status-message" style="display: none;"></div>
+           
+            <div class="form-section">
+                <div class="form-group">
+                    <label>Mint Amount</label>
+                    <div class="input-with-button">
+                        <input type="number" id="mintAmountInput" placeholder="Enter amount (e.g., 1000)" min="0" step="any" onkeyup="updateCostCalculation()" onchange="updateCostCalculation()">
+                        <button class="max-btn" id="maxBtn" onclick="setMaxAmount()">
+                            MAX
+                        </button>
                     </div>
-                    <div class="balance-row">
-                        <span class="balance-label">Target (<span id="targetSymbol">...</span>):</span>
-                        <span class="balance-value balance-loading" id="targetBalance">Loading...</span>
+                    <div class="mint-note">Amount will be multiplied by 10^18 when sent to contract</div>
+                    <div class="mint-note" style="color: #ffc107; margin-top: 8px;" id="costCalculation">
+                        💡 Enter amount to see parent token cost
                     </div>
-                    <button onclick="refreshBalances()" id="refreshBalanceBtn" style="background: rgba(6, 255, 165, 0.2); border: 1px solid rgba(6, 255, 165, 0.3); color: #06ffa5; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; margin-top: 8px; width: 100%;">
-                        🔄 Refresh Balances
-                    </button>
+                    <div class="mint-note" style="color: #888; margin-top: 8px; font-size: 0.8rem;">
+                        ⚠️ Note: Multipliers may increase with additional minting, and parent tokens will be spent based on adjusted multiplier.
+                    </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Minting Form -->
-        <div id="mintForm" class="mint-section" style="display: none;">
-            <div class="form-group">
-                <label>Amount to Mint</label>
-                <div class="input-with-button">
-                    <input type="number" id="mintAmountInput" placeholder="Enter amount (e.g., 1000)" min="0" step="any" onkeyup="updateMultiHopCalculation()" onchange="updateMultiHopCalculation()">
-                    <button class="max-btn" id="maxBtn" onclick="setMaxAmount()" disabled>
-                        MAX
-                    </button>
-                </div>
-                <div class="mint-note">Amount will be multiplied by 10^18 when sent to contract</div>
-                <div class="mint-note" style="color: #ffc107; margin-top: 8px;" id="costCalculation">
-                    💡 Enter amount to see source token cost with multi-hop multiplier
-                </div>
-            </div>
-
-            <button class="action-btn optimized" id="multiHopMintBtn" onclick="handleOptimizedMultiHopMint()" disabled>
-                ⚡ Optimized Multi-Hop Mint
-            </button>
-
-            <div style="text-align: center;">
-                <button class="back-btn" onclick="goToDirectMint()">
-                    ← Direct Mint
+               
+                <button class="action-btn secondary" id="actionBtn" onclick="handleMintAction()">
+                    Approve Infinite Parent Token
                 </button>
-                <button class="back-btn" onclick="goToMainWebsite()">
-                    ← Token Tracker
-                </button>
-                <button class="back-btn" onclick="fetchMissingMultipliers()" id="fetchMultipliersBtn" style="background: rgba(255, 193, 7, 0.2); border-color: rgba(255, 193, 7, 0.3); color: #ffc107;">
-                    🔍 Fetch Multipliers
+               
+                <button class="back-btn" onclick="goBackToMainPage()">
+                    ← Back to Token Tracker
                 </button>
             </div>
-        </div>
-
-        <!-- Multi-Hop Information -->
-        <div class="multi-hop-info" id="multiHopInfo">
-            <h3>⚡ Optimized Multi-Hop Minting Advantages</h3>
-            <ul>
-                <li><strong>Gas Optimized</strong> - Uses precomputed chain path to avoid contract discovery</li>
-                <li><strong>Skip intermediate steps</strong> - Mint directly from Parent → Child 3 without Parent → Child 1 → Child 2 → Child 3</li>
-                <li><strong>Single transaction</strong> - Reduces gas costs and transaction complexity</li>
-                <li><strong>Automatic multiplier calculation</strong> - Contract handles the cumulative multiplier math</li>
-                <li><strong>Simplified process</strong> - One approval, one optimized mint transaction</li>
-            </ul>
-        </div>
-
-        <!-- Security Warning -->
-        <div id="securityWarning" class="security-warning" style="display: none;">
-            <h3>⚠️ Multi-Hop Transaction Security</h3>
-            <ul>
-                <li><strong>VERIFY contract addresses</strong> in your wallet before confirming</li>
-                <li><strong>Contract Address:</strong> <code>0xFD17eBc0B90dcfa51f3eE9b377Ff0b14a8dC9C2C</code></li>
-                <li><strong>Source Token:</strong> <code id="sourceAddressCheck">-</code></li>
-                <li><strong>Target Token:</strong> <code id="targetAddressCheck">-</code></li>
-                <li><strong>Double-check the hop path</strong> matches your intended minting route</li>
-                <li><strong>Start with small amounts</strong> to test multi-hop functionality</li>
-            </ul>
+           
+            <!-- Multi-Hop Minting Info Box -->
+            <div style="background: rgba(157, 78, 221, 0.1); border-radius: 15px; padding: 20px; margin-bottom: 25px; border: 2px solid rgba(157, 78, 221, 0.2); text-align: center;">
+                <h3 style="color: #ffffff; margin-bottom: 15px; font-size: 1.1rem;">🎯 Multi-Hop Minting Available</h3>
+                <p style="margin-bottom: 15px; color: #e0e0e0; line-height: 1.5;">
+                    Multi-hop minting allows you to mint directly from any parent token in a spine to any child token in a single transaction, skipping intermediate steps. One click, multiple hops.
+                </p>
+                <button onclick="openMultiHopMint()" style="background: linear-gradient(45deg, #9d4edd, #3a86ff); color: white; text-decoration: none; padding: 12px 24px; border-radius: 20px; font-weight: 600; transition: all 0.3s ease; display: inline-block; box-shadow: 0 4px 15px rgba(157, 78, 221, 0.3); border: none; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(157, 78, 221, 0.4)'" onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(157, 78, 221, 0.3)'">
+                    🎯 Switch to Multi-Hop Minting
+                </button>
+            </div>
+           
+            <!-- Transaction Security Warning moved to bottom -->
+            <div class="security-warning transaction-warning">
+                <h3>⚠️ Transaction Security Check</h3>
+                <ul>
+                    <li><strong>ALWAYS verify contract addresses</strong> in your wallet before approving</li>
+                    <li><strong>Check that you're minting from the correct child token address:</strong><br>
+                        <code id="childAddressCheck">0xb2cdb1359738e8d845cdf189af3ce06fba708c4b</code>
+                    </li>
+                    <li><strong>Check that you're approving the correct parent token address:</strong><br>
+                        <code id="parentAddressCheck">0x7e33f799f5431d34a04c0017cd13207de55bbb1d</code>
+                    </li>
+                    <li><strong>Never approve unknown contracts</strong> - if addresses don't match, REJECT the transaction</li>
+                    <li><strong>Start with small amounts</strong> to test the process first</li>
+                </ul>
+            </div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
     <script>
-        // Updated MULTIHOP_CONTRACT_ABI with the full ABI including getMultiplier
-        const MULTIHOP_CONTRACT_ABI = [
-            {"type":"constructor","inputs":[],"stateMutability":"nonpayable"},
-            {"type":"receive","stateMutability":"payable"},
-            {"type":"function","name":"owner","inputs":[],"outputs":[{"name":"","type":"address","internalType":"address"}],"stateMutability":"view"},
-            {"type":"function","name":"contractEnabled","inputs":[],"outputs":[{"name":"","type":"bool","internalType":"bool"}],"stateMutability":"view"},
-            {"type":"function","name":"multiHopMintOptimized","inputs":[{"name":"targetAmount","type":"uint256","internalType":"uint256"},{"name":"fullChainPath","type":"address[]","internalType":"address[]"}],"outputs":[{"name":"sourceCost","type":"uint256","internalType":"uint256"}],"stateMutability":"nonpayable"},
-            {"type":"function","name":"previewMultiHopMintOptimized","inputs":[{"name":"targetAmount","type":"uint256","internalType":"uint256"},{"name":"chainPath","type":"address[]","internalType":"address[]"}],"outputs":[{"name":"sourceCost","type":"uint256","internalType":"uint256"},{"name":"steps","type":"tuple[]","internalType":"struct MultiHopMinter.MintStep[]","components":[{"name":"token","type":"address","internalType":"address"},{"name":"amountToMint","type":"uint256","internalType":"uint256"},{"name":"parentCost","type":"uint256","internalType":"uint256"},{"name":"multiplier","type":"uint256","internalType":"uint256"}]}],"stateMutability":"view"},
-            {"type":"function","name":"getMultiplier","inputs":[{"name":"token","type":"address","internalType":"address"},{"name":"amount","type":"uint256","internalType":"uint256"}],"outputs":[{"name":"multiplier","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},
-            {"type":"function","name":"getChainInfo","inputs":[{"name":"sourceToken","type":"address","internalType":"address"},{"name":"targetToken","type":"address","internalType":"address"},{"name":"amount","type":"uint256","internalType":"uint256"}],"outputs":[{"name":"mintingChain","type":"address[]","internalType":"address[]"},{"name":"multipliers","type":"uint256[]","internalType":"uint256[]"},{"name":"totalCost","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},
-            {"type":"function","name":"discoverAndPreview","inputs":[{"name":"sourceToken","type":"address","internalType":"address"},{"name":"targetToken","type":"address","internalType":"address"},{"name":"targetAmount","type":"uint256","internalType":"uint256"}],"outputs":[{"name":"chainPath","type":"address[]","internalType":"address[]"},{"name":"sourceCost","type":"uint256","internalType":"uint256"},{"name":"steps","type":"tuple[]","internalType":"struct MultiHopMinter.MintStep[]","components":[{"name":"token","type":"address","internalType":"address"},{"name":"amountToMint","type":"uint256","internalType":"uint256"},{"name":"parentCost","type":"uint256","internalType":"uint256"},{"name":"multiplier","type":"uint256","internalType":"uint256"}]}],"stateMutability":"view"},
-            {"type":"function","name":"calculateTotalMultiplier","inputs":[{"name":"sourceToken","type":"address","internalType":"address"},{"name":"targetToken","type":"address","internalType":"address"},{"name":"targetAmount","type":"uint256","internalType":"uint256"}],"outputs":[{"name":"totalMultiplier","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},
-            {"type":"event","name":"MultiHopMint","inputs":[{"name":"user","type":"address","indexed":true,"internalType":"address"},{"name":"sourceToken","type":"address","indexed":true,"internalType":"address"},{"name":"targetToken","type":"address","indexed":true,"internalType":"address"},{"name":"targetAmount","type":"uint256","indexed":false,"internalType":"uint256"},{"name":"sourceCost","type":"uint256","indexed":false,"internalType":"uint256"},{"name":"stepsCount","type":"uint256","indexed":false,"internalType":"uint256"}],"anonymous":false}
-        ];
-
-        // ERC20 ABI for token operations
-        const ERC20_ABI = [
-            {"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"}
-        ];
-
-        // Contract configuration
-        const MULTIHOP_CONTRACT_ADDRESS = '0xFD17eBc0B90dcfa51f3eE9b377Ff0b14a8dC9C2C';
-
-        // Multi-hop state management
-        let discoveredTokens = [];
-        let tokenMultipliers = {};
+        // Web3 and wallet connection variables
+        let web3 = null;
         let walletAccount = null;
         let isWalletConnected = false;
-        let web3 = null;
-        let multiHopContract = null;
-        
-        // Store current balances for calculations
-        let currentSourceBalance = 0;
-        let currentTargetBalance = 0;
-
-        // Store current step (1 = approve, 2 = mint)
         let currentMintStep = 1;
-        let isApprovalSufficient = false;
+        let currentMultiplier = 2; // Track current multiplier
+        
+        // Token data with defaults
+        let tokenData = {
+            childToken: '0xb2cdb1359738e8d845cdf189af3ce06fba708c4b',
+            childName: 'Joyluck',
+            parentToken: '0x7e33f799f5431d34a04c0017cd13207de55bbb1d',
+            parentName: 'Jess',
+            multiplier: '2',
+            tokenIndex: '1'
+        };
+
+        // Store current balances for calculations
+        let currentParentBalance = 0;
+        let currentChildBalance = 0;
+
+        // Store discovered tokens and multipliers for multi-hop integration
+        let discoveredTokens = [];
+        let tokenMultipliers = {};
 
         // Session storage for wallet persistence
         const WALLET_SESSION_KEY = 'walletConnected';
-        
-        // Get total multiplier for source->target path using hopper contract
-        async function getTotalMultiplierFromContract(sourceToken, targetToken, targetAmount) {
-            try {
-                // Create a read-only web3 instance if needed
-                let readWeb3 = web3;
-                if (!readWeb3) {
-                    readWeb3 = new Web3('https://rpc-pulsechain.g4mm4.io');
-                }
-                
-                const hopContract = new readWeb3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
-                const targetAmountWei = readWeb3.utils.toWei(targetAmount.toString(), 'ether');
-                
-                const totalMultiplier = await hopContract.methods
-                    .calculateTotalMultiplier(sourceToken, targetToken, targetAmountWei)
-                    .call();
-                
-                // Multiplier functions likely return integers already, not Wei
-                const multiplierInt = parseInt(totalMultiplier);
-                
-                console.log(`🔢 Total multiplier from contract for ${targetAmount} tokens: ${multiplierInt}x`);
-                return multiplierInt;
-                
-            } catch (error) {
-                console.error(`❌ Failed to get total multiplier from contract:`, error);
-                return null;
-            }
-        }
 
-        // Get amount-aware multiplier using multi-hop contract (like direct mint page)
-        async function getAmountAwareMultiplier(tokenAddress, amount) {
-            try {
-                // Create a read-only web3 instance if needed
-                let readWeb3 = web3;
-                if (!readWeb3) {
-                    readWeb3 = new Web3('https://rpc-pulsechain.g4mm4.io');
-                }
-                
-                // Create multi-hop contract instance
-                const hopContract = new readWeb3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
-                const amountWei = readWeb3.utils.toWei(amount.toString(), 'ether');
-                
-                const multiplier = await hopContract.methods.getMultiplier(tokenAddress, amountWei).call();
-                
-                // Multiplier functions likely return integers already, not Wei
-                const multiplierInt = parseInt(multiplier);
-                
-                console.log(`🔢 Amount-aware multiplier for ${tokenAddress} with ${amount} tokens: ${multiplierInt}x`);
-                return multiplierInt;
-                
-            } catch (error) {
-                console.error(`❌ Failed to get amount-aware multiplier for ${tokenAddress}:`, error);
-                return null;
-            }
-        }
+        // ERC20 ABI for basic token operations
+        const ERC20_ABI = [
+            {"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},
+            {"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"}
+        ];
 
-        // Get base multiplier from contract (for display purposes, using 0 amount)
-        async function getBaseMultiplier(tokenAddress) {
-            return await getAmountAwareMultiplier(tokenAddress, 0);
-        }
+        // V4 Token ABI for minting and multiplier functions
+        const V4_TOKEN_ABI = [
+            {"constant":false,"inputs":[{"name":"amount","type":"uint256"}],"name":"mint","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
+            {"constant":true,"inputs":[{"name":"amount","type":"uint256"}],"name":"Multiplier","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[],"name":"Parent","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"}
+        ];
 
-        // Calculate accurate cost using contract preview (most accurate method)
-        async function getAccurateCostFromContract(sourceToken, targetToken, targetAmount) {
-            if (!sourceToken || !targetToken || !targetAmount || targetAmount <= 0) {
-                return null;
-            }
-            
-            try {
-                // Create a read-only web3 instance if needed
-                let readWeb3 = web3;
-                if (!readWeb3) {
-                    readWeb3 = new Web3('https://rpc-pulsechain.g4mm4.io');
-                }
-                
-                const hopContract = new readWeb3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
-                const targetAmountWei = readWeb3.utils.toWei(targetAmount.toString(), 'ether');
-                
-                // Use discoverAndPreview for most accurate cost calculation
-                const result = await hopContract.methods
-                    .discoverAndPreview(sourceToken, targetToken, targetAmountWei)
-                    .call();
-                
-                // Convert from Wei to Ether for display
-                const sourceCostEther = parseFloat(readWeb3.utils.fromWei(result.sourceCost, 'ether'));
-                
-                console.log(`💰 Accurate cost from contract: ${sourceCostEther} source tokens for ${targetAmount} target tokens`);
-                return sourceCostEther;
-                
-            } catch (error) {
-                console.error(`❌ Failed to get accurate cost from contract:`, error);
-                return null;
-            }
-        }
-
-        // Fetch multipliers for a specific hop path (optimized for dropdown changes)
-        async function fetchMultipliersForPath(startIndex, endIndex) {
-            if (startIndex === -1 || endIndex === -1 || startIndex >= endIndex) {
-                return;
-            }
-            
-            console.log(`🔍 Fetching base multipliers for path from index ${startIndex} to ${endIndex}...`);
-            let foundMultipliers = 0;
-            
-            // Only fetch base multipliers for tokens in the selected path (for display)
-            for (let i = startIndex + 1; i <= endIndex; i++) {
-                const token = discoveredTokens[i];
-                const addressKey = token.address.toLowerCase();
-                
-                // Skip if we already have this multiplier
-                if (tokenMultipliers[addressKey] && tokenMultipliers[addressKey] > 1) {
-                    console.log(`✅ Already have multiplier for ${token.name}: ${tokenMultipliers[addressKey]}x`);
-                    continue;
-                }
-                
-                // Try to get base multiplier from contract
-                const multiplier = await getBaseMultiplier(token.address);
-                if (multiplier && multiplier > 0) {
-                    tokenMultipliers[addressKey] = multiplier;
-                    foundMultipliers++;
-                    console.log(`✅ Found base multiplier for ${token.name}: ${multiplier}x`);
-                } else {
-                    console.warn(`❌ Could not get multiplier for ${token.name} (${token.address})`);
-                }
-                
-                // Small delay to avoid overwhelming the RPC
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-            
-            if (foundMultipliers > 0) {
-                console.log(`🎯 Fetched ${foundMultipliers} new base multipliers for selected path`);
-                // Don't show status message for partial path fetching - let the main fetch show the overall progress
-                return true;
-            }
-            
-            return false;
-        }
-        // Fetch all missing multipliers from contracts (works without wallet)
-        async function fetchMissingMultipliers() {
-            if (discoveredTokens.length === 0) {
-                console.log('⚠️ Cannot fetch multipliers - no tokens available');
-                return;
-            }
-            
-            console.log('🔍 Fetching missing multipliers from contracts...');
-            // Remove the "Fetching multipliers..." status message to avoid interim messages
-            
-            let foundMultipliers = 0;
-            let skippedMultipliers = 0;
-            let failedMultipliers = 0;
-            let totalTokensToCheck = discoveredTokens.length - 1; // Skip parent token
-            
-            // Check each child token (skip parent at index 0)
-            for (let i = 1; i < discoveredTokens.length; i++) {
-                const token = discoveredTokens[i];
-                const addressKey = token.address.toLowerCase();
-                
-                // Skip if we already have this multiplier
-                if (tokenMultipliers[addressKey] && tokenMultipliers[addressKey] > 1) {
-                    console.log(`✅ Already have multiplier for ${token.name}: ${tokenMultipliers[addressKey]}x`);
-                    skippedMultipliers++;
-                    continue;
-                }
-                
-                // Try to get base multiplier from contract
-                const multiplier = await getBaseMultiplier(token.address);
-                if (multiplier && multiplier > 0) {
-                    tokenMultipliers[addressKey] = multiplier;
-                    foundMultipliers++;
-                    console.log(`✅ Found base multiplier for ${token.name}: ${multiplier}x`);
-                } else {
-                    console.warn(`❌ Could not get multiplier for ${token.name} (${token.address})`);
-                    failedMultipliers++;
-                }
-                
-                // Small delay to avoid overwhelming the RPC
-                await new Promise(resolve => setTimeout(resolve, 150));
-            }
-            
-            console.log(`🎯 Results: ${foundMultipliers} found, ${skippedMultipliers} already cached, ${failedMultipliers} failed`);
-            
-            // Only show final results, no interim messages
-            if (foundMultipliers > 0) {
-                console.log(`✅ Successfully loaded ${foundMultipliers} new multipliers from blockchain`);
-            } else if (skippedMultipliers > 0) {
-                console.log(`✅ All ${totalTokensToCheck} multipliers already available`);
-            } else if (failedMultipliers > 0) {
-                console.log(`❌ Failed to fetch ${failedMultipliers} multipliers`);
-            }
-            
-            // Refresh the hop details display if we have a selected path
-            if (multiHopData.sourceIndex !== -1 && multiHopData.targetIndex !== -1) {
-                showHopDetails();
-                updateMultiHopCalculation();
-            }
-        }
-
-        // Multi-hop data object
-        let multiHopData = {
-            sourceToken: '',
-            sourceName: '',
-            targetToken: '',
-            targetName: '',
-            sourceIndex: -1,
-            targetIndex: -1,
-            totalMultiplier: 1,
-            fullChainPath: []
-        };
-
-        // Enhanced data loading with multiple methods and validation
+        // Enhanced data loading with better error handling and validation
         function parseUrlParams() {
-            console.log('🔍 Enhanced parsing of URL parameters and integration data...');
-            
             const params = new URLSearchParams(window.location.search);
+           
+            // Use URL params if available, otherwise use test data
+            if (params.get('childToken')) {
+                tokenData = {
+                    childToken: params.get('childToken'),
+                    childName: params.get('childName'),
+                    parentToken: params.get('parentToken'),
+                    parentName: params.get('parentName'),
+                    multiplier: params.get('multiplier'),
+                    tokenIndex: params.get('tokenIndex')
+                };
+                // Update current multiplier
+                currentMultiplier = parseInt(tokenData.multiplier) || 2;
+                console.log('✅ Loaded token data from URL parameters');
+            }
+
+            // Enhanced multi-hop data loading with validation
+            loadMultiHopData(params);
+           
+            // Update UI with token data
+            updateTokenDataUI();
+        }
+
+        // Enhanced multi-hop data loading function
+        function loadMultiHopData(params) {
             let dataLoaded = false;
             
             try {
@@ -890,557 +684,157 @@
                 if (params.get('tokenChain')) {
                     try {
                         const decodedChain = decodeURIComponent(params.get('tokenChain'));
-                        const parsedTokens = JSON.parse(decodedChain);
+                        discoveredTokens = JSON.parse(decodedChain);
                         
-                        if (Array.isArray(parsedTokens) && parsedTokens.length > 0) {
-                            discoveredTokens = parsedTokens;
+                        // Validate the data structure
+                        if (Array.isArray(discoveredTokens) && discoveredTokens.length > 0) {
                             console.log('✅ Loaded token chain from URL:', discoveredTokens.length, 'tokens');
                             dataLoaded = true;
                             
-                            // Enhanced multiplier loading from URL
-                            if (params.get('multipliers')) {
-                                try {
-                                    const decodedMultipliers = decodeURIComponent(params.get('multipliers'));
-                                    tokenMultipliers = JSON.parse(decodedMultipliers);
-                                    console.log('✅ Loaded multipliers from URL:', tokenMultipliers);
-                                } catch (e) {
-                                    console.log('⚠️ Failed to parse URL multipliers:', e.message);
+                            // Try to extract multipliers from token data
+                            discoveredTokens.forEach(token => {
+                                if (token.multiplier) {
+                                    tokenMultipliers[token.address.toLowerCase()] = parseInt(token.multiplier) || 2;
                                 }
-                            }
-                            
-                            // Extract multipliers from token objects if not found in separate parameter
-                            if (Object.keys(tokenMultipliers).length === 0) {
-                                console.log('🔍 Extracting multipliers from token objects...');
-                                discoveredTokens.forEach(token => {
-                                    if (token.multiplier) {
-                                        tokenMultipliers[token.address.toLowerCase()] = parseInt(token.multiplier);
-                                        console.log(`📊 Found multiplier in token ${token.name}: ${token.multiplier}x`);
-                                    }
-                                    if (token.mintMultiplier) {
-                                        tokenMultipliers[token.address.toLowerCase()] = parseInt(token.mintMultiplier);
-                                        console.log(`📊 Found mintMultiplier in token ${token.name}: ${token.mintMultiplier}x`);
-                                    }
-                                });
-                            }
+                            });
                         }
                     } catch (e) {
                         console.log('❌ Failed to parse URL tokenChain:', e.message);
                     }
                 }
 
-                // Method 2: Enhanced localStorage loading
+                // Method 2: localStorage from main website (fallback)
                 if (!dataLoaded) {
-                    const storedTokens = localStorage.getItem('discoveredTokens');
-                    const storedMultipliers = localStorage.getItem('tokenMultipliers');
-                    const storedMultiHopData = localStorage.getItem('multiHopData');
-                    
-                    if (storedTokens) {
-                        try {
+                    try {
+                        const storedTokens = localStorage.getItem('discoveredTokens');
+                        const storedMultipliers = localStorage.getItem('tokenMultipliers');
+                        
+                        if (storedTokens) {
                             const parsedTokens = JSON.parse(storedTokens);
                             if (Array.isArray(parsedTokens) && parsedTokens.length > 0) {
                                 discoveredTokens = parsedTokens;
                                 console.log('✅ Loaded token chain from localStorage:', discoveredTokens.length, 'tokens');
                                 dataLoaded = true;
                                 
-                                // Try to load multipliers from multiple sources
                                 if (storedMultipliers) {
                                     try {
-                                        const parsedMultipliers = JSON.parse(storedMultipliers);
-                                        tokenMultipliers = { ...tokenMultipliers, ...parsedMultipliers };
+                                        tokenMultipliers = JSON.parse(storedMultipliers);
                                         console.log('✅ Loaded multipliers from localStorage');
                                     } catch (e) {
                                         console.log('⚠️ Failed to parse stored multipliers:', e.message);
                                     }
                                 }
-                                
-                                // Try to load from enhanced multiHopData
-                                if (storedMultiHopData) {
-                                    try {
-                                        const multiHopData = JSON.parse(storedMultiHopData);
-                                        if (multiHopData.multipliers) {
-                                            const additionalMultipliers = JSON.parse(multiHopData.multipliers);
-                                            tokenMultipliers = { ...tokenMultipliers, ...additionalMultipliers };
-                                            console.log('✅ Loaded additional multipliers from multiHopData');
-                                        }
-                                    } catch (e) {
-                                        console.log('⚠️ Failed to parse multiHopData:', e.message);
-                                    }
-                                }
-                                
-                                // Extract from token objects in localStorage
-                                discoveredTokens.forEach(token => {
-                                    if (token.multiplier && !tokenMultipliers[token.address.toLowerCase()]) {
-                                        tokenMultipliers[token.address.toLowerCase()] = parseInt(token.multiplier);
-                                        console.log(`📊 Extracted multiplier from localStorage token ${token.name}: ${token.multiplier}x`);
-                                    }
-                                });
                             }
-                        } catch (e) {
-                            console.log('❌ Failed to parse stored tokens:', e.message);
                         }
+                    } catch (e) {
+                        console.log('❌ Failed to load from localStorage:', e.message);
                     }
                 }
 
-                // Method 3: Enhanced window.opener access (if opened from direct mint page)
+                // Method 3: Check opener window (if opened from main website)
                 if (!dataLoaded && window.opener && !window.opener.closed) {
                     try {
-                        if (window.opener.DirectMint) {
-                            const openerTokens = window.opener.DirectMint.discoveredTokens();
-                            const openerMultipliers = window.opener.DirectMint.tokenMultipliers();
-                            const openerTokenData = window.opener.DirectMint.tokenData();
-                            
-                            if (openerTokens && Array.isArray(openerTokens) && openerTokens.length > 0) {
-                                discoveredTokens = [...openerTokens];
-                                console.log('✅ Loaded data from opener (DirectMint):', discoveredTokens.length, 'tokens');
-                                dataLoaded = true;
-                                
-                                if (openerMultipliers && typeof openerMultipliers === 'object') {
-                                    tokenMultipliers = { ...tokenMultipliers, ...openerMultipliers };
-                                    console.log('✅ Loaded multipliers from DirectMint opener');
-                                }
-                                
-                                // Extract multiplier from current token data
-                                if (openerTokenData && openerTokenData.childToken && openerTokenData.multiplier) {
-                                    tokenMultipliers[openerTokenData.childToken.toLowerCase()] = parseInt(openerTokenData.multiplier);
-                                    console.log(`📊 Added current token multiplier from DirectMint: ${openerTokenData.childName} = ${openerTokenData.multiplier}x`);
-                                }
-                            }
-                        }
-                        
-                        // Also try main DynamicTracker if available
-                        if (!dataLoaded && window.opener.DynamicTracker) {
+                        // Try to access the opener's data
+                        if (window.opener.DynamicTracker) {
                             const openerTokens = window.opener.DynamicTracker.discoveredTokens();
                             const openerMultipliers = window.opener.DynamicTracker.tokenMultipliers();
                             
                             if (openerTokens && Array.isArray(openerTokens) && openerTokens.length > 0) {
-                                discoveredTokens = [...openerTokens];
-                                if (openerMultipliers && typeof openerMultipliers === 'object') {
-                                    tokenMultipliers = { ...tokenMultipliers, ...openerMultipliers };
-                                }
-                                console.log('✅ Loaded data from opener (DynamicTracker):', discoveredTokens.length, 'tokens');
+                                discoveredTokens = [...openerTokens]; // Create a copy
+                                console.log('✅ Loaded token chain from opener window:', discoveredTokens.length, 'tokens');
                                 dataLoaded = true;
+                            }
+                            
+                            if (openerMultipliers && typeof openerMultipliers === 'object') {
+                                tokenMultipliers = { ...openerMultipliers }; // Create a copy
+                                console.log('✅ Loaded multipliers from opener window');
                             }
                         }
                     } catch (e) {
-                        console.log('❌ Could not access opener window data:', e.message);
+                        console.log('❌ Could not access opener window data (cross-origin or closed):', e.message);
                     }
                 }
 
-                // Method 4: Check for direct URL parameters from direct mint page
-                if (params.get('sourceToken') && params.get('targetToken')) {
-                    console.log('🔍 Found direct token parameters, building minimal chain...');
-                    const sourceToken = params.get('sourceToken');
-                    const sourceName = params.get('sourceName');
-                    const targetToken = params.get('targetToken');
-                    const targetName = params.get('targetName');
-                    
-                    // If we don't have discovered tokens yet, create from direct params
-                    if (discoveredTokens.length === 0) {
-                        discoveredTokens = [
-                            { name: sourceName || 'Source Token', address: sourceToken, type: 'parent' },
-                            { name: targetName || 'Target Token', address: targetToken, type: 'child' }
-                        ];
-                        dataLoaded = true;
-                        console.log('✅ Created token chain from direct parameters');
-                    }
-                    
-                    // Add multiplier if available in params (from direct mint page calculation)
-                    if (params.get('multiplier')) {
-                        const multiplier = parseInt(params.get('multiplier'));
-                        if (multiplier && multiplier > 1) {
-                            tokenMultipliers[targetToken.toLowerCase()] = multiplier;
-                            console.log(`📊 Added multiplier from URL params: ${targetName} = ${multiplier}x`);
-                        }
-                    }
+                // Method 4: Create minimal chain from current token data if nothing else worked
+                if (!dataLoaded) {
+                    console.log('⚠️ No multi-hop data found, creating minimal chain from current token');
+                    createMinimalTokenChain();
                 }
 
             } catch (error) {
-                console.error('❌ Error in parseUrlParams:', error);
+                console.error('❌ Error in loadMultiHopData:', error);
+                createMinimalTokenChain();
             }
-
-            // Final validation and logging
-            console.log('📊 Final multiplier detection results:');
-            console.log('- Discovered tokens:', discoveredTokens.map(t => `${t.name} (${t.address})`));
-            console.log('- Token multipliers:', tokenMultipliers);
             
-            // DO NOT apply default multipliers - let users know if multipliers are missing
-            if (Object.keys(tokenMultipliers).length === 0 && discoveredTokens.length > 1) {
-                console.warn('⚠️ NO MULTIPLIERS FOUND - Users will see "UNKNOWN" multipliers');
-                console.warn('⚠️ This will prevent minting until proper multiplier data is available');
-            }
-
-            if (dataLoaded) {
-                populateTokenDropdowns();
-                hideNoDataWarning();
-                updateIntegrationStatus();
-                
-                // Auto-select from URL params if available
-                if (params.get('sourceToken') && params.get('targetToken')) {
-                    setTimeout(() => {
-                        autoSelectTokensFromParams(params);
-                    }, 100);
-                }
-                
-                // Auto-fetch multipliers from contracts after data is loaded
-                setTimeout(async () => {
-                    console.log('🚀 Auto-fetching multipliers from contracts...');
-                    await fetchMissingMultipliers();
-                }, 500);
-                
-                return true;
-            } else {
-                showNoDataWarning();
-                return false;
-            }
+            // Update UI to show multi-hop status
+            updateMultiHopStatusUI();
         }
 
-        // Auto-select tokens from URL parameters
-        function autoSelectTokensFromParams(params) {
-            const sourceToken = params.get('sourceToken');
-            const targetToken = params.get('targetToken');
+        // Create minimal token chain from current token data
+        function createMinimalTokenChain() {
+            discoveredTokens = [];
             
-            if (sourceToken) {
-                const sourceDropdown = document.getElementById('sourceTokenDropdown');
-                sourceDropdown.value = sourceToken;
-                onSourceTokenChange();
-                
-                if (targetToken) {
-                    setTimeout(() => {
-                        const targetDropdown = document.getElementById('targetTokenDropdown');
-                        targetDropdown.value = targetToken;
-                        onTargetTokenChange();
-                    }, 50);
-                }
-            }
-        }
-
-        function updateIntegrationStatus() {
-            const statusEl = document.getElementById('integrationStatus');
-            const countEl = document.getElementById('tokenChainCount');
-            
-            if (discoveredTokens.length > 0) {
-                countEl.textContent = discoveredTokens.length;
-                statusEl.style.display = 'block';
-            } else {
-                statusEl.style.display = 'none';
-            }
-        }
-
-        function showNoDataWarning() {
-            document.getElementById('noDataWarning').style.display = 'block';
-            document.getElementById('tokenInfoSection').style.display = 'none';
-            document.getElementById('multiHopInfo').style.display = 'none';
-            document.getElementById('walletSection').style.display = 'none';
-        }
-
-        function hideNoDataWarning() {
-            document.getElementById('noDataWarning').style.display = 'none';
-            document.getElementById('tokenInfoSection').style.display = 'block';
-            document.getElementById('multiHopInfo').style.display = 'block';
-            document.getElementById('walletSection').style.display = 'block';
-        }
-
-        function populateTokenDropdowns() {
-            const sourceDropdown = document.getElementById('sourceTokenDropdown');
-            const targetDropdown = document.getElementById('targetTokenDropdown');
-            
-            sourceDropdown.innerHTML = '';
-            targetDropdown.innerHTML = '<option value="">Select source token first...</option>';
-            
-            if (discoveredTokens.length === 0) {
-                sourceDropdown.innerHTML = '<option value="">No tokens available</option>';
-                return;
-            }
-
-            sourceDropdown.innerHTML = '<option value="">Select source token...</option>';
-            
-            discoveredTokens.forEach((token, index) => {
-                const option = document.createElement('option');
-                option.value = token.address;
-                option.dataset.index = index;
-                option.textContent = `${token.name} (${token.type === 'parent' ? 'Parent' : `Child ${index}`})`;
-                sourceDropdown.appendChild(option);
-            });
-        }
-
-        function onSourceTokenChange() {
-            const sourceDropdown = document.getElementById('sourceTokenDropdown');
-            const targetDropdown = document.getElementById('targetTokenDropdown');
-            const selectedAddress = sourceDropdown.value;
-            
-            targetDropdown.innerHTML = '<option value="">Select target token...</option>';
-            
-            if (!selectedAddress) {
-                multiHopData.sourceToken = '';
-                multiHopData.sourceIndex = -1;
-                hideHopDetails();
-                return;
-            }
-            
-            const selectedIndex = parseInt(sourceDropdown.options[sourceDropdown.selectedIndex].dataset.index);
-            const selectedToken = discoveredTokens[selectedIndex];
-            
-            multiHopData.sourceToken = selectedAddress;
-            multiHopData.sourceName = selectedToken.name;
-            multiHopData.sourceIndex = selectedIndex;
-            
-            // Reset approval status when source token changes
-            currentMintStep = 1;
-            isApprovalSufficient = false;
-            
-            document.getElementById('sourceSymbol').textContent = selectedToken.name;
-            
-            for (let i = selectedIndex + 1; i < discoveredTokens.length; i++) {
-                const token = discoveredTokens[i];
-                const option = document.createElement('option');
-                option.value = token.address;
-                option.dataset.index = i;
-                option.textContent = `${token.name} (Child ${i})`;
-                targetDropdown.appendChild(option);
-            }
-            
-            if (targetDropdown.children.length === 1) {
-                targetDropdown.innerHTML = '<option value="">No valid target tokens</option>';
-            }
-            
-            hideHopDetails();
-            updateMintButtonState();
-            
-            // If auto-selecting target from URL params, let that handle the multiplier fetching
-            // Otherwise, pre-fetch multipliers for potential targets
-            if (!new URLSearchParams(window.location.search).get('targetToken')) {
-                setTimeout(async () => {
-                    console.log(`🔄 Source changed - pre-fetching multipliers for potential targets...`);
-                    await fetchMultipliersForPath(selectedIndex, Math.min(selectedIndex + 5, discoveredTokens.length - 1));
-                }, 200);
-            }
-        }
-
-        function onTargetTokenChange() {
-            const targetDropdown = document.getElementById('targetTokenDropdown');
-            const selectedAddress = targetDropdown.value;
-            
-            if (!selectedAddress) {
-                multiHopData.targetToken = '';
-                multiHopData.targetIndex = -1;
-                hideHopDetails();
-                updateMintButtonState();
-                return;
-            }
-            
-            const selectedIndex = parseInt(targetDropdown.options[targetDropdown.selectedIndex].dataset.index);
-            const selectedToken = discoveredTokens[selectedIndex];
-            
-            multiHopData.targetToken = selectedAddress;
-            multiHopData.targetName = selectedToken.name;
-            multiHopData.targetIndex = selectedIndex;
-            
-            // Store the selected values to preserve them
-            multiHopData.selectedSourceValue = document.getElementById('sourceTokenDropdown').value;
-            multiHopData.selectedTargetValue = selectedAddress;
-            
-            document.getElementById('targetSymbol').textContent = selectedToken.name;
-            
-            buildFullChainPath();
-            showHopDetails();
-            updateSecurityWarning();
-            updateMintButtonState();
-            
-            if (isWalletConnected) {
-                loadWalletBalances();
-                
-                // Check approval status when tokens are selected
-                setTimeout(async () => {
-                    await checkApprovalStatus();
-                }, 500);
-            }
-        }
-
-        function buildFullChainPath() {
-            if (multiHopData.sourceIndex === -1 || multiHopData.targetIndex === -1) {
-                multiHopData.fullChainPath = [];
-                return;
-            }
-            
-            multiHopData.fullChainPath = [];
-            for (let i = multiHopData.sourceIndex; i <= multiHopData.targetIndex; i++) {
-                multiHopData.fullChainPath.push(discoveredTokens[i].address);
-            }
-        }
-
-        function showHopDetails() {
-            if (multiHopData.sourceIndex === -1 || multiHopData.targetIndex === -1) {
-                hideHopDetails();
-                return;
-            }
-            
-            const hopDetails = document.getElementById('hopDetails');
-            const hopPath = document.getElementById('hopPath');
-            const totalMultiplierEl = document.getElementById('totalMultiplier');
-            
-            let pathHtml = '';
-            let totalMultiplier = 1;
-            let hasUnknownMultiplier = false;
-            
-            for (let i = multiHopData.sourceIndex; i <= multiHopData.targetIndex; i++) {
-                const token = discoveredTokens[i];
-                if (i > multiHopData.sourceIndex) {
-                    pathHtml += '<span class="hop-arrow">→</span>';
-                    
-                    // Try multiple ways to get the actual multiplier
-                    let multiplier = null;
-                    let multiplierSource = 'not found';
-                    
-                    // Method 1: Check tokenMultipliers with exact address
-                    if (tokenMultipliers[token.address]) {
-                        multiplier = tokenMultipliers[token.address];
-                        multiplierSource = 'tokenMultipliers (exact)';
-                    }
-                    // Method 2: Check with lowercase address
-                    else if (tokenMultipliers[token.address.toLowerCase()]) {
-                        multiplier = tokenMultipliers[token.address.toLowerCase()];
-                        multiplierSource = 'tokenMultipliers (lowercase)';
-                    }
-                    // Method 3: Check if token has multiplier property
-                    else if (token.multiplier) {
-                        multiplier = token.multiplier;
-                        multiplierSource = 'token.multiplier';
-                    }
-                    // Method 4: Check if token has mintMultiplier property
-                    else if (token.mintMultiplier) {
-                        multiplier = token.mintMultiplier;
-                        multiplierSource = 'token.mintMultiplier';
-                    }
-                    
-                    if (multiplier !== null && multiplier > 0) {
-                        totalMultiplier *= multiplier;
-                        console.log(`Token ${token.name} at ${token.address}: multiplier = ${multiplier} (from ${multiplierSource})`);
-                        
-                        // Add multiplier display to the path
-                        pathHtml += `<span style="font-size: 0.8rem; color: #ffc107; margin-left: 5px;">(${multiplier}x)</span>`;
-                    } else {
-                        hasUnknownMultiplier = true;
-                        console.warn(`Token ${token.name} at ${token.address}: multiplier NOT FOUND`);
-                        
-                        // Add "unknown" display to the path
-                        pathHtml += `<span style="font-size: 0.8rem; color: #f44336; margin-left: 5px; font-weight: bold;">(UNKNOWN)</span>`;
-                    }
-                }
-                pathHtml += `<span>${token.name}</span>`;
-            }
-            
-            hopPath.innerHTML = pathHtml;
-            
-            if (hasUnknownMultiplier) {
-                totalMultiplierEl.textContent = 'UNKNOWN';
-                totalMultiplierEl.style.color = '#f44336';
-                totalMultiplierEl.style.fontWeight = 'bold';
-                multiHopData.totalMultiplier = null; // Set to null to indicate unknown
-            } else {
-                totalMultiplierEl.textContent = `${totalMultiplier}x`;
-                totalMultiplierEl.style.color = '#06ffa5';
-                totalMultiplierEl.style.fontWeight = '600';
-                multiHopData.totalMultiplier = totalMultiplier;
-            }
-            
-            console.log(`Total multiplier calculated: ${hasUnknownMultiplier ? 'UNKNOWN (contains unknown multipliers)' : totalMultiplier + 'x'} for path from ${discoveredTokens[multiHopData.sourceIndex].name} to ${discoveredTokens[multiHopData.targetIndex].name}`);
-            console.log('Available tokenMultipliers:', tokenMultipliers);
-            console.log('Token objects:', discoveredTokens.slice(multiHopData.sourceIndex, multiHopData.targetIndex + 1));
-            
-            hopDetails.style.display = 'block';
-        }
-
-        function hideHopDetails() {
-            document.getElementById('hopDetails').style.display = 'none';
-        }
-
-        function updateSecurityWarning() {
-            const securityWarning = document.getElementById('securityWarning');
-            const sourceAddressCheck = document.getElementById('sourceAddressCheck');
-            const targetAddressCheck = document.getElementById('targetAddressCheck');
-            
-            if (multiHopData.sourceToken && multiHopData.targetToken) {
-                sourceAddressCheck.textContent = multiHopData.sourceToken;
-                targetAddressCheck.textContent = multiHopData.targetToken;
-                securityWarning.style.display = 'block';
-            } else {
-                securityWarning.style.display = 'none';
-            }
-        }
-
-        function refreshChainData() {
-            console.log('🔄 Refreshing current path data...');
-            
-            // Check if we have a current path selected
-            if (multiHopData.sourceIndex !== -1 && multiHopData.targetIndex !== -1) {
-                showStatus('🔄 Refreshing path multipliers and costs...', 'warning');
-                
-                // Re-fetch multipliers for current path
-                setTimeout(async () => {
-                    try {
-                        const foundNew = await fetchMultipliersForPath(multiHopData.sourceIndex, multiHopData.targetIndex);
-                        
-                        // Refresh the hop details display
-                        showHopDetails();
-                        
-                        // Update costs in mint section
-                        updateMultiHopCalculation();
-                        
-                        // Re-check approval status if wallet connected
-                        if (isWalletConnected) {
-                            await checkApprovalStatus();
-                        }
-                        
-                        showStatus('✅ Path data refreshed successfully!', 'success');
-                        
-                    } catch (error) {
-                        console.error('❌ Error refreshing path data:', error);
-                        showStatus('❌ Failed to refresh path data. Try again.', 'error');
-                    }
-                }, 100);
-                
-            } else {
-                // Fallback to original behavior if no path selected
-                console.log('🔄 No path selected, reloading token data...');
-                parseUrlParams();
-                showStatus('✅ Token data reloaded!', 'success');
-            }
-        }
-
-        function goToDirectMint() {
-            if (multiHopData.sourceToken && multiHopData.targetToken) {
-                const params = new URLSearchParams({
-                    childToken: multiHopData.targetToken,
-                    childName: multiHopData.targetName,
-                    parentToken: multiHopData.sourceToken,
-                    parentName: multiHopData.sourceName,
-                    multiplier: multiHopData.totalMultiplier ? multiHopData.totalMultiplier.toString() : '2',
-                    tokenIndex: multiHopData.targetIndex.toString(),
-                    tokenChain: encodeURIComponent(JSON.stringify(discoveredTokens)),
-                    multipliers: encodeURIComponent(JSON.stringify(tokenMultipliers))
+            // Add parent token if available
+            if (tokenData.parentToken && tokenData.parentToken !== 'N/A' && tokenData.parentToken !== '0x0000000000000000000000000000000000000000') {
+                discoveredTokens.push({
+                    name: tokenData.parentName || 'Parent Token',
+                    address: tokenData.parentToken,
+                    type: 'parent'
                 });
-                window.location.href = `https://spinetracker.vercel.app/mint.html?${params.toString()}`;
-            } else {
-                window.location.href = 'https://spinetracker.vercel.app/mint.html';
             }
-        }
-
-        function goToMainWebsite() {
-            if (discoveredTokens.length > 0) {
-                try {
-                    localStorage.setItem('discoveredTokens', JSON.stringify(discoveredTokens));
-                    localStorage.setItem('tokenMultipliers', JSON.stringify(tokenMultipliers));
-                } catch (error) {
-                    console.log('⚠️ Could not store token data:', error);
+            
+            // Add child token
+            if (tokenData.childToken && tokenData.childToken !== 'N/A') {
+                discoveredTokens.push({
+                    name: tokenData.childName || 'Child Token',
+                    address: tokenData.childToken,
+                    type: 'child'
+                });
+                
+                // Add multiplier data
+                if (tokenData.multiplier) {
+                    tokenMultipliers[tokenData.childToken.toLowerCase()] = parseInt(tokenData.multiplier) || 2;
                 }
             }
-            window.location.href = 'https://spinetracker.vercel.app/';
+            
+            console.log('📦 Created minimal token chain:', discoveredTokens.length, 'tokens');
+        }
+
+        // Update token data UI
+        function updateTokenDataUI() {
+            document.getElementById('childTokenName').textContent = tokenData.childName || 'Unknown Token';
+            document.getElementById('childTokenAddress').textContent = tokenData.childToken || 'N/A';
+            document.getElementById('parentTokenName').textContent = tokenData.parentName || 'Unknown Parent';
+            document.getElementById('parentTokenAddress').textContent = tokenData.parentToken || 'N/A';
+            document.getElementById('multiplierValue').textContent = tokenData.multiplier ? `${parseInt(tokenData.multiplier)}x` : 'N/A';
+           
+            // Update security warning addresses
+            document.getElementById('parentAddressCheck').textContent = tokenData.parentToken || 'N/A';
+            document.getElementById('childAddressCheck').textContent = tokenData.childToken || 'N/A';
+           
+            // Update balance labels
+            document.getElementById('parentSymbol').textContent = tokenData.parentName || 'Parent';
+            document.getElementById('childSymbol').textContent = tokenData.childName || 'Child';
+            
+            // Update cost calculation display
+            updateCostCalculation();
+        }
+
+        // Update multi-hop status UI (now hidden)
+        function updateMultiHopStatusUI() {
+            // Status box is now hidden, but we still log for debugging
+            console.log('📊 Multi-hop status updated:', {
+                tokensCount: discoveredTokens.length,
+                multipliersCount: Object.keys(tokenMultipliers).length,
+                tokens: discoveredTokens.map(t => ({ name: t.name, type: t.type }))
+            });
         }
 
         // Check if wallet was previously connected this session
         function checkWalletSession() {
             const wasConnected = sessionStorage.getItem(WALLET_SESSION_KEY);
             if (wasConnected === 'true' && typeof window.ethereum !== 'undefined') {
+                // Auto-reconnect if wallet was connected this session
                 autoConnectWallet();
             }
         }
@@ -1454,51 +848,52 @@
                 if (accounts.length > 0) {
                     walletAccount = accounts[0];
                     isWalletConnected = true;
+                    console.log('✅ Auto-reconnected wallet:', walletAccount);
                     
-                    multiHopContract = new web3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
-                    
-                    document.getElementById('walletNotConnected').style.display = 'none';
-                    document.getElementById('walletConnected').style.display = 'block';
-                    document.getElementById('walletAddress').textContent = `${walletAccount.slice(0, 6)}...${walletAccount.slice(-4)}`;
-                    document.getElementById('mintForm').style.display = 'block';
-                    document.getElementById('balanceSection').style.display = 'block';
-                    
+                    updateWalletUI();
                     await loadWalletBalances();
-                    updateMintButtonState();
-                    
-                    // Check approval status immediately after wallet connection
-                    await checkApprovalStatus();
+                    await updateStepUIWithApprovalCheck();
                 }
             } catch (error) {
+                console.log('⚠️ Auto-reconnect failed:', error.message);
                 sessionStorage.removeItem(WALLET_SESSION_KEY);
             }
         }
 
+        // Wallet connection functions
         async function connectWallet() {
+            console.log('🔗 Attempting to connect wallet...');
+            
             if (typeof window.ethereum !== 'undefined') {
                 try {
+                    // Initialize Web3
                     web3 = new Web3(window.ethereum);
                     
+                    // Request account access
                     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                     walletAccount = accounts[0];
                     isWalletConnected = true;
                     
+                    // Store wallet connection state for this session
                     sessionStorage.setItem(WALLET_SESSION_KEY, 'true');
                     
-                    multiHopContract = new web3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
+                    console.log('✅ Wallet connected:', walletAccount);
                     
-                    document.getElementById('walletNotConnected').style.display = 'none';
-                    document.getElementById('walletConnected').style.display = 'block';
-                    document.getElementById('walletAddress').textContent = `${walletAccount.slice(0, 6)}...${walletAccount.slice(-4)}`;
-                    document.getElementById('mintForm').style.display = 'block';
-                    document.getElementById('balanceSection').style.display = 'block';
+                    // Check network
+                    const chainId = await web3.eth.getChainId();
+                    console.log('🌐 Connected to chain ID:', chainId);
+                    
+                    // Update UI
+                    updateWalletUI();
                     
                     showStatus('Wallet connected successfully!', 'success');
                     
+                    // Load balances and check approval status
                     await loadWalletBalances();
-                    updateMintButtonState();
+                    await updateStepUIWithApprovalCheck();
                     
                 } catch (error) {
+                    console.error('❌ Failed to connect wallet:', error);
                     showStatus('Failed to connect wallet: ' + error.message, 'error');
                 }
             } else {
@@ -1510,601 +905,255 @@
             walletAccount = null;
             isWalletConnected = false;
             web3 = null;
-            multiHopContract = null;
             
+            // Clear session storage
             sessionStorage.removeItem(WALLET_SESSION_KEY);
             
-            document.getElementById('walletNotConnected').style.display = 'block';
-            document.getElementById('walletConnected').style.display = 'none';
-            document.getElementById('mintForm').style.display = 'none';
-            document.getElementById('balanceSection').style.display = 'none';
+            updateWalletUI();
             
+            console.log('👋 Wallet disconnected');
             showStatus('Wallet disconnected', 'warning');
-            updateMintButtonState();
         }
 
-        function showStatus(message, type = 'info') {
-            const statusEl = document.getElementById('statusMessage');
-            statusEl.className = `status-message status-${type}`;
-            statusEl.textContent = message;
-            statusEl.style.display = 'block';
-            
-            setTimeout(() => {
-                statusEl.style.display = 'none';
-            }, 5000);
-        }
-
-        // Show MAX button specific messages near the MAX button
-        function showMaxButtonMessage(message, type = 'info') {
-            // Remove any existing max message
-            const existingMessage = document.getElementById('maxButtonMessage');
-            if (existingMessage) {
-                existingMessage.remove();
+        function updateWalletUI() {
+            const notConnected = document.getElementById('walletNotConnected');
+            const connected = document.getElementById('walletConnected');
+            const addressSpan = document.getElementById('walletAddress');
+            const balanceSection = document.getElementById('balanceSection');
+            const walletSecurityWarning = document.getElementById('walletSecurityWarning');
+           
+            if (isWalletConnected) {
+                notConnected.style.display = 'none';
+                connected.style.display = 'block';
+                addressSpan.textContent = formatAddress(walletAccount);
+                document.getElementById('mintForm').style.display = 'block';
+                balanceSection.style.display = 'block';
+                walletSecurityWarning.style.display = 'none'; // Hide security warning once connected
+            } else {
+                notConnected.style.display = 'block';
+                connected.style.display = 'none';
+                document.getElementById('mintForm').style.display = 'none';
+                balanceSection.style.display = 'none';
+                walletSecurityWarning.style.display = 'block'; // Show security warning when not connected
             }
-            
-            // Create new message element
-            const messageEl = document.createElement('div');
-            messageEl.id = 'maxButtonMessage';
-            messageEl.style.cssText = `
-                margin-top: 8px;
-                padding: 8px 12px;
-                border-radius: 8px;
-                font-size: 0.85rem;
-                font-weight: 500;
-                ${type === 'success' ? 'background: rgba(6, 255, 165, 0.1); border: 1px solid rgba(6, 255, 165, 0.3); color: #06ffa5;' : ''}
-                ${type === 'warning' ? 'background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); color: #ffc107;' : ''}
-                ${type === 'error' ? 'background: rgba(244, 67, 54, 0.1); border: 1px solid rgba(244, 67, 54, 0.3); color: #f44336;' : ''}
-            `;
-            messageEl.textContent = message;
-            
-            // Insert after the input-with-button div
-            const inputWithButton = document.querySelector('.input-with-button');
-            inputWithButton.parentNode.insertBefore(messageEl, inputWithButton.nextSibling);
-            
-            // Auto-remove after 4 seconds
-            setTimeout(() => {
-                if (messageEl && messageEl.parentNode) {
-                    messageEl.remove();
-                }
-            }, 4000);
         }
 
+        // Load wallet balances
         async function loadWalletBalances() {
-            if (!web3 || !walletAccount || !multiHopData.sourceToken || !multiHopData.targetToken) return;
+            if (!web3 || !walletAccount) return;
+            
+            console.log('💰 Loading wallet balances...');
             
             try {
-                const sourceContract = new web3.eth.Contract(ERC20_ABI, multiHopData.sourceToken);
-                const sourceBalance = await sourceContract.methods.balanceOf(walletAccount).call();
-                const sourceBalanceFormatted = web3.utils.fromWei(sourceBalance, 'ether');
-                currentSourceBalance = parseFloat(sourceBalanceFormatted);
+                // Load parent token balance
+                if (tokenData.parentToken && tokenData.parentToken !== 'N/A') {
+                    const parentContract = new web3.eth.Contract(ERC20_ABI, tokenData.parentToken);
+                    const parentBalance = await parentContract.methods.balanceOf(walletAccount).call();
+                    const parentBalanceFormatted = web3.utils.fromWei(parentBalance, 'ether');
+                    currentParentBalance = parseFloat(parentBalanceFormatted);
+                    
+                    document.getElementById('parentBalance').textContent = `${parseFloat(parentBalanceFormatted).toLocaleString()}`;
+                    document.getElementById('parentBalance').className = 'balance-value';
+                }
                 
-                // Show more decimal places for small balances
-                const sourceDisplayBalance = currentSourceBalance < 1 ? 
-                    parseFloat(sourceBalanceFormatted).toFixed(8).replace(/\.?0+$/, '') : 
-                    parseFloat(sourceBalanceFormatted).toLocaleString();
+                // Load child token balance
+                if (tokenData.childToken && tokenData.childToken !== 'N/A') {
+                    const childContract = new web3.eth.Contract(ERC20_ABI, tokenData.childToken);
+                    const childBalance = await childContract.methods.balanceOf(walletAccount).call();
+                    const childBalanceFormatted = web3.utils.fromWei(childBalance, 'ether');
+                    currentChildBalance = parseFloat(childBalanceFormatted);
+                    
+                    document.getElementById('childBalance').textContent = `${parseFloat(childBalanceFormatted).toLocaleString()}`;
+                    document.getElementById('childBalance').className = 'balance-value';
+                }
                 
-                document.getElementById('sourceBalance').textContent = sourceDisplayBalance;
-                document.getElementById('sourceBalance').className = 'balance-value';
+                console.log('✅ Balances loaded successfully');
                 
-                const targetContract = new web3.eth.Contract(ERC20_ABI, multiHopData.targetToken);
-                const targetBalance = await targetContract.methods.balanceOf(walletAccount).call();
-                const targetBalanceFormatted = web3.utils.fromWei(targetBalance, 'ether');
-                currentTargetBalance = parseFloat(targetBalanceFormatted);
-                
-                // Show more decimal places for small balances
-                const targetDisplayBalance = currentTargetBalance < 1 ? 
-                    parseFloat(targetBalanceFormatted).toFixed(8).replace(/\.?0+$/, '') : 
-                    parseFloat(targetBalanceFormatted).toLocaleString();
-                
-                document.getElementById('targetBalance').textContent = targetDisplayBalance;
-                document.getElementById('targetBalance').className = 'balance-value';
-                
+                // Enable MAX button now that we have balance data
                 document.getElementById('maxBtn').disabled = false;
                 
-                // Always check approval status when balances load for any source token change
-                await checkApprovalStatus();
-                
             } catch (error) {
-                document.getElementById('sourceBalance').textContent = 'Error';
-                document.getElementById('targetBalance').textContent = 'Error';
+                console.error('❌ Failed to load balances:', error);
+                document.getElementById('parentBalance').textContent = 'Error';
+                document.getElementById('childBalance').textContent = 'Error';
             }
         }
 
-        // Check approval status and update button state
-        async function checkApprovalStatus() {
-            if (!web3 || !walletAccount || !multiHopData.sourceToken) {
-                console.log('⚠️ Cannot check approval - missing requirements');
-                return;
+        // Check approval status and update step UI
+        async function updateStepUIWithApprovalCheck() {
+            if (!web3 || !walletAccount || !tokenData.parentToken || !tokenData.childToken) return;
+            
+            console.log('🔍 Checking approval status...');
+            
+            try {
+                const parentContract = new web3.eth.Contract(ERC20_ABI, tokenData.parentToken);
+                const allowance = await parentContract.methods.allowance(walletAccount, tokenData.childToken).call();
+                const allowanceFormatted = web3.utils.fromWei(allowance, 'ether');
+                
+                console.log('📋 Current allowance:', allowanceFormatted);
+                
+                // Check if approval is sufficient (we use a high threshold to consider it "infinite")
+                const isApproved = parseFloat(allowanceFormatted) > 1000000;
+                
+                if (isApproved) {
+                    // Move to step 2 (mint)
+                    currentMintStep = 2;
+                    updateStepUI();
+                } else {
+                    // Stay on step 1 (approve)
+                    currentMintStep = 1;
+                    updateStepUI();
+                }
+                
+            } catch (error) {
+                console.error('❌ Failed to check approval:', error);
+                currentMintStep = 1;
+                updateStepUI();
+            }
+        }
+
+        // Update step indicator UI
+        function updateStepUI() {
+            const step1 = document.getElementById('step1');
+            const step2 = document.getElementById('step2');
+            const stepLine = document.getElementById('stepLine');
+            const stepText = document.getElementById('stepText');
+            const actionBtn = document.getElementById('actionBtn');
+            
+            if (currentMintStep === 1) {
+                // Step 1: Approve
+                step1.className = 'step active';
+                step2.className = 'step inactive';
+                stepLine.className = 'step-line';
+                stepText.textContent = 'Step 1 of 2: Approve Parent Token (Infinite)';
+                actionBtn.textContent = 'Approve Infinite Parent Token';
+                actionBtn.className = 'action-btn secondary';
+            } else {
+                // Step 2: Mint
+                step1.className = 'step completed';
+                step2.className = 'step active';
+                stepLine.className = 'step-line active';
+                stepText.textContent = 'Step 2 of 2: Mint Child Token';
+                actionBtn.textContent = 'Mint Child Token';
+                actionBtn.className = 'action-btn primary';
+            }
+        }
+
+        // Get advanced multiplier that accounts for the amount being minted
+        async function getAdvancedMultiplier(mintAmount) {
+            if (!web3 || !tokenData.childToken) {
+                return currentMultiplier;
             }
             
             try {
-                console.log('🔍 Checking approval status...');
-                const sourceTokenContract = new web3.eth.Contract(ERC20_ABI, multiHopData.sourceToken);
-                const allowance = await sourceTokenContract.methods.allowance(walletAccount, MULTIHOP_CONTRACT_ADDRESS).call();
-                const allowanceEther = parseFloat(web3.utils.fromWei(allowance, 'ether'));
+                const childContract = new web3.eth.Contract(V4_TOKEN_ABI, tokenData.childToken);
+                const amountWei = web3.utils.toWei(mintAmount.toString(), 'ether');
+                const multiplier = await childContract.methods.Multiplier(amountWei).call();
                 
-                // Consider approval sufficient if allowance is > 1 million tokens
-                isApprovalSufficient = allowanceEther > 1000000;
-                currentMintStep = isApprovalSufficient ? 2 : 1;
-                updateMintButtonText();
-                
-                console.log(`✅ Approval status for ${multiHopData.sourceToken}: ${isApprovalSufficient ? 'Sufficient' : 'Needed'}, allowance: ${allowanceEther.toLocaleString()}`);
+                console.log(`🔢 Advanced multiplier for ${mintAmount} tokens: ${multiplier}`);
+                return parseInt(multiplier);
                 
             } catch (error) {
-                console.error('❌ Error checking approval status:', error);
-                isApprovalSufficient = false;
-                currentMintStep = 1;
-                updateMintButtonText();
+                console.error('❌ Failed to get advanced multiplier:', error);
+                return currentMultiplier;
             }
         }
 
-        // Update mint button text based on current step
-        function updateMintButtonText() {
-            const mintBtn = document.getElementById('multiHopMintBtn');
-            
-            if (currentMintStep === 1) {
-                mintBtn.textContent = '📝 Approve Source Token';
-                mintBtn.className = 'action-btn secondary';
-                mintBtn.style.background = 'linear-gradient(45deg, #06ffa5, #00cc7a)';
-                mintBtn.style.boxShadow = '0 6px 20px rgba(6, 255, 165, 0.4)';
-            } else {
-                mintBtn.textContent = '⚡ Optimized Multi-Hop Mint';
-                mintBtn.className = 'action-btn optimized';
-                mintBtn.style.background = 'linear-gradient(45deg, #06ffa5, #3a86ff)';
-                mintBtn.style.boxShadow = '0 6px 20px rgba(6, 255, 165, 0.4)';
-            }
-        }
-
-        async function refreshBalances() {
-            if (!isWalletConnected) {
-                showStatus('Connect wallet to refresh balances', 'warning');
-                return;
-            }
-            
-            if (!multiHopData.sourceToken || !multiHopData.targetToken) {
-                showStatus('Select source and target tokens first', 'warning');
-                return;
-            }
-            
-            showStatus('Refreshing balances...', 'warning');
-            
-            document.getElementById('sourceBalance').textContent = 'Loading...';
-            document.getElementById('targetBalance').textContent = 'Loading...';
-            
-            await loadWalletBalances();
-            showStatus('Balances refreshed!', 'success');
-        }
-
-        function updateMultiHopCalculation() {
+        // Update cost calculation with advanced multiplier logic
+        async function updateCostCalculation() {
             const amountInput = document.getElementById('mintAmountInput');
             const costCalc = document.getElementById('costCalculation');
             
             const amount = parseFloat(amountInput.value);
             
             if (!amount || amount <= 0) {
-                costCalc.textContent = '💡 Enter amount to see source token cost with multi-hop multiplier';
+                costCalc.innerHTML = `💡 With current ${currentMultiplier}x multiplier: Enter amount to see parent token cost`;
                 costCalc.style.color = '#ffc107';
-                updateMintButtonState();
                 return;
             }
             
-            // Check if we have unknown multipliers for initial display
-            if (multiHopData.totalMultiplier === null) {
-                costCalc.innerHTML = `❌ <strong>Cannot Calculate Cost!</strong><br>One or more multipliers are unknown. Please return to the main site to discover proper multiplier data before minting.`;
-                costCalc.style.color = '#f44336';
-                updateMintButtonState();
-                return;
-            }
-            
-            // Show initial estimate with base multipliers
-            const estimatedCost = amount * (multiHopData.totalMultiplier || 1);
-            costCalc.innerHTML = `💰 Estimated cost: <strong>${estimatedCost.toLocaleString()}</strong> ${multiHopData.sourceName} <em>(calculating exact cost...)</em>`;
+            // Show current estimate while loading advanced multiplier
+            const currentEstimate = amount * currentMultiplier;
+            costCalc.innerHTML = `💰 Estimating cost... (Current estimate: ${currentEstimate.toLocaleString()} ${tokenData.parentName})`;
             costCalc.style.color = '#ffc107';
             
-            // Get accurate cost from contract using discoverAndPreview
-            setTimeout(async () => {
-                if (!multiHopData.sourceToken || !multiHopData.targetToken) return;
-                
-                try {
-                    // Create a read-only web3 instance if needed
-                    let readWeb3 = web3;
-                    if (!readWeb3) {
-                        readWeb3 = new Web3('https://rpc-pulsechain.g4mm4.io');
-                    }
-                    
-                    const hopContract = new readWeb3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
-                    
-                    // Convert X to Wei (add 18 zeros) - handle scientific notation properly
-                    let targetAmountWei;
-                    try {
-                        // Convert scientific notation to proper decimal string
-                        let amountStr;
-                        if (amount.toString().includes('e')) {
-                            // Handle scientific notation like 1e-9
-                            amountStr = amount.toFixed(20).replace(/\.?0+$/, '');
-                        } else if (amount < 1) {
-                            // Handle small decimals
-                            amountStr = amount.toFixed(18).replace(/\.?0+$/, '');
-                        } else {
-                            amountStr = amount.toString();
-                        }
-                        
-                        console.log(`🔍 AMOUNT CONVERSION: ${amount} → "${amountStr}"`);
-                        targetAmountWei = readWeb3.utils.toWei(amountStr, 'ether');
-                    } catch (conversionError) {
-                        console.error('❌ Amount conversion error:', conversionError);
-                        throw new Error(`Invalid amount format: ${amount}`);
-                    }
-                    
-                    // Call discoverAndPreview
-                    const result = await hopContract.methods
-                        .discoverAndPreview(multiHopData.sourceToken, multiHopData.targetToken, targetAmountWei)
-                        .call();
-                    
-                    // Convert Y from Wei to real number (remove 18 zeros)
-                    const sourceCostEther = parseFloat(readWeb3.utils.fromWei(result.sourceCost, 'ether'));
-                    
-                    // Calculate effective multiplier as Y/X
-                    const effectiveMultiplier = Math.round(sourceCostEther / amount);
-                    
-                    console.log(`🔍 MINT CALC: ${amount} target → ${sourceCostEther} source (${effectiveMultiplier}x multiplier)`);
-                    
-                    // Check if user has enough source tokens - show more decimals for small amounts
-                    if (currentSourceBalance > 0 && sourceCostEther > currentSourceBalance) {
-                        const sourceCostDisplay = sourceCostEther < 1 ? 
-                            sourceCostEther.toFixed(8).replace(/\.?0+$/, '') : 
-                            sourceCostEther.toLocaleString();
-                        const sourceBalanceDisplay = currentSourceBalance < 1 ? 
-                            currentSourceBalance.toFixed(8).replace(/\.?0+$/, '') : 
-                            currentSourceBalance.toLocaleString();
-                        const shortfallDisplay = (sourceCostEther - currentSourceBalance) < 1 ? 
-                            (sourceCostEther - currentSourceBalance).toFixed(8).replace(/\.?0+$/, '') : 
-                            (sourceCostEther - currentSourceBalance).toLocaleString();
-                            
-                        costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ${sourceCostDisplay} ${multiHopData.sourceName}<br>Have: ${sourceBalanceDisplay} ${multiHopData.sourceName}<br>Shortfall: ${shortfallDisplay} ${multiHopData.sourceName}`;
-                        costCalc.style.color = '#f44336';
-                    } else {
-                        const sourceCostDisplay = sourceCostEther < 1 ? 
-                            sourceCostEther.toFixed(8).replace(/\.?0+$/, '') : 
-                            sourceCostEther.toLocaleString();
-                        costCalc.innerHTML = `💰 Exact cost: <strong>${sourceCostDisplay}</strong> ${multiHopData.sourceName} (${effectiveMultiplier}x multiplier)`;
-                        costCalc.style.color = '#06ffa5';
-                    }
-                    
-                } catch (error) {
-                    console.error('❌ Error calculating cost with discoverAndPreview:', error);
-                    
-                    // Handle specific RPC/contract errors gracefully
-                    if (error.message.includes('execution reverted') || error.message.includes('RPC Request failed')) {
-                        console.log('🔄 Contract call failed, likely invalid path. Using fallback estimation.');
-                        // Show fallback with warning
-                        if (currentSourceBalance > 0 && estimatedCost > currentSourceBalance) {
-                            costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ~${estimatedCost.toLocaleString()} ${multiHopData.sourceName}<br>Have: ${currentSourceBalance.toLocaleString()} ${multiHopData.sourceName}<br><em>⚠️ Unable to get exact cost - using estimate</em>`;
-                            costCalc.style.color = '#f44336';
-                        } else {
-                            costCalc.innerHTML = `💰 Estimated cost: <strong>${estimatedCost.toLocaleString()}</strong> ${multiHopData.sourceName} (${multiHopData.totalMultiplier || 1}x base multiplier)<br><em>⚠️ Unable to get exact cost from contract</em>`;
-                            costCalc.style.color = '#ffc107';
-                        }
-                    } else {
-                        // For other errors, show generic fallback
-                        if (currentSourceBalance > 0 && estimatedCost > currentSourceBalance) {
-                            costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ~${estimatedCost.toLocaleString()} ${multiHopData.sourceName}<br>Have: ${currentSourceBalance.toLocaleString()} ${multiHopData.sourceName}<br>Shortfall: ~${(estimatedCost - currentSourceBalance).toLocaleString()} ${multiHopData.sourceName}`;
-                            costCalc.style.color = '#f44336';
-                        } else {
-                            costCalc.innerHTML = `💰 Estimated cost: <strong>${estimatedCost.toLocaleString()}</strong> ${multiHopData.sourceName} (${multiHopData.totalMultiplier || 1}x base multiplier)`;
-                            costCalc.style.color = '#06ffa5';
-                        }
-                    }
-                }
-            }, 100);
-            
-            updateMintButtonState();
-        }
-
-        // Preserve dropdown selections after successful transactions
-        function preserveDropdownSelections() {
-            if (multiHopData.selectedSourceValue && multiHopData.selectedTargetValue) {
-                setTimeout(() => {
-                    const sourceDropdown = document.getElementById('sourceTokenDropdown');
-                    const targetDropdown = document.getElementById('targetTokenDropdown');
-                    
-                    // Restore source selection
-                    sourceDropdown.value = multiHopData.selectedSourceValue;
-                    onSourceTokenChange();
-                    
-                    // Restore target selection after a brief delay
-                    setTimeout(() => {
-                        targetDropdown.value = multiHopData.selectedTargetValue;
-                        // Trigger the change event to restore all the data
-                        const event = new Event('change');
-                        targetDropdown.dispatchEvent(event);
-                    }, 100);
-                }, 50);
-            }
-        }
-
-        function updateMintButtonState() {
-            const mintBtn = document.getElementById('multiHopMintBtn');
-            const amount = parseFloat(document.getElementById('mintAmountInput').value);
-            
-            const canMint = isWalletConnected && 
-                           multiHopData.sourceToken && 
-                           multiHopData.targetToken && 
-                           amount > 0 &&
-                           multiHopData.fullChainPath.length > 0 &&
-                           multiHopData.totalMultiplier !== null; // Ensure multipliers are known
-            
-            mintBtn.disabled = !canMint;
-            
-            // Update button text based on approval status
-            updateMintButtonText();
-            
-            // Show warning if multipliers are unknown
-            if (multiHopData.totalMultiplier === null) {
-                mintBtn.textContent = '❌ Cannot Mint - Unknown Multipliers';
-                mintBtn.style.background = 'linear-gradient(45deg, #f44336, #d32f2f)';
-                mintBtn.style.boxShadow = '0 6px 20px rgba(244, 67, 54, 0.4)';
-                mintBtn.disabled = true;
-            }
-        }
-
-        async function setMaxAmount() {
-            if (!isWalletConnected) {
-                showMaxButtonMessage('Connect wallet to use MAX button', 'warning');
-                return;
-            }
-            
-            if (!currentSourceBalance || currentSourceBalance <= 0) {
-                showMaxButtonMessage('Source token balance not available or zero', 'warning');
-                return;
-            }
-            
-            if (!multiHopData.sourceToken || !multiHopData.targetToken) {
-                showMaxButtonMessage('Select source and target tokens first', 'warning');
-                return;
-            }
-            
-            showMaxButtonMessage('Calculating maximum mintable amount...', 'warning');
-            
+            // Get advanced multiplier for the specific amount
             try {
-                // Create a read-only web3 instance if needed
-                let readWeb3 = web3;
-                if (!readWeb3) {
-                    readWeb3 = new Web3('https://rpc-pulsechain.g4mm4.io');
-                }
+                const advancedMultiplier = await getAdvancedMultiplier(amount);
+                const parentCost = amount * advancedMultiplier;
                 
-                // Use binary search with discoverAndPreview for accurate max calculation
-                let low = 0;
-                let high = Math.floor(currentSourceBalance / (multiHopData.totalMultiplier || 2));
-                let maxMintAmount = 0;
-                
-                // Ensure we start with a reasonable upper bound
-                if (high <= 0) {
-                    high = Math.floor(currentSourceBalance * 0.9); // Use 90% of balance as starting point
-                }
-                
-                console.log(`🔍 MAX calculation: Starting binary search with range 0 to ${high}, source balance: ${currentSourceBalance}`);
-                
-                while (low <= high) {
-                    const mid = Math.floor((low + high) / 2);
-                    
-                    if (mid <= 0) {
-                        low = mid + 1;
-                        continue;
-                    }
-                    
-                    try {
-                        // Get accurate cost from contract for this amount
-                        let targetAmountWei;
-                        try {
-                            // Handle scientific notation for very small numbers in MAX calculation
-                            let amountStr;
-                            if (mid.toString().includes('e')) {
-                                // Handle scientific notation like 1e-9
-                                amountStr = mid.toFixed(20).replace(/\.?0+$/, '');
-                            } else if (mid < 1) {
-                                amountStr = mid.toFixed(18).replace(/\.?0+$/, '');
-                            } else {
-                                amountStr = mid.toString();
-                            }
-                            
-                            targetAmountWei = readWeb3.utils.toWei(amountStr, 'ether');
-                        } catch (conversionError) {
-                            console.error(`❌ Amount conversion error for ${mid}:`, conversionError);
-                            high = mid - 1;
-                            continue;
-                        }
-                        
-                        try {
-                            // Call discoverAndPreview directly for MAX calculation
-                            const hopContract = new readWeb3.eth.Contract(MULTIHOP_CONTRACT_ABI, MULTIHOP_CONTRACT_ADDRESS);
-                            
-                            const result = await hopContract.methods
-                                .discoverAndPreview(multiHopData.sourceToken, multiHopData.targetToken, targetAmountWei)
-                                .call();
-                            
-                            const sourceCostEther = parseFloat(readWeb3.utils.fromWei(result.sourceCost, 'ether'));
-                            
-                            console.log(`🔍 Testing amount ${mid}: cost ${sourceCostEther}, balance ${currentSourceBalance}`);
-                            
-                            if (sourceCostEther <= currentSourceBalance) {
-                                maxMintAmount = mid;
-                                low = mid + 1;
-                            } else {
-                                high = mid - 1;
-                            }
-                        } catch (contractError) {
-                            console.error(`❌ Contract call error for amount ${mid}:`, contractError);
-                            high = mid - 1;
-                        }
-                    } catch (error) {
-                        console.error(`❌ Error in binary search at amount ${mid}:`, error);
-                        high = mid - 1;
-                    }
-                    
-                    // Prevent infinite loops
-                    await new Promise(resolve => setTimeout(resolve, 50));
-                }
-                
-                if (maxMintAmount > 0) {
-                    document.getElementById('mintAmountInput').value = maxMintAmount;
-                    updateMultiHopCalculation();
-                    showMaxButtonMessage(`Set to maximum: ${maxMintAmount.toLocaleString()}`, 'success');
+                // Check if user has enough parent tokens
+                if (currentParentBalance > 0 && parentCost > currentParentBalance) {
+                    costCalc.innerHTML = `❌ <strong>Insufficient Balance!</strong><br>Need: ${parentCost.toLocaleString()} ${tokenData.parentName}<br>Have: ${currentParentBalance.toLocaleString()} ${tokenData.parentName}<br>Shortfall: ${(parentCost - currentParentBalance).toLocaleString()} ${tokenData.parentName}`;
+                    costCalc.style.color = '#f44336';
                 } else {
-                    // If binary search failed, try a simpler approach
-                    console.log('🔄 Binary search found 0, trying simpler calculation...');
-                    const fallbackMax = Math.floor(currentSourceBalance / (multiHopData.totalMultiplier || 2));
-                    if (fallbackMax > 0) {
-                        document.getElementById('mintAmountInput').value = fallbackMax;
-                        updateMultiHopCalculation();
-                        showMaxButtonMessage(`Set to estimated max: ${fallbackMax.toLocaleString()}`, 'warning');
-                    } else {
-                        showMaxButtonMessage('Unable to calculate maximum amount - try entering an amount manually', 'warning');
+                    let multiplierNote = '';
+                    if (advancedMultiplier !== currentMultiplier) {
+                        multiplierNote = ` (multiplier adjusted to ${advancedMultiplier}x for this amount)`;
                     }
+                    costCalc.innerHTML = `💰 Cost: <strong>${parentCost.toLocaleString()}</strong> ${tokenData.parentName}${multiplierNote}`;
+                    costCalc.style.color = '#06ffa5';
+                }
+                
+                // Update current multiplier if it changed
+                if (advancedMultiplier !== currentMultiplier) {
+                    currentMultiplier = advancedMultiplier;
                 }
                 
             } catch (error) {
-                console.error('❌ Failed to calculate max amount:', error);
-                
-                // Fallback to simple calculation with base multipliers
-                const fallbackMax = Math.floor(currentSourceBalance / (multiHopData.totalMultiplier || 2));
-                if (fallbackMax > 0) {
-                    document.getElementById('mintAmountInput').value = fallbackMax;
-                    updateMultiHopCalculation();
-                    showMaxButtonMessage(`Set to estimated max: ${fallbackMax.toLocaleString()}`, 'warning');
-                } else {
-                    showMaxButtonMessage('Unable to calculate maximum - check token balances and multipliers', 'warning');
-                }
+                console.error('❌ Failed to calculate advanced cost:', error);
+                const fallbackCost = amount * currentMultiplier;
+                costCalc.innerHTML = `💰 Cost (estimate): <strong>${fallbackCost.toLocaleString()}</strong> ${tokenData.parentName} (${currentMultiplier}x multiplier)`;
+                costCalc.style.color = '#ffc107';
             }
         }
 
-        async function handleOptimizedMultiHopMint() {
-            const mintBtn = document.getElementById('multiHopMintBtn');
-            const originalText = mintBtn.textContent;
-            const costCalc = document.getElementById('costCalculation');
+        // Handle mint action (approve or mint based on current step)
+        async function handleMintAction() {
+            if (!web3 || !walletAccount) {
+                showStatus('Please connect your wallet first', 'error');
+                return;
+            }
+            
+            const amount = parseFloat(document.getElementById('mintAmountInput').value);
+            if (!amount || amount <= 0) {
+                showStatus('Please enter a valid amount', 'error');
+                return;
+            }
+            
+            // Check if user has enough parent tokens before proceeding
+            if (currentMintStep === 2) {
+                try {
+                    const advancedMultiplier = await getAdvancedMultiplier(amount);
+                    const requiredParent = amount * advancedMultiplier;
+                    
+                    if (currentParentBalance > 0 && requiredParent > currentParentBalance) {
+                        showStatus(`❌ Insufficient parent token balance! Need ${requiredParent.toLocaleString()} ${tokenData.parentName}, but you only have ${currentParentBalance.toLocaleString()}.`, 'error');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('❌ Failed to validate balance:', error);
+                    showStatus('⚠️ Could not validate balance. Proceeding with caution...', 'warning');
+                }
+            }
+            
+            const actionBtn = document.getElementById('actionBtn');
+            const originalText = actionBtn.textContent;
             
             try {
-                const amount = parseFloat(document.getElementById('mintAmountInput').value);
-                if (!amount || amount <= 0) {
-                    costCalc.innerHTML = '❌ Please enter a valid amount';
-                    costCalc.style.color = '#f44336';
-                    return;
-                }
-                
-                if (!isWalletConnected || !multiHopContract) {
-                    costCalc.innerHTML = '❌ Wallet not connected';
-                    costCalc.style.color = '#f44336';
-                    return;
-                }
-                
-                if (multiHopData.fullChainPath.length < 2) {
-                    costCalc.innerHTML = '❌ Invalid chain path - need at least source and target';
-                    costCalc.style.color = '#f44336';
-                    return;
-                }
-                
-                const estimatedCost = amount * (multiHopData.totalMultiplier || 1);
-                if (currentSourceBalance > 0 && estimatedCost > currentSourceBalance) {
-                    costCalc.innerHTML = `❌ Insufficient ${multiHopData.sourceName} balance! Need ${estimatedCost.toLocaleString()}, but you only have ${currentSourceBalance.toLocaleString()}.`;
-                    costCalc.style.color = '#f44336';
-                    return;
-                }
-                
-                mintBtn.disabled = true;
-                
-                // Convert amount properly to avoid scientific notation
-                let targetAmountWei;
-                try {
-                    let amountStr;
-                    if (amount.toString().includes('e')) {
-                        // Handle scientific notation like 1e-9
-                        amountStr = amount.toFixed(20).replace(/\.?0+$/, '');
-                    } else if (amount < 1) {
-                        amountStr = amount.toFixed(18).replace(/\.?0+$/, '');
-                    } else {
-                        amountStr = amount.toString();
-                    }
-                    
-                    console.log(`🔍 APPROVAL AMOUNT CONVERSION: ${amount} → "${amountStr}"`);
-                    targetAmountWei = web3.utils.toWei(amountStr, 'ether');
-                } catch (conversionError) {
-                    console.error('❌ Amount conversion error in approval:', conversionError);
-                    costCalc.innerHTML = `❌ Invalid amount format: ${amount}`;
-                    costCalc.style.color = '#f44336';
-                    return;
-                }
-                
-                const chainPathExcludingSource = multiHopData.fullChainPath.slice(1);
-                
-                // Get the exact cost from contract
-                mintBtn.textContent = '⚡ Calculating costs...';
-                
-                const previewResult = await multiHopContract.methods
-                    .previewMultiHopMintOptimized(targetAmountWei, chainPathExcludingSource)
-                    .call();
-                
-                const sourceCostWei = previewResult.sourceCost;
-                const sourceCostEther = web3.utils.fromWei(sourceCostWei, 'ether');
-                
-                const sourceTokenContract = new web3.eth.Contract(ERC20_ABI, multiHopData.sourceToken);
+                actionBtn.disabled = true;
                 
                 if (currentMintStep === 1) {
                     // Step 1: Approve
-                    mintBtn.textContent = '📝 Requesting approval...';
-                    costCalc.innerHTML = `Approving ${multiHopData.sourceName} for multi-hop minting...`;
-                    costCalc.style.color = '#ffc107';
-                    
-                    const approveTx = await sourceTokenContract.methods
-                        .approve(MULTIHOP_CONTRACT_ADDRESS, sourceCostWei)
-                        .send({ from: walletAccount });
-                    
-                    console.log('✅ Approval transaction:', approveTx.transactionHash);
-                    costCalc.innerHTML = '✅ Approval successful! You can now mint.';
-                    costCalc.style.color = '#06ffa5';
-                    
-                    // Update to step 2
-                    isApprovalSufficient = true;
-                    currentMintStep = 2;
-                    updateMintButtonText();
-                    
-                    // Preserve selections after approval
-                    preserveDropdownSelections();
-                    
+                    await approveParentToken();
                 } else {
                     // Step 2: Mint
-                    mintBtn.textContent = '⚡ Checking balance...';
-                    const userBalance = await sourceTokenContract.methods.balanceOf(walletAccount).call();
-                    const userBalanceEther = web3.utils.fromWei(userBalance, 'ether');
-                    
-                    if (web3.utils.toBN(userBalance).lt(web3.utils.toBN(sourceCostWei))) {
-                        costCalc.innerHTML = `❌ Insufficient ${multiHopData.sourceName} balance. Need: ${sourceCostEther}, Have: ${userBalanceEther}`;
-                        costCalc.style.color = '#f44336';
-                        return;
-                    }
-                    
-                    mintBtn.textContent = '⚡ Executing mint...';
-                    costCalc.innerHTML = 'Executing optimized multi-hop mint...';
-                    costCalc.style.color = '#ffc107';
-                    
-                    const mintTx = await multiHopContract.methods
-                        .multiHopMintOptimized(targetAmountWei, multiHopData.fullChainPath)
-                        .send({ from: walletAccount });
-                    
-                    costCalc.innerHTML = `✅ Multi-hop mint successful! TX: ${mintTx.transactionHash.slice(0, 10)}...`;
-                    costCalc.style.color = '#06ffa5';
-                    
-                    document.getElementById('costCalculation').innerHTML = `✅ <strong>Mint Complete!</strong><br>
-                        Minted: ${amount} ${multiHopData.targetName}<br>
-                        Cost: ${sourceCostEther} ${multiHopData.sourceName}<br>
-                        TX: <a href="https://scan.pulsechain.com/tx/${mintTx.transactionHash}" target="_blank" style="color: #06ffa5;">${mintTx.transactionHash.slice(0, 10)}...</a>`;
-                    
-                    await loadWalletBalances();
-                    
-                    // Preserve selections after minting
-                    preserveDropdownSelections();
+                    await mintChildToken(amount);
                 }
                 
             } catch (error) {
+                console.error('❌ Action failed:', error);
+                
                 let errorMessage = error.message;
                 if (error.message.includes('User denied')) {
                     errorMessage = 'Transaction cancelled by user';
@@ -2112,54 +1161,363 @@
                     errorMessage = 'Insufficient funds for gas';
                 }
                 
-                costCalc.innerHTML = `❌ ${currentMintStep === 1 ? 'Approval' : 'Mint'} failed: ${errorMessage}`;
-                costCalc.style.color = '#f44336';
+                showStatus(`❌ Failed: ${errorMessage}`, 'error');
             } finally {
-                mintBtn.disabled = false;
-                mintBtn.textContent = originalText;
+                actionBtn.disabled = false;
+                actionBtn.textContent = originalText;
             }
         }
 
-        // Initialize page on load
-        window.addEventListener('DOMContentLoaded', function() {
-            const dataLoaded = parseUrlParams();
+        // Approve parent token for infinite spending
+        async function approveParentToken() {
+            console.log('📝 Approving parent token...');
             
-            if (!dataLoaded) {
-                console.log('⚠️ No token data available - showing warning');
+            const actionBtn = document.getElementById('actionBtn');
+            actionBtn.textContent = 'Approving...';
+            
+            showStatus('Requesting approval for infinite parent token spending...', 'warning');
+            
+            const parentContract = new web3.eth.Contract(ERC20_ABI, tokenData.parentToken);
+            const maxApproval = '115792089237316195423570985008687907853269984665640564039457584007913129639935'; // 2^256 - 1
+            
+            const tx = await parentContract.methods
+                .approve(tokenData.childToken, maxApproval)
+                .send({ from: walletAccount });
+            
+            console.log('✅ Approval transaction:', tx.transactionHash);
+            showStatus(`✅ Approval successful! TX: ${tx.transactionHash.slice(0, 10)}...`, 'success');
+            
+            // Move to step 2
+            currentMintStep = 2;
+            updateStepUI();
+        }
+
+        // Mint child token
+        async function mintChildToken(amount) {
+            console.log('🪙 Minting child token...');
+            
+            const actionBtn = document.getElementById('actionBtn');
+            actionBtn.textContent = 'Minting...';
+            
+            showStatus(`Minting ${amount} ${tokenData.childName}...`, 'warning');
+            
+            const childContract = new web3.eth.Contract(V4_TOKEN_ABI, tokenData.childToken);
+            const amountWei = web3.utils.toWei(amount.toString(), 'ether');
+            
+            const tx = await childContract.methods
+                .mint(amountWei)
+                .send({ from: walletAccount });
+            
+            console.log('✅ Mint transaction:', tx.transactionHash);
+            showStatus(`✅ Mint successful! Minted ${amount} ${tokenData.childName}. TX: ${tx.transactionHash.slice(0, 10)}...`, 'success');
+            
+            // Refresh balances
+            await loadWalletBalances();
+            
+            // Update cost calculation to show completion
+            document.getElementById('costCalculation').innerHTML = `✅ <strong>Mint Complete!</strong> Minted ${amount} ${tokenData.childName}`;
+        }
+
+        // Set max amount based on parent balance and current multiplier
+        async function setMaxAmount() {
+            if (!currentParentBalance || currentParentBalance <= 0) {
+                showStatus('Parent token balance not available or zero', 'warning');
+                return;
             }
             
+            showStatus('Calculating maximum mintable amount...', 'warning');
+            
+            try {
+                // Use binary search to find the maximum amount that can be minted
+                let low = 0;
+                let high = Math.floor(currentParentBalance / currentMultiplier);
+                let maxMintAmount = 0;
+                
+                // Binary search for the maximum amount (accounting for dynamic multiplier)
+                while (low <= high) {
+                    const mid = Math.floor((low + high) / 2);
+                    
+                    try {
+                        const requiredMultiplier = await getAdvancedMultiplier(mid);
+                        const requiredParent = mid * requiredMultiplier;
+                        
+                        if (requiredParent <= currentParentBalance) {
+                            maxMintAmount = mid;
+                            low = mid + 1;
+                        } else {
+                            high = mid - 1;
+                        }
+                    } catch (error) {
+                        console.error('❌ Error in binary search:', error);
+                        high = mid - 1;
+                    }
+                }
+                
+                if (maxMintAmount > 0) {
+                    document.getElementById('mintAmountInput').value = maxMintAmount;
+                    await updateCostCalculation();
+                    showStatus(`Set to maximum mintable amount: ${maxMintAmount.toLocaleString()}`, 'success');
+                } else {
+                    showStatus('No tokens can be minted with current balance', 'warning');
+                }
+                
+            } catch (error) {
+                console.error('❌ Failed to calculate max amount:', error);
+                // Fallback to simple calculation
+                const fallbackMax = Math.floor(currentParentBalance / currentMultiplier);
+                if (fallbackMax > 0) {
+                    document.getElementById('mintAmountInput').value = fallbackMax;
+                    await updateCostCalculation();
+                    showStatus(`Set to estimated max amount: ${fallbackMax.toLocaleString()} (fallback calculation)`, 'warning');
+                } else {
+                    showStatus('Insufficient parent token balance for minting', 'warning');
+                }
+            }
+        }
+
+        // Refresh multiplier from contract
+        async function refreshMultiplier() {
+            if (!web3 || !tokenData.childToken) {
+                showStatus('Connect wallet to refresh multiplier', 'warning');
+                return;
+            }
+            
+            console.log('🔄 Refreshing multiplier...');
+            
+            try {
+                const childContract = new web3.eth.Contract(V4_TOKEN_ABI, tokenData.childToken);
+                const testAmount = web3.utils.toWei('0', 'ether'); // Test with 0 tokens for base multiplier
+                const multiplier = await childContract.methods.Multiplier(testAmount).call();
+                
+                currentMultiplier = parseInt(multiplier);
+                tokenData.multiplier = multiplier.toString();
+                document.getElementById('multiplierValue').textContent = `${multiplier}x`;
+                
+                updateCostCalculation();
+                
+                console.log('✅ Multiplier refreshed:', multiplier);
+                showStatus(`Multiplier updated: ${multiplier}x`, 'success');
+                
+            } catch (error) {
+                console.error('❌ Failed to refresh multiplier:', error);
+                showStatus('Failed to refresh multiplier', 'error');
+            }
+        }
+
+        // Refresh balances
+        async function refreshBalances() {
+            if (!isWalletConnected) {
+                showStatus('Connect wallet to refresh balances', 'warning');
+                return;
+            }
+            
+            console.log('🔄 Refreshing balances...');
+            showStatus('Refreshing balances...', 'warning');
+            
+            await loadWalletBalances();
+            showStatus('Balances refreshed!', 'success');
+        }
+
+        // Enhanced Multi-Hop Mint function with robust data passing
+        function openMultiHopMint() {
+            console.log('🎯 Opening multi-hop mint with discovered tokens:', discoveredTokens.length);
+            
+            // Ensure we have at least minimal token data
+            if (discoveredTokens.length === 0) {
+                console.log('⚠️ No multi-hop data available, creating from current token data');
+                createMinimalTokenChain();
+            }
+
+            // Validate that we have the necessary data
+            if (!tokenData.parentToken || !tokenData.childToken) {
+                alert('❌ Missing token data. Please return to the main tracker and discover tokens first.');
+                return;
+            }
+
+            // Enhanced data preparation with validation
+            const multiHopData = {
+                sourceToken: tokenData.parentToken,
+                sourceName: tokenData.parentName,
+                targetToken: tokenData.childToken,
+                targetName: tokenData.childName,
+                tokenChain: JSON.stringify(discoveredTokens),
+                multipliers: JSON.stringify(tokenMultipliers),
+                // Add timestamp for debugging
+                timestamp: Date.now(),
+                // Add source page for debugging
+                source: 'direct-mint'
+            };
+
+            // Prepare URL parameters for multi-hop page
+            const params = new URLSearchParams({
+                sourceToken: multiHopData.sourceToken,
+                sourceName: multiHopData.sourceName,
+                targetToken: multiHopData.targetToken,
+                targetName: multiHopData.targetName,
+                tokenChain: encodeURIComponent(multiHopData.tokenChain),
+                multipliers: encodeURIComponent(multiHopData.multipliers),
+                timestamp: multiHopData.timestamp.toString(),
+                source: multiHopData.source
+            });
+
+            // Store in localStorage as backup (multiple keys for redundancy)
+            try {
+                localStorage.setItem('discoveredTokens', multiHopData.tokenChain);
+                localStorage.setItem('tokenMultipliers', multiHopData.multipliers);
+                localStorage.setItem('multiHopData', JSON.stringify(multiHopData));
+                localStorage.setItem('lastMultiHopTimestamp', multiHopData.timestamp.toString());
+                console.log('✅ Stored enhanced multi-hop data in localStorage');
+            } catch (error) {
+                console.error('❌ Failed to store multi-hop data:', error);
+            }
+
+            // Open multi-hop mint page
+            const multiHopUrl = `multi-hop-mint.html?${params.toString()}`;
+            console.log('🚀 Opening multi-hop URL:', multiHopUrl);
+            
+            const multiHopWindow = window.open(multiHopUrl, '_blank');
+            
+            if (!multiHopWindow) {
+                alert('❌ Pop-up blocked! Please allow pop-ups and try again.');
+                return;
+            }
+
+            console.log('🚀 Opened multi-hop mint with enhanced data:', {
+                sourceToken: multiHopData.sourceToken,
+                targetToken: multiHopData.targetToken,
+                discoveredTokensCount: discoveredTokens.length,
+                multipliersCount: Object.keys(tokenMultipliers).length,
+                urlLength: multiHopUrl.length
+            });
+        }
+
+        // Utility functions
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message status-${type}`;
+            statusEl.style.display = 'block';
+           
+            // Auto-hide success messages after 5 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        function formatAddress(address) {
+            if (!address) return '';
+            return `${address.slice(0, 6)}...${address.slice(-4)}`;
+        }
+
+        function goBackToMainPage() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                // Fallback to main page if no opener
+                window.location.href = 'index.html';
+            }
+        }
+
+        // Initialize page
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 V4 Mint Page with Enhanced Wallet Connection Ready!');
+            parseUrlParams();
+            
+            // Check for existing wallet connection
             checkWalletSession();
+            
+            console.log('📊 Enhanced Multi-Hop Integration Status:', {
+                discoveredTokensCount: discoveredTokens.length,
+                tokenMultipliersCount: Object.keys(tokenMultipliers).length,
+                currentTokenData: tokenData,
+                integrationMethods: ['URL parameters', 'localStorage', 'opener window', 'minimal fallback']
+            });
         });
 
-        // Handle account and network changes
+        // Handle account changes
         if (typeof window.ethereum !== 'undefined') {
             window.ethereum.on('accountsChanged', function (accounts) {
                 if (accounts.length === 0) {
+                    // User disconnected wallet
                     disconnectWallet();
                 } else if (accounts[0] !== walletAccount) {
+                    // User switched accounts
                     walletAccount = accounts[0];
-                    document.getElementById('walletAddress').textContent = `${walletAccount.slice(0, 6)}...${walletAccount.slice(-4)}`;
+                    console.log('🔄 Account changed to:', walletAccount);
+                    updateWalletUI();
                     loadWalletBalances();
                 }
             });
             
             window.ethereum.on('chainChanged', function (chainId) {
+                console.log('🌐 Network changed to:', chainId);
+                // Reload balances for new network
                 if (isWalletConnected) {
                     loadWalletBalances();
                 }
             });
         }
 
-        // Global debugging object
-        window.OptimizedMultiHop = {
+        // Expose enhanced functions for debugging and integration
+        window.DirectMint = {
+            connectWallet,
+            disconnectWallet,
+            openMultiHopMint,
             discoveredTokens: () => discoveredTokens,
-            multiHopData: () => multiHopData,
             tokenMultipliers: () => tokenMultipliers,
-            contractAddress: MULTIHOP_CONTRACT_ADDRESS,
-            balances: () => ({ source: currentSourceBalance, target: currentTargetBalance }),
-            currentStep: () => currentMintStep,
-            approvalStatus: () => isApprovalSufficient
+            tokenData: () => tokenData,
+            loadMultiHopData,
+            createMinimalTokenChain,
+            updateMultiHopStatusUI,
+            getAdvancedMultiplier,
+            setMaxAmount,
+            updateCostCalculation,
+            // Enhanced debugging
+            debugMultiHopData: () => {
+                console.log('=== MULTI-HOP DEBUG INFO ===');
+                console.log('Discovered Tokens:', discoveredTokens);
+                console.log('Token Multipliers:', tokenMultipliers);
+                console.log('Current Token Data:', tokenData);
+                console.log('Current Multiplier:', currentMultiplier);
+                console.log('Parent Balance:', currentParentBalance);
+                console.log('Child Balance:', currentChildBalance);
+                console.log('URL Parameters:', Object.fromEntries(new URLSearchParams(window.location.search)));
+                console.log('LocalStorage Keys:', Object.keys(localStorage).filter(k => k.includes('token') || k.includes('multiHop')));
+                return {
+                    discoveredTokens,
+                    tokenMultipliers,
+                    tokenData,
+                    currentMultiplier,
+                    balances: { parent: currentParentBalance, child: currentChildBalance },
+                    urlParams: Object.fromEntries(new URLSearchParams(window.location.search))
+                };
+            },
+            // Test functions
+            testMaxCalculation: async () => {
+                console.log('=== TESTING MAX CALCULATION ===');
+                console.log('Parent Balance:', currentParentBalance);
+                console.log('Current Multiplier:', currentMultiplier);
+                
+                for (let amount = 1; amount <= 10; amount++) {
+                    try {
+                        const multiplier = await getAdvancedMultiplier(amount);
+                        const cost = amount * multiplier;
+                        console.log(`Amount: ${amount}, Multiplier: ${multiplier}, Cost: ${cost}`);
+                    } catch (error) {
+                        console.log(`Amount: ${amount}, Error: ${error.message}`);
+                    }
+                }
+            }
         };
+
+        console.log('🎯 Enhanced Direct Mint Page loaded with advanced features!');
+        console.log('💡 Features: Session wallet persistence, advanced multiplier calculation, balance validation');
+        console.log('🔧 Fixed: MAX button functionality, insufficient balance detection, accurate cost calculation');
+        console.log('🔗 Use DirectMint.debugMultiHopData() to inspect all integration data');
+        console.log('🧪 Use DirectMint.testMaxCalculation() to test multiplier calculations');
+        console.log('🚀 Use DirectMint.connectWallet() to test wallet connection');
     </script>
 </body>
 </html>
