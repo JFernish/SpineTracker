@@ -1266,6 +1266,10 @@
             // Move to step 2 and update button text immediately
             currentMintStep = 2;
             updateStepUI();
+            
+            // Update button text explicitly to ensure it changes
+            actionBtn.textContent = 'Mint Child Token';
+            actionBtn.className = 'action-btn primary';
         }
 
         // Mint child token
