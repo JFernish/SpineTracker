@@ -477,8 +477,8 @@
             <h1>Mint V4 Token</h1>
             <p>Two-step process: Approve Parent → Mint Direct Child</p>
             <p style="margin-top: 10px; font-size: 0.9rem;">
-                <button onclick="openMultiHopMint()" style="color: #888; text-decoration: none; font-weight: 600; border: 1px solid rgba(136, 136, 136, 0.3); padding: 8px 16px; border-radius: 8px; background: rgba(136, 136, 136, 0.1); transition: all 0.3s ease; cursor: pointer;" onmouseover="this.style.background='rgba(136, 136, 136, 0.2)'" onmouseout="this.style.background='rgba(136, 136, 136, 0.1)'">
-                    🎯 Multi-Hop Minting (Coming Soon)
+                <button onclick="openMultiHopMint()" style="color: #3a86ff; text-decoration: none; font-weight: 600; border: 1px solid rgba(58, 134, 255, 0.3); padding: 8px 16px; border-radius: 8px; background: rgba(58, 134, 255, 0.1); transition: all 0.3s ease; cursor: pointer;" onmouseover="this.style.background='rgba(58, 134, 255, 0.2)'" onmouseout="this.style.background='rgba(58, 134, 255, 0.1)'">
+                    🎯 Switch to Multi-Hop Minting
                 </button>
             </p>
         </div>
@@ -1294,9 +1294,107 @@
             showStatus('Balances refreshed!', 'success');
         }
 
-        // Multi-Hop Mint function
+        // Enhanced Multi-Hop Mint function with robust data passing
         function openMultiHopMint() {
-            alert('🎯 Multi-Hop Minting\n\nThis feature would allow you to mint directly from any parent token in a spine to any child token in a single transaction, skipping intermediate steps.\n\nCurrently, this feature is not yet implemented. Please use the standard two-step minting process.');
+            console.log('🎯 Opening multi-hop mint with discovered tokens:', discoveredTokens.length);
+            
+            // Ensure we have at least minimal token data
+            if (discoveredTokens.length === 0) {
+                console.log('⚠️ No multi-hop data available, creating from current token data');
+                createMinimalTokenChain();
+            }
+
+            // Validate that we have the necessary data
+            if (!tokenData.parentToken || !tokenData.childToken) {
+                alert('❌ Missing token data. Please return to the main tracker and discover tokens first.');
+                return;
+            }
+
+            // Enhanced data preparation with validation
+            const multiHopData = {
+                sourceToken: tokenData.parentToken,
+                sourceName: tokenData.parentName,
+                targetToken: tokenData.childToken,
+                targetName: tokenData.childName,
+                tokenChain: JSON.stringify(discoveredTokens),
+                multipliers: JSON.stringify(tokenMultipliers),
+                // Add timestamp for debugging
+                timestamp: Date.now(),
+                // Add source page for debugging
+                source: 'direct-mint'
+            };
+
+            // Prepare URL parameters for multi-hop page
+            const params = new URLSearchParams({
+                sourceToken: multiHopData.sourceToken,
+                sourceName: multiHopData.sourceName,
+                targetToken: multiHopData.targetToken,
+                targetName: multiHopData.targetName,
+                tokenChain: encodeURIComponent(multiHopData.tokenChain),
+                multipliers: encodeURIComponent(multiHopData.multipliers),
+                timestamp: multiHopData.timestamp.toString(),
+                source: multiHopData.source
+            });
+
+            // Store in localStorage as backup (multiple keys for redundancy)
+            try {
+                localStorage.setItem('discoveredTokens', multiHopData.tokenChain);
+                localStorage.setItem('tokenMultipliers', multiHopData.multipliers);
+                localStorage.setItem('multiHopData', JSON.stringify(multiHopData));
+                localStorage.setItem('lastMultiHopTimestamp', multiHopData.timestamp.toString());
+                console.log('✅ Stored enhanced multi-hop data in localStorage');
+            } catch (error) {
+                console.error('❌ Failed to store multi-hop data:', error);
+            }
+
+            // Open multi-hop mint page
+            const multiHopUrl = `multi-hop-mint.html?${params.toString()}`;
+            console.log('🚀 Opening multi-hop URL:', multiHopUrl);
+            
+            const multiHopWindow = window.open(multiHopUrl, '_blank');
+            
+            if (!multiHopWindow) {
+                alert('❌ Pop-up blocked! Please allow pop-ups and try again.');
+                return;
+            }
+
+            console.log('🚀 Opened multi-hop mint with enhanced data:', {
+                sourceToken: multiHopData.sourceToken,
+                targetToken: multiHopData.targetToken,
+                discoveredTokensCount: discoveredTokens.length,
+                multipliersCount: Object.keys(tokenMultipliers).length,
+                urlLength: multiHopUrl.length
+            });
+        }
+
+        // Create minimal token chain from current token data
+        function createMinimalTokenChain() {
+            discoveredTokens = [];
+            
+            // Add parent token if available
+            if (tokenData.parentToken && tokenData.parentToken !== 'N/A' && tokenData.parentToken !== '0x0000000000000000000000000000000000000000') {
+                discoveredTokens.push({
+                    name: tokenData.parentName || 'Parent Token',
+                    address: tokenData.parentToken,
+                    type: 'parent'
+                });
+            }
+            
+            // Add child token
+            if (tokenData.childToken && tokenData.childToken !== 'N/A') {
+                discoveredTokens.push({
+                    name: tokenData.childName || 'Child Token',
+                    address: tokenData.childToken,
+                    type: 'child'
+                });
+                
+                // Add multiplier data only if it was loaded
+                if (multiplierLoaded && tokenData.multiplier) {
+                    tokenMultipliers[tokenData.childToken.toLowerCase()] = parseInt(tokenData.multiplier) || 2;
+                }
+            }
+            
+            console.log('📦 Created minimal token chain:', discoveredTokens.length, 'tokens');
         }
 
         // Utility functions
