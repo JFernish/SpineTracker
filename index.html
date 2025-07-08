@@ -246,6 +246,14 @@
             color: #ffffff;
         }
         
+        .plp-components {
+            font-size: 0.75rem;
+            color: #888;
+            font-style: italic;
+            margin-top: 2px;
+            font-weight: normal;
+        }
+        
         .address {
             font-family: 'Courier New', monospace;
             font-size: 0.75rem;
@@ -558,6 +566,54 @@
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 });
+            }
+        }
+
+        // NEW: Function to get PLP component tokens
+        async function getPLPComponents(address) {
+            try {
+                console.log(`🔍 Getting PLP components for ${address}...`);
+                
+                // Get token0 address using token0() function
+                const token0Result = await makeRPCCall('eth_call', [
+                    {
+                        to: address,
+                        data: '0x0dfe1681' // token0() function selector
+                    },
+                    'latest'
+                ]);
+                
+                // Get token1 address using token1() function  
+                const token1Result = await makeRPCCall('eth_call', [
+                    {
+                        to: address,
+                        data: '0xd21220a7' // token1() function selector
+                    },
+                    'latest'
+                ]);
+                
+                if (token0Result && token1Result && token0Result !== '0x' && token1Result !== '0x') {
+                    const token0Address = '0x' + token0Result.slice(-40);
+                    const token1Address = '0x' + token1Result.slice(-40);
+                    
+                    console.log(`📍 Found PLP components: ${token0Address}, ${token1Address}`);
+                    
+                    // Get symbols for both tokens
+                    const [token0Symbol, token1Symbol] = await Promise.all([
+                        getTokenSymbol(token0Address).catch(() => `T0_${token0Address.slice(-4)}`),
+                        getTokenSymbol(token1Address).catch(() => `T1_${token1Address.slice(-4)}`)
+                    ]);
+                    
+                    console.log(`✅ PLP components: ${token0Symbol}/${token1Symbol}`);
+                    return `(${token0Symbol}/${token1Symbol})`;
+                }
+                
+                console.log(`❌ Could not get PLP components for ${address}`);
+                return null;
+                
+            } catch (error) {
+                console.log(`❌ PLP component lookup failed for ${address}: ${error.message}`);
+                return null;
             }
         }
 
@@ -1118,7 +1174,7 @@
                 
                 row.innerHTML = `
                     <td>${token.type === 'parent' ? '🏛️ Parent' : `👶 Child ${index}`}</td>
-                    <td class="token-name">${token.name}</td>
+                    <td class="token-name" id="token-name-${index}">${token.name}</td>
                     <td class="address" onclick="copyAddress('${token.address}')" title="Click to copy">${token.address.substring(0, 6)}...${token.address.substring(token.address.length - 4)}</td>
                     <td class="loading-cell">Loading...</td>
                     <td class="loading-cell">${token.type === 'parent' ? 'N/A' : 'Reading...'}</td>
@@ -1205,9 +1261,19 @@
                     try {
                         // Get token symbol for better naming
                         let tokenSymbol;
+                        let plpComponents = null;
+                        
                         try {
                             tokenSymbol = await getTokenSymbol(token.address);
                             token.name = tokenSymbol;
+                            
+                            // NEW: Check if this is a PLP token and get components
+                            if (tokenSymbol === 'PLP' && token.type === 'parent') {
+                                console.log(`🔍 Detected PLP parent token, getting components...`);
+                                plpComponents = await getPLPComponents(token.address);
+                                console.log(`📍 PLP components result: ${plpComponents}`);
+                            }
+                            
                         } catch (symbolError) {
                             console.log(`⚠️ Symbol lookup failed for ${token.name}: ${symbolError.message}`);
                         }
@@ -1245,7 +1311,8 @@
                             totalSupply: totalSupply,
                             multiplier: multiplier,
                             priceData: priceData,
-                            symbol: tokenSymbol
+                            symbol: tokenSymbol,
+                            plpComponents: plpComponents
                         };
                         
                     } catch (error) {
@@ -1262,7 +1329,8 @@
                             totalSupply: mockTotalSupply,
                             multiplier: token.type === 'child' ? 2.0 : null,
                             priceData: { price: mockPrice, priceChange24h: 0, pairInfo: 'Mock data' },
-                            symbol: token.name
+                            symbol: token.name,
+                            plpComponents: null
                         };
                     }
                     
@@ -1282,8 +1350,15 @@
                     
                     const cells = row.children;
                     
-                    // Update token name
-                    cells[1].textContent = data.symbol;
+                    // NEW: Update token name with PLP components if applicable
+                    const tokenNameCell = document.getElementById(`token-name-${i}`);
+                    if (tokenNameCell) {
+                        let displayName = data.symbol;
+                        if (data.plpComponents) {
+                            displayName += `<div class="plp-components">${data.plpComponents}</div>`;
+                        }
+                        tokenNameCell.innerHTML = displayName;
+                    }
                     
                     // Update total supply
                     cells[3].textContent = formatNumber(data.totalSupply);
@@ -1448,6 +1523,7 @@
             getParentToken,
             getTokenSymbol,
             getMultiplier,
+            getPLPComponents, // NEW: Expose PLP function for debugging
             discoveredTokens: () => discoveredTokens,
             tokenMultipliers: () => tokenMultipliers,
             priceCache: () => priceCache,
@@ -1458,6 +1534,13 @@
                 try {
                     const symbol = await getTokenSymbol(address);
                     console.log(`Token symbol: ${symbol}`);
+                    
+                    // NEW: Test PLP components if symbol is PLP
+                    if (symbol === 'PLP') {
+                        console.log('🔍 Testing PLP component detection...');
+                        const components = await getPLPComponents(address);
+                        console.log(`PLP components: ${components || 'None found'}`);
+                    }
                     
                     const parent = await getParentToken(address);
                     console.log(`Parent token: ${parent || 'None (this is root)'}`);
@@ -1481,9 +1564,10 @@
         console.log('📊 Total Multiplier = Product of all child multipliers');
         console.log('💰 Implied Price = Parent Price × Total Multiplier');
         console.log('🎯 Multi-hop data passing enabled!');
+        console.log('🆕 NEW: PLP component detection for Pair Liquidity Pool tokens!');
         console.log('Try DynamicTracker.debugDiscovery("0x...") to test discovery on any token');
         console.log('Example: DynamicTracker.debugDiscovery("0x7e264cd4fa2354078f527f6a72afbadc0ba89d26")');
+        console.log('🔍 For PLP tokens, use DynamicTracker.getPLPComponents("0x...") to test component detection');
     </script>
 </body>
 </html>
-                
