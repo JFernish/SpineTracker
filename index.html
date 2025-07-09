@@ -423,7 +423,7 @@
                     🧬 Discover V4 Spine
                 </button>
                 <button class="btn" onclick="refreshData()" id="refreshBtn" disabled>
-                    🔄 Refresh Data
+                    🔄 Get Data
                 </button>
                 <button class="btn" onclick="toggleAutoRefresh()" id="autoRefreshBtn">
                     ⏰ Auto-Refresh: OFF
@@ -479,13 +479,13 @@
         </div>
         
         <div class="footer">
-            <p><strong>Instructions:</strong> 1) Enter any V4 child token address → 2) Click "Discover V4 Spine" → 3) Click "Refresh Data" to load prices/multipliers</p>
-            <p><strong>Price Colors:</strong> Green = 24h price increase, Red = 24h price decrease</p>
-            <p><strong>Parity %:</strong> Shows minting opportunity - Green >100% = profitable to mint child, Red <100% = profitable to buy child (assuming price will return to parity)</p>
-            <p><strong>Parity Calculation:</strong> Child Price ÷ (Parent Price × Multiplier) × 100%</p>
-            <p><strong>Enhanced Pricing:</strong> Prioritizes PLS pairs → USDC/USDT → ETH pairs for maximum accuracy</p>
-            <p><strong>Note:</strong> This tool only works with tokens created from the V4 factory. Please avoid using auto-refresh to limit RPC calls and be respectful of the infrastructure</p>
-            <p><strong>Chain:</strong> PulseChain (Chain ID: 369) | <strong>RPC:</strong> G4mm4.io</p>
+            <p style="text-align: left;"><strong>Instructions:</strong> 1) Enter any V4 child token address → 2) Click "Discover V4 Spine" → 3) Click "Get Data" to load prices/multipliers</p>
+            <p style="text-align: left;"><strong>Parity %:</strong> Shows minting opportunity - Green >100% = profitable to mint/sell child, Red <100% = profitable to buy child (assuming price will return to parity)</p>
+            <p style="text-align: left;"><strong>Parity Calculation:</strong> Child Price ÷ (Parent Price × Multiplier) × 100%</p>
+            <p style="text-align: left;"><strong>Enhanced Pricing:</strong> Prioritizes PLS pairs → USDC/USDT → ETH pairs for maximum accuracy</p>
+            <p style="text-align: left;"><strong>Chain:</strong> PulseChain (Chain ID: 369)</p>
+            <p style="text-align: left;"><strong>RPC:</strong> May be changed in the configuration section.   Please avoid using auto-refresh to limit RPC calls and be respectful of the infrastructure</p>
+            <p style="text-align: left;"><strong>Note:</strong> This tool only works with tokens created from the V4 factory</p>
             
             <div style="margin-top: 30px; padding: 20px; background: rgba(157, 78, 221, 0.1); border-radius: 15px; border: 2px solid rgba(157, 78, 221, 0.2); text-align: left;">
                 <p style="margin-bottom: 15px;"><strong>🎯 Multi-Hop Minting Available:</strong> Multi-hop minting is accessible from the Mint pages and allows you to mint directly from any parent token in a spine to any child token in a single transaction, skipping intermediate steps. One click, multiple hops.</p>
@@ -1407,10 +1407,10 @@
                 
             } catch (error) {
                 console.error('Refresh failed:', error);
-                setStatus(`❌ Refresh failed: ${error.message}`, 'error');
+                setStatus(`❌ Data loading failed: ${error.message}`, 'error');
             } finally {
                 refreshBtn.disabled = false;
-                refreshBtn.textContent = '🔄 Refresh Data';
+                refreshBtn.textContent = '🔄 Get Data';
             }
         }
 
