@@ -306,6 +306,14 @@
             display: inline-block;
         }
         
+        .multiplier-info {
+            font-size: 0.7rem;
+            color: #888;
+            font-style: italic;
+            margin-top: 2px;
+            font-weight: normal;
+        }
+        
         .loading-cell {
             text-align: center;
             color: #90a4ae;
@@ -483,6 +491,7 @@
             <p style="text-align: left;"><strong>Parity %:</strong> Shows minting opportunity - Green >100% = profitable to mint/sell child, Red <100% = profitable to buy child (assuming price will return to parity)</p>
             <p style="text-align: left;"><strong>Parity Calculation:</strong> Child Price ÷ (Parent Price × Multiplier) × 100%</p>
             <p style="text-align: left;"><strong>Enhanced Pricing:</strong> Prioritizes PLS pairs → USDC/USDT → ETH pairs for maximum accuracy</p>
+            <p style="text-align: left;"><strong>Decimal Adjustment:</strong> Multipliers are automatically adjusted for parent tokens with non-18 decimal places</p>
             <p style="text-align: left;"><strong>Chain:</strong> PulseChain (Chain ID: 369)</p>
             <p style="text-align: left;"><strong>RPC:</strong> May be changed in the configuration section.   Please avoid using auto-refresh to limit RPC calls and be respectful of the infrastructure</p>
             <p style="text-align: left;"><strong>Note:</strong> This tool only works with tokens created from the V4 factory</p>
@@ -541,6 +550,34 @@
             }
             
             return data.result;
+        }
+
+        // NEW: Get token decimals
+        async function getTokenDecimals(address) {
+            try {
+                console.log(`🔢 Getting decimals for ${address}...`);
+                
+                const result = await makeRPCCall('eth_call', [
+                    {
+                        to: address,
+                        data: '0x313ce567' // decimals() function selector
+                    },
+                    'latest'
+                ]);
+                
+                if (result && result !== '0x') {
+                    const decimals = parseInt(result, 16);
+                    console.log(`✅ Token ${address} has ${decimals} decimals`);
+                    return decimals;
+                }
+                
+                console.log(`⚠️ Could not get decimals for ${address}, defaulting to 18`);
+                return 18;
+                
+            } catch (error) {
+                console.log(`❌ Decimals lookup failed for ${address}: ${error.message}, defaulting to 18`);
+                return 18;
+            }
         }
 
         // Status and logging functions
@@ -918,37 +955,74 @@
             }
         }
 
-        // Get multiplier using the exact ABI function Multiplier(uint256) with 0 parameter
-        async function getMultiplier(address) {
+        // ENHANCED: Get multiplier with decimal adjustment
+        async function getMultiplierWithDecimalAdjustment(childAddress, parentAddress) {
             try {
-                console.log(`🔢 Getting multiplier for ${address} using Multiplier(uint256) with 0 amount...`);
+                console.log(`🔢 Getting multiplier for child ${childAddress} with parent ${parentAddress}...`);
                 
-                const result = await makeRPCCall('eth_call', [
+                // Get base multiplier using the exact ABI function Multiplier(uint256) with 0 parameter
+                const baseMultiplierResult = await makeRPCCall('eth_call', [
                     {
-                        to: address,
+                        to: childAddress,
                         data: '0x5677abcc' + '0000000000000000000000000000000000000000000000000000000000000000'
                     },
                     'latest'
                 ]);
                 
-                console.log(`📥 Multiplier(0) result: ${result}`);
+                console.log(`📥 Base multiplier result: ${baseMultiplierResult}`);
                 
-                if (result && result !== '0x') {
-                    const multiplier = parseInt(result, 16);
-                    console.log(`✅ Multiplier from Multiplier(0): ${multiplier}`);
-                    
-                    // Store for multi-hop integration
-                    tokenMultipliers.set(address.toLowerCase(), multiplier);
-                    
-                    return multiplier;
+                let baseMultiplier = 2.0; // Default
+                if (baseMultiplierResult && baseMultiplierResult !== '0x') {
+                    baseMultiplier = parseInt(baseMultiplierResult, 16);
+                    console.log(`✅ Base multiplier: ${baseMultiplier}`);
                 }
                 
-                console.log(`⚠️ No valid multiplier result for ${address}`);
-                return 2.0; // Default to 2
+                // Get parent token decimals
+                const parentDecimals = await getTokenDecimals(parentAddress);
+                console.log(`📊 Parent token decimals: ${parentDecimals}`);
+                
+                // Calculate decimal adjustment
+                let adjustedMultiplier = baseMultiplier;
+                let adjustmentInfo = null;
+                
+                if (parentDecimals !== 18) {
+                    const decimalDifference = 18 - parentDecimals;
+                    const adjustmentFactor = Math.pow(10, decimalDifference);
+                    adjustedMultiplier = baseMultiplier * adjustmentFactor;
+                    
+                    adjustmentInfo = {
+                        baseMultiplier: baseMultiplier,
+                        parentDecimals: parentDecimals,
+                        decimalDifference: decimalDifference,
+                        adjustmentFactor: adjustmentFactor,
+                        adjustedMultiplier: adjustedMultiplier
+                    };
+                    
+                    console.log(`🔧 Decimal adjustment applied:`);
+                    console.log(`   Base multiplier: ${baseMultiplier}`);
+                    console.log(`   Parent decimals: ${parentDecimals}`);
+                    console.log(`   Adjustment factor: ${adjustmentFactor}`);
+                    console.log(`   Adjusted multiplier: ${adjustedMultiplier}`);
+                } else {
+                    console.log(`✅ No decimal adjustment needed (parent uses 18 decimals)`);
+                }
+                
+                // Store for multi-hop integration
+                tokenMultipliers.set(childAddress.toLowerCase(), adjustedMultiplier);
+                
+                return {
+                    baseMultiplier: baseMultiplier,
+                    adjustedMultiplier: adjustedMultiplier,
+                    adjustmentInfo: adjustmentInfo
+                };
                 
             } catch (error) {
-                console.log(`❌ Failed to get multiplier for ${address}: ${error.message}`);
-                return 2.0; // Default to 2
+                console.log(`❌ Failed to get multiplier for ${childAddress}: ${error.message}`);
+                return {
+                    baseMultiplier: 2.0,
+                    adjustedMultiplier: 2.0,
+                    adjustmentInfo: null
+                };
             }
         }
 
@@ -1203,8 +1277,8 @@
                 
                 if (data.token.type === 'parent') {
                     parentPrice = data.priceData.price;
-                } else if (data.token.type === 'child' && data.multiplier) {
-                    totalMultiplier *= data.multiplier;
+                } else if (data.token.type === 'child' && data.multiplierData) {
+                    totalMultiplier *= data.multiplierData.adjustedMultiplier;
                 }
             }
             
@@ -1234,7 +1308,7 @@
             return num.toFixed(2);
         }
 
-        // Refresh data for discovered tokens
+        // ENHANCED: Refresh data for discovered tokens with decimal-adjusted multipliers
         async function refreshData() {
             if (discoveredTokens.length === 0) {
                 alert('No tokens discovered yet. Click "Discover V4 Spine" first.');
@@ -1246,7 +1320,7 @@
             refreshBtn.textContent = '🔄 Loading...';
             
             try {
-                setStatus('Loading token data with corrected multipliers and parity calculations...', 'loading');
+                setStatus('Loading token data with decimal-adjusted multipliers and parity calculations...', 'loading');
                 
                 // Store token data for parity calculations
                 const tokenData = [];
@@ -1267,7 +1341,7 @@
                             tokenSymbol = await getTokenSymbol(token.address);
                             token.name = tokenSymbol;
                             
-                            // NEW: Check if this is a PLP token and get components
+                            // Check if this is a PLP token and get components
                             if (tokenSymbol === 'PLP' && token.type === 'parent') {
                                 console.log(`🔍 Detected PLP parent token, getting components...`);
                                 plpComponents = await getPLPComponents(token.address);
@@ -1289,15 +1363,20 @@
                         
                         const totalSupply = parseInt(totalSupplyResult, 16) / Math.pow(10, 18);
                         
-                        // Get multiplier for child tokens
-                        let multiplier = null;
-                        if (token.type === 'child') {
+                        // ENHANCED: Get multiplier with decimal adjustment for child tokens
+                        let multiplierData = null;
+                        if (token.type === 'child' && i > 0) {
+                            const parentToken = discoveredTokens[i - 1];
                             try {
-                                multiplier = await getMultiplier(token.address);
-                                console.log(`✅ Got correct multiplier for ${token.name}: ${multiplier}`);
+                                multiplierData = await getMultiplierWithDecimalAdjustment(token.address, parentToken.address);
+                                console.log(`✅ Got decimal-adjusted multiplier for ${token.name}:`, multiplierData);
                             } catch (e) {
                                 console.log(`❌ Multiplier lookup failed for ${token.name}: ${e.message}`);
-                                multiplier = 2.0; // Default fallback
+                                multiplierData = {
+                                    baseMultiplier: 2.0,
+                                    adjustedMultiplier: 2.0,
+                                    adjustmentInfo: null
+                                };
                             }
                         }
                         
@@ -1309,7 +1388,7 @@
                             index: i,
                             token: token,
                             totalSupply: totalSupply,
-                            multiplier: multiplier,
+                            multiplierData: multiplierData,
                             priceData: priceData,
                             symbol: tokenSymbol,
                             plpComponents: plpComponents
@@ -1327,7 +1406,11 @@
                             index: i,
                             token: token,
                             totalSupply: mockTotalSupply,
-                            multiplier: token.type === 'child' ? 2.0 : null,
+                            multiplierData: token.type === 'child' ? {
+                                baseMultiplier: 2.0,
+                                adjustedMultiplier: 2.0,
+                                adjustmentInfo: null
+                            } : null,
                             priceData: { price: mockPrice, priceChange24h: 0, pairInfo: 'Mock data' },
                             symbol: token.name,
                             plpComponents: null
@@ -1350,7 +1433,7 @@
                     
                     const cells = row.children;
                     
-                    // NEW: Update token name with PLP components if applicable
+                    // Update token name with PLP components if applicable
                     const tokenNameCell = document.getElementById(`token-name-${i}`);
                     if (tokenNameCell) {
                         let displayName = data.symbol;
@@ -1364,9 +1447,21 @@
                     cells[3].textContent = formatNumber(data.totalSupply);
                     cells[3].className = '';
                     
-                    // Update multiplier
-                    if (data.token.type === 'child') {
-                        cells[4].innerHTML = `<span class="multiplier">${Math.round(data.multiplier)}x</span>`;
+                    // ENHANCED: Update multiplier with decimal adjustment info
+                    if (data.token.type === 'child' && data.multiplierData) {
+                        const { baseMultiplier, adjustedMultiplier, adjustmentInfo } = data.multiplierData;
+                        
+                        let multiplierHTML = '';
+                        
+                        // Always use normal multiplier styling
+                        multiplierHTML = `<span class="multiplier">${Math.round(adjustedMultiplier).toLocaleString()}x</span>`;
+                        
+                        // Add adjustment info note if applicable
+                        if (adjustmentInfo) {
+                            multiplierHTML += `<div class="multiplier-info">Adjusted from ${baseMultiplier}x (${adjustmentInfo.parentDecimals} decimals)</div>`;
+                        }
+                        
+                        cells[4].innerHTML = multiplierHTML;
                         cells[4].className = '';
                     }
                     
@@ -1375,19 +1470,20 @@
                     cells[5].innerHTML = `${formattedPrice}<br><span class="price-source">${data.priceData.pairInfo || data.priceData.source}</span>`;
                     cells[5].className = data.priceData.priceChange24h >= 0 ? 'price' : 'price negative';
                     
-                    // Calculate and update parity percentage
+                    // Calculate and update parity percentage using adjusted multiplier
                     if (data.token.type === 'child' && i > 0) {
                         const parentData = tokenData[i - 1]; // Parent is the previous token
-                        if (parentData && parentData.priceData.price > 0 && data.priceData.price > 0) {
-                            // Calculate: (Child Price / (Parent Price × Multiplier)) × 100
-                            const expectedChildPrice = parentData.priceData.price * data.multiplier;
+                        if (parentData && parentData.priceData.price > 0 && data.priceData.price > 0 && data.multiplierData) {
+                            // Use adjusted multiplier for parity calculation
+                            const adjustedMultiplier = data.multiplierData.adjustedMultiplier;
+                            const expectedChildPrice = parentData.priceData.price * adjustedMultiplier;
                             const parityPercentage = (data.priceData.price / expectedChildPrice) * 100;
                             
                             const parityClass = parityPercentage >= 100 ? 'profitable' : 'unprofitable';
                             cells[6].innerHTML = `<span class="parity ${parityClass}">${parityPercentage.toFixed(1)}%</span>`;
                             cells[6].className = '';
                             
-                            console.log(`💰 Parity for ${data.symbol}: ${parityPercentage.toFixed(1)}% (Parent: ${parentData.priceData.price.toFixed(6)}, Multiplier: ${data.multiplier}x, Child: ${data.priceData.price.toFixed(6)})`);
+                            console.log(`💰 Parity for ${data.symbol}: ${parityPercentage.toFixed(1)}% (Parent: ${parentData.priceData.price.toFixed(6)}, Adjusted Multiplier: ${adjustedMultiplier}x, Child: ${data.priceData.price.toFixed(6)})`);
                         } else {
                             cells[6].textContent = 'N/A';
                             cells[6].className = '';
@@ -1399,10 +1495,10 @@
                     }
                 }
                 
-                // Update total multiplier section
+                // Update total multiplier section with adjusted multipliers
                 updateTotalMultiplier(tokenData);
                 
-                setStatus('Data loaded successfully with parity calculations!', 'connected');
+                setStatus('Data loaded successfully with decimal-adjusted multipliers and parity calculations!', 'connected');
                 document.getElementById('lastUpdate').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
                 
             } catch (error) {
@@ -1453,11 +1549,11 @@
                 parentName: parentToken.name,
                 multiplier: multiplier,
                 tokenIndex: tokenIndex,
-                // NEW: Pass discovered tokens for multi-hop integration
+                // Pass discovered tokens for multi-hop integration
                 tokenChain: encodeURIComponent(JSON.stringify(discoveredTokens))
             });
             
-            // NEW: Store data for multi-hop integration
+            // Store data for multi-hop integration
             storeTokenDataForMultiHop();
             
             // Open mint page in new tab
@@ -1492,7 +1588,7 @@
                 const multiplierCell = row.children[4]; // Multiplier is 5th column (index 4)
                 const multiplierSpan = multiplierCell.querySelector('.multiplier');
                 if (multiplierSpan) {
-                    return multiplierSpan.textContent.replace('x', '');
+                    return multiplierSpan.textContent.replace('x', '').replace(/,/g, '');
                 }
             }
             return '1.0'; // Default multiplier
@@ -1500,7 +1596,7 @@
 
         // Initialize on load
         window.onload = function() {
-            console.log('🧬 Enhanced Dynamic Spine Token Tracker Loading...');
+            console.log('🧬 Enhanced Dynamic Spine Token Tracker with Decimal Adjustment Loading...');
             
             // Auto-test connection after a short delay
             setTimeout(testConnection, 1000);
@@ -1522,8 +1618,9 @@
             makeRPCCall,
             getParentToken,
             getTokenSymbol,
-            getMultiplier,
-            getPLPComponents, // NEW: Expose PLP function for debugging
+            getTokenDecimals, // NEW: Expose decimals function
+            getMultiplierWithDecimalAdjustment, // NEW: Expose enhanced multiplier function
+            getPLPComponents,
             discoveredTokens: () => discoveredTokens,
             tokenMultipliers: () => tokenMultipliers,
             priceCache: () => priceCache,
@@ -1535,7 +1632,7 @@
                     const symbol = await getTokenSymbol(address);
                     console.log(`Token symbol: ${symbol}`);
                     
-                    // NEW: Test PLP components if symbol is PLP
+                    // Test PLP components if symbol is PLP
                     if (symbol === 'PLP') {
                         console.log('🔍 Testing PLP component detection...');
                         const components = await getPLPComponents(address);
@@ -1548,10 +1645,15 @@
                     if (parent) {
                         const parentSymbol = await getTokenSymbol(parent);
                         console.log(`Parent symbol: ${parentSymbol}`);
+                        
+                        // NEW: Test decimal adjustment
+                        console.log('🔧 Testing decimal adjustment...');
+                        const parentDecimals = await getTokenDecimals(parent);
+                        console.log(`Parent decimals: ${parentDecimals}`);
+                        
+                        const multiplierData = await getMultiplierWithDecimalAdjustment(address, parent);
+                        console.log(`Multiplier data:`, multiplierData);
                     }
-                    
-                    const multiplier = await getMultiplier(address);
-                    console.log(`Multiplier: ${multiplier}`);
                     
                 } catch (error) {
                     console.error('Debug failed:', error);
@@ -1559,15 +1661,19 @@
             }
         };
 
-        console.log('🚀 Enhanced Dynamic Spine Token Tracker loaded!');
-        console.log('🔢 Added Total Multiplier and Implied Price calculations!');
-        console.log('📊 Total Multiplier = Product of all child multipliers');
-        console.log('💰 Implied Price = Parent Price × Total Multiplier');
-        console.log('🎯 Multi-hop data passing enabled!');
-        console.log('🆕 NEW: PLP component detection for Pair Liquidity Pool tokens!');
-        console.log('Try DynamicTracker.debugDiscovery("0x...") to test discovery on any token');
+        console.log('🚀 Enhanced Dynamic Spine Token Tracker with Decimal Adjustment loaded!');
+        console.log('🔢 NEW: Automatic decimal adjustment for parent tokens with non-18 decimals!');
+        console.log('🧮 Multipliers are automatically adjusted using the formula: adjustedMultiplier = baseMultiplier × 10^(18 - parentDecimals)');
+        console.log('💡 Example: Parent with 8 decimals and 2x base multiplier = 2 × 10^(18-8) = 20,000,000,000x adjusted multiplier');
+        console.log('📝 Adjustment info is shown below the multiplier when applicable');
+        console.log('📊 Total Multiplier = Product of all adjusted child multipliers');
+        console.log('💰 Implied Price = Parent Price × Total Multiplier (using adjusted multipliers)');
+        console.log('🎯 Multi-hop data passing enabled with decimal adjustments!');
+        console.log('🆕 PLP component detection for Pair Liquidity Pool tokens!');
+        console.log('Try DynamicTracker.debugDiscovery("0x...") to test discovery with decimal adjustment on any token');
         console.log('Example: DynamicTracker.debugDiscovery("0x7e264cd4fa2354078f527f6a72afbadc0ba89d26")');
-        console.log('🔍 For PLP tokens, use DynamicTracker.getPLPComponents("0x...") to test component detection');
+        console.log('🔍 For testing decimals: DynamicTracker.getTokenDecimals("0x...")');
+        console.log('🔧 For testing multiplier adjustment: DynamicTracker.getMultiplierWithDecimalAdjustment("childAddress", "parentAddress")');
     </script>
 </body>
 </html>
