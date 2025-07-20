@@ -1,6 +1,17 @@
 {
   "version": 2,
   "name": "dynamic-spine-token-tracker",
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/update-tokens",
+      "schedule": "*/15 * * * *"
+    }
+  ],
   "builds": [
     {
       "src": "index.html",
@@ -8,6 +19,10 @@
     }
   ],
   "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
     {
       "src": "/(.*)",
       "dest": "/index.html"
