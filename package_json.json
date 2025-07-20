@@ -1,7 +1,8 @@
 {
   "name": "dynamic-spine-token-tracker",
   "version": "1.0.0",
-  "description": "Automatically discover CC7 factory token spines by walking up from any child token",
+  "description": "Automatically discover CC7 factory token spines by
+walking up from any child token",
   "main": "index.html",
   "scripts": {
     "dev": "vercel dev",
@@ -18,5 +19,10 @@
   "author": "Your Name",
   "license": "MIT",
   "devDependencies": {},
-  "dependencies": {}
+  "dependencies": {
+    "@vercel/kv": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }
