@@ -1,0 +1,11 @@
+{
+  "name": "token-library",
+  "version": "1.0.0",
+  "description": "PulseChain Token Library with Database",
+  "dependencies": {
+    "@vercel/kv": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
