@@ -20,7 +20,7 @@
   "license": "MIT",
   "devDependencies": {},
   "dependencies": {
-    "redis": "^4.6.0"
+    "@vercel/kv": "^1.0.1"
   },
   "engines": {
     "node": ">=18"
