@@ -2,6 +2,7 @@
   "name": "dynamic-spine-token-tracker",
   "version": "1.0.0",
   "description": "Automatically discover CC7 factory token spines by walking up from any child token",
+  "type": "module",
   "main": "index.html",
   "scripts": {
     "dev": "vercel dev",
