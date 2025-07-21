@@ -209,16 +209,17 @@
         }
         
         .results-header {
-            background: rgba(40, 40, 80, 0.8);
+            background: rgba(40, 40, 80, 0.95);
             padding: 15px;
             border-radius: 10px;
             margin-bottom: 15px;
             font-weight: 600;
             color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             position: sticky;
             top: 0;
-            z-index: 10;
+            z-index: 100;
+            backdrop-filter: blur(10px);
         }
         
         .results-grid-header {
@@ -417,6 +418,9 @@
         <div class="header">
             <h1>🌿 Token Library 🌿</h1>
             <p>Persistent token data from PulseChain V3/V4 factories with automatic updates</p>
+            <p style="margin-top: 15px; padding: 10px; background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 8px; color: #ffc107;">
+                ⚠️ <strong>Important:</strong> Please <a href="#disclaimers" style="color: #ffc107; text-decoration: underline;">see important disclaimers</a> at the bottom of this page before using any token information.
+            </p>
             <p style="margin-top: 10px;">
                 <a href="https://spinetracker.vercel.app/" style="color: #06ffa5; text-decoration: none; font-weight: 500; border: 1px solid rgba(6, 255, 165, 0.3); padding: 8px 16px; border-radius: 20px; transition: all 0.3s ease;" 
                    onmouseover="this.style.background='rgba(6, 255, 165, 0.1)'" 
@@ -486,12 +490,12 @@
             <div id="results"></div>
         </div>
         
-        <div style="margin-top: 30px; padding: 25px; background: rgba(20, 20, 40, 0.6); border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.1); text-align: center;">
+        <div style="margin-top: 30px; padding: 25px; background: rgba(20, 20, 40, 0.6); border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.1); text-align: center;" id="disclaimers">
             <p style="color: #06ffa5; font-weight: 600; margin-bottom: 10px;">Your support is greatly appreciated and helps me continue improving the website.</p>
             <p style="color: #3a86ff; font-family: 'Courier New', monospace; font-size: 0.9rem; margin-bottom: 20px; cursor: pointer;" onclick="copyToClipboard('0x809b15CCdC92882035C274738318296525b98aD8')" title="Click to copy address">0x809b15CCdC92882035C274738318296525b98aD8</p>
             
             <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 20px;">
-                <p style="color: #9d4edd; font-weight: 600; margin-bottom: 15px;">Disclaimer:</p>
+                <p style="color: #9d4edd; font-weight: 600; margin-bottom: 15px;">Important Disclaimers:</p>
                 <p style="color: #c0c0c0; font-size: 0.85rem; line-height: 1.5; text-align: left; max-width: 800px; margin: 0 auto 15px;">
                     V3/V4 tokens may be created by anyone. This website provides a comprehensive listing that is not curated and is not an endorsement of any listed tokens. A V3/V4 token is only as good as the community that supports it and the liquidity that is provided. Always DYOR.
                 </p>
@@ -574,20 +578,35 @@
             // Get all contract addresses that are used as parents
             const usedAsParents = new Set();
             
+            console.log('Calculating leaf tokens for', allTokens.length, 'tokens');
+            
             allTokens.forEach(token => {
-                if (token.parent && token.parent !== '0x0000000000000000000000000000000000000000' && token.parent.toLowerCase() !== '0x0000000000000000000000000000000000000000') {
+                if (token.parent && 
+                    token.parent !== '0x0000000000000000000000000000000000000000' && 
+                    token.parent.toLowerCase() !== '0x0000000000000000000000000000000000000000' &&
+                    token.parent !== null &&
+                    token.parent !== undefined) {
                     usedAsParents.add(token.parent.toLowerCase());
                 }
             });
             
+            console.log('Found', usedAsParents.size, 'addresses used as parents');
+            
             // Mark tokens as leaf if their contract address is NOT used as parent by any other token
+            let leafCount = 0;
             allTokens.forEach(token => {
-                if (token.tokenContractAddress) {
+                if (token.tokenContractAddress && 
+                    token.tokenContractAddress !== '0x0000000000000000000000000000000000000000' &&
+                    token.tokenContractAddress !== null &&
+                    token.tokenContractAddress !== undefined) {
                     token.isLeaf = !usedAsParents.has(token.tokenContractAddress.toLowerCase());
+                    if (token.isLeaf) leafCount++;
                 } else {
                     token.isLeaf = false; // Unknown tokens are not considered leaves
                 }
             });
+            
+            console.log('Found', leafCount, 'leaf tokens');
         }
 
         function toggleFactory(factory) {
