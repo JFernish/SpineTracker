@@ -15,15 +15,14 @@
     "cc7",
     "crypto",
     "tracking"
-  ], 
+  ],
   "author": "Your Name",
   "license": "MIT",
   "devDependencies": {},
   "dependencies": {
-    "@vercel/kv": "^1.0.1"
+    "redis": "^4.6.0"
   },
   "engines": {
     "node": ">=18"
   }
 }
- 
