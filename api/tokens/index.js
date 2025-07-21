@@ -1,4 +1,4 @@
-import { kv } from '@vercel/kv';
+import { kv } from '../lib/redis.js';
 
 export default async function handler(req, res) {
   // Enable CORS for your frontend
@@ -30,9 +30,8 @@ export default async function handler(req, res) {
           for (const hash of tokenHashes) {
             const tokenData = await kv.get(`token:${hash}`);
             if (tokenData) {
-              const parsedToken = typeof tokenData === 'string' ? JSON.parse(tokenData) : tokenData;
               tokens.push({
-                ...parsedToken,
+                ...tokenData,
                 id: hash
               });
             }
@@ -48,25 +47,23 @@ export default async function handler(req, res) {
           for (const hash of tokenHashes) {
             const tokenData = await kv.get(`token:${hash}`);
             if (tokenData) {
-              const parsedToken = typeof tokenData === 'string' ? JSON.parse(tokenData) : tokenData;
               tokens.push({
-                ...parsedToken,
+                ...tokenData,
                 id: hash
               });
             }
           }
         }
       } else {
-        // Get all tokens - KV doesn't have keys() so we'll track all token hashes
+        // Get all tokens - using our all_tokens list
         const allTokenHashes = await kv.get('all_tokens') || [];
         
         if (allTokenHashes.length > 0) {
           for (const hash of allTokenHashes) {
             const tokenData = await kv.get(`token:${hash}`);
             if (tokenData) {
-              const parsedToken = typeof tokenData === 'string' ? JSON.parse(tokenData) : tokenData;
               tokens.push({
-                ...parsedToken,
+                ...tokenData,
                 id: hash
               });
             }
