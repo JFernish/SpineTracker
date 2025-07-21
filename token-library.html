@@ -175,6 +175,27 @@
             color: #c0c0c0;
             font-size: 0.9em;
             margin-top: 5px;
+            position: relative;
+            cursor: help;
+        }
+        
+        .stat-label[title]:hover::after {
+            content: attr(title);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 20, 40, 0.95);
+            color: #06ffa5;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            white-space: pre-line;
+            z-index: 1000;
+            border: 1px solid rgba(6, 255, 165, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            min-width: 300px;
+            font-family: 'Courier New', monospace;
         }
         
         .results-section {
@@ -413,7 +434,9 @@
             <div class="filter-group">
                 <button class="btn filter-btn" id="v3Btn" onclick="toggleFactory('v3')">V3 Factory</button>
                 <button class="btn filter-btn" id="v4Btn" onclick="toggleFactory('v4')">V4 Factory</button>
-                <button class="btn filter-btn" id="nonMariaBtn" onclick="toggleNonMaria()">Show Non-Maria Tokens</button>
+                <button class="btn filter-btn" id="nonMariaBtn" onclick="toggleNonMaria()" title="Will show tokens created by addresses other than Maria's:
+0xBF182955401aF3f2f7e244cb31184E93E74a2501
+0x7a20189b297343cf26d8548764b04891f37f3414">Show Non-Maria Tokens</button>
             </div>
             
             <div class="filter-group">
@@ -440,7 +463,7 @@
             </div>
             <div class="stat-item">
                 <div class="stat-number" id="mariaCount">-</div>
-                <div class="stat-label" title="Maria Addresses:&#10;0xBF182955401aF3f2f7e244cb31184E93E74a2501&#10;0x7a20189b297343cf26d8548764b04891f37f3414">Maria Tokens</div>
+                <div class="stat-label">Maria Tokens</div>
             </div>
         </div>
 
@@ -613,6 +636,9 @@
                 // Small delay
                 await new Promise(resolve => setTimeout(resolve, 200));
             }
+            
+            // Refresh display after enhancement
+            applyCurrentFilter();
         }
 
         async function enhanceTokenData(basicToken) {
@@ -776,7 +802,7 @@
 
             filteredTokens = filtered;
             sortData(sortColumn, false);
-            displayResults();
+            updateStats();
         }
 
         function sortData(column, toggleDirection = true) {
