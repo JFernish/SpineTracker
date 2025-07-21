@@ -17,6 +17,7 @@ let provider = null;
 
 async function getProvider() {
   if (!provider) {
+    const { ethers } = await import('ethers');
     provider = new ethers.JsonRpcProvider('https://rpc-pulsechain.g4mm4.io');
   }
   return provider;
@@ -327,6 +328,7 @@ async function incrementalUpdate(res, sinceTimestamp) {
 async function extractCompleteTokenData(tx, factoryVersion) {
   try {
     const rpcProvider = await getProvider();
+    const { ethers } = await import('ethers');
     const timestamp = new Date(parseInt(tx.timeStamp) * 1000).toISOString();
     
     // Get transaction receipt to extract token data
@@ -341,7 +343,7 @@ async function extractCompleteTokenData(tx, factoryVersion) {
     // Extract token creation parameters from transaction input
     let tokenName = 'Unknown';
     let tokenSymbol = 'Unknown';
-    let parentAddress = ethers.ZeroAddress;
+    let parentAddress = '0x0000000000000000000000000000000000000000';
     
     try {
       const inputData = transaction.data.slice(10); // Remove function selector
@@ -350,12 +352,12 @@ async function extractCompleteTokenData(tx, factoryVersion) {
       
       tokenName = decoded[0] || 'Unknown';
       tokenSymbol = decoded[1] || 'Unknown';
-      parentAddress = decoded[3] || ethers.ZeroAddress;
+      parentAddress = decoded[3] || '0x0000000000000000000000000000000000000000';
     } catch (error) {
       console.log(`Error decoding transaction data for ${tx.hash}:`, error.message);
     }
 
-    // Extract token contract address from Transfer events
+    // Extract token contract address from Transfer events - FIXED VERSION
     const tokenContractAddress = findTokenContractFromLogs(receipt.logs, tx.from);
     
     // Extract initial supply from MV token transfers
@@ -366,7 +368,7 @@ async function extractCompleteTokenData(tx, factoryVersion) {
     let parentName = 'None';
     let parentDisplayName = 'None';
     
-    if (parentAddress !== ethers.ZeroAddress) {
+    if (parentAddress !== '0x0000000000000000000000000000000000000000') {
       try {
         const parentContract = new ethers.Contract(parentAddress, TOKEN_ABI, rpcProvider);
         parentName = await parentContract.name().catch(() => 'Unknown Parent');
@@ -406,25 +408,38 @@ async function extractCompleteTokenData(tx, factoryVersion) {
 }
 
 function findTokenContractFromLogs(logs, creatorAddress) {
-  const transferTopic = ethers.id("Transfer(address,address,uint256)");
-  
-  // Find Transfer event where tokens go to the creator (minting to creator)
+  // Parse Transfer events to find the one that goes to the creator
   for (const log of logs) {
-    if (log.topics && log.topics[0] === transferTopic) {
-      // Look for mint event from zero address TO the creator
-      if (log.topics[1] === ethers.ZeroHash && 
-          log.topics[2] && 
-          log.topics[2].toLowerCase() === ethers.zeroPadValue(creatorAddress.toLowerCase(), 32).toLowerCase()) {
-        return log.address; // This is the token that went to the creator
+    if (log.topics && log.topics.length >= 3) {
+      // Check if this is a Transfer event (topic[0] would be the Transfer signature)
+      // Look for transfers where:
+      // - topics[1] is zero address (minting)
+      // - topics[2] matches the creator address
+      try {
+        const fromAddress = log.topics[1];
+        const toAddress = log.topics[2];
+        
+        // Convert creator address to the same format as topic (32-byte hex)
+        const creatorTopic = '0x000000000000000000000000' + creatorAddress.slice(2).toLowerCase();
+        
+        // Check if this is a mint (from zero) to creator
+        if (fromAddress === '0x0000000000000000000000000000000000000000000000000000000000000000' &&
+            toAddress.toLowerCase() === creatorTopic.toLowerCase()) {
+          return log.address; // This is the token that was minted to the creator
+        }
+      } catch (error) {
+        // Skip malformed logs
+        continue;
       }
     }
   }
   
-  // Fallback: if no direct transfer to creator, get the last Transfer event
+  // Fallback: find any Transfer event from zero address (last one)
   let tokenAddress = null;
   for (const log of logs) {
-    if (log.topics && log.topics[0] === transferTopic) {
-      if (log.topics[1] === ethers.ZeroHash && log.topics[2] !== ethers.ZeroHash) {
+    if (log.topics && log.topics.length >= 3) {
+      const fromAddress = log.topics[1];
+      if (fromAddress === '0x0000000000000000000000000000000000000000000000000000000000000000') {
         tokenAddress = log.address;
       }
     }
@@ -435,28 +450,27 @@ function findTokenContractFromLogs(logs, creatorAddress) {
 
 function extractInitialSupply(receipt) {
   try {
-    const transferTopic = ethers.id("Transfer(address,address,uint256)");
     const MV_TOKEN_ADDRESS = "0xA1BEe1daE9Af77dAC73aA0459eD63b4D93fC6d29";
     
     // Find MV token transfers (these represent the initial supply cost)
-    const mvTransfers = receipt.logs.filter(log => 
-      log.topics && 
-      log.topics[0] === transferTopic && 
-      log.address.toLowerCase() === MV_TOKEN_ADDRESS.toLowerCase()
-    );
-
-    let mvAmount = 0n;
-    for (const event of mvTransfers) {
-      try {
-        const value = ethers.getBigInt(event.data);
-        if (value > mvAmount) {
-          mvAmount = value;
+    let mvAmount = '0';
+    for (const log of receipt.logs) {
+      if (log.address && log.address.toLowerCase() === MV_TOKEN_ADDRESS.toLowerCase()) {
+        if (log.data && log.data !== '0x') {
+          try {
+            // Simple hex to decimal conversion for the data field
+            const hexValue = log.data;
+            if (hexValue.length > 2) {
+              mvAmount = BigInt(hexValue).toString();
+            }
+          } catch (error) {
+            // Skip if can't parse
+            continue;
+          }
         }
-      } catch (error) {
-        console.error('Error parsing MV transfer event:', error);
       }
     }
-    return mvAmount.toString();
+    return mvAmount;
   } catch (error) {
     console.error('Error extracting initial supply:', error);
     return '0';
@@ -465,8 +479,13 @@ function extractInitialSupply(receipt) {
 
 function formatSupply(supplyWei) {
   try {
-    const supply = parseFloat(ethers.formatEther(supplyWei));
+    if (supplyWei === '0') return '0';
+    
+    // Simple conversion: divide by 10^18 and format
+    const supply = Number(supplyWei) / (10 ** 18);
     if (supply === 0) return '0';
+    
+    // Format to 3 significant digits
     const result = supply.toPrecision(3);
     return parseFloat(result).toString();
   } catch (error) {
