@@ -183,7 +183,7 @@
             padding: 25px;
             margin-bottom: 25px;
             border: 2px solid rgba(157, 78, 221, 0.2);
-            max-height: 80vh;
+            max-height: 70vh;
             overflow-y: auto;
         }
         
@@ -873,7 +873,7 @@
                 token.creator && MARIA_ADDRESSES.includes(token.creator.toLowerCase())
             ).length;
 
-            document.getElementById('totalTokens').textContent = filteredTokens.length;
+            document.getElementById('totalTokens').textContent = allTokens.length;
             document.getElementById('v3Count').textContent = v3Count;
             document.getElementById('v4Count').textContent = v4Count;
             document.getElementById('mariaCount').textContent = mariaCount;
