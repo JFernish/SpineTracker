@@ -20,7 +20,7 @@ export default async function handler(req, res) {
         manual: true
       })
     });
-
+ 
     const result = await populateResponse.json();
 
     console.log('Manual update complete:', result);
