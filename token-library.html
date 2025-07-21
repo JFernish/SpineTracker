@@ -867,7 +867,11 @@
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = '';
 
-            filteredTokens.forEach(token => {
+            console.log('Displaying tokens:', filteredTokens.length); // Debug log
+
+            filteredTokens.forEach((token, index) => {
+                console.log('Processing token', index, token.txHash); // Debug log
+                
                 const resultDiv = document.createElement('div');
                 resultDiv.className = `result-item-compact ${token.status === 'basic' ? 'loading' : ''}`;
 
@@ -889,6 +893,7 @@
                 resultsDiv.appendChild(resultDiv);
             });
 
+            console.log('Finished displaying, DOM children:', resultsDiv.children.length); // Debug log
             document.getElementById('resultsSection').style.display = 'block';
         }
 
