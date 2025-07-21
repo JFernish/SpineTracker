@@ -1,4 +1,4 @@
-import { kv } from '../lib/redis.js';
+import { kv } from '../../lib/redis.js';
 
 const FACTORY_ADDRESSES = {
   factory1: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7',
