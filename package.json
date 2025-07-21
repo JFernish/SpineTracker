@@ -15,7 +15,7 @@
     "cc7",
     "crypto",
     "tracking"
-  ],
+  ], 
   "author": "Your Name",
   "license": "MIT",
   "devDependencies": {},
