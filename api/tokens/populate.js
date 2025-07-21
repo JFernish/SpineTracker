@@ -1,17 +1,15 @@
 import { kv } from '@vercel/kv';
 
 const FACTORY_ADDRESSES = {
-  factory1: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7', // V4
-  factory2: '0x0c4F73328dFCECfbecf235C9F78A4494a7EC5ddC'  // V3
+  factory1: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7',
+  factory2: '0x0c4F73328dFCECfbecf235C9F78A4494a7EC5ddC'
 };
 
 export default async function handler(req, res) {
-  // Only allow cron jobs, not public access
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Security: Only allow requests from Vercel cron or with auth
   const isVercelCron = req.headers['x-vercel-cron'];
   const authHeader = req.headers['authorization'];
   const validAuth = authHeader === `Bearer ${process.env.CRON_SECRET || 'default-secret'}`;
@@ -21,20 +19,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Check if this is a bootstrap (initial population) or incremental update
     const lastScanTimestamp = await kv.get('last_scan_timestamp');
     const isBootstrap = !lastScanTimestamp;
     
     if (isBootstrap) {
-      console.log('🚀 BOOTSTRAP MODE: Scanning for ALL historical tokens...');
+      console.log('BOOTSTRAP MODE: Scanning for ALL historical tokens...');
       return await bootstrapAllTokens(res);
     } else {
-      console.log('🔍 INCREMENTAL MODE: Checking for new tokens...');
+      console.log('INCREMENTAL MODE: Checking for new tokens...');
       return await incrementalUpdate(res, lastScanTimestamp);
     }
 
   } catch (error) {
-    console.error('❌ Population error:', error);
+    console.error('Population error:', error);
     return res.status(500).json({ 
       error: 'Failed to populate tokens',
       details: error.message 
@@ -43,7 +40,7 @@ export default async function handler(req, res) {
 }
 
 async function bootstrapAllTokens(res) {
-  console.log('🏭 Scanning both factories for ALL historical tokens...');
+  console.log('Scanning both factories for ALL historical tokens...');
   
   const results = {
     processed: 0,
@@ -58,7 +55,7 @@ async function bootstrapAllTokens(res) {
   ];
 
   for (const factory of factoriesToScan) {
-    console.log(`\n🔍 Scanning ${factory.name} factory for ALL transactions...`);
+    console.log(`Scanning ${factory.name} factory for ALL transactions...`);
 
     try {
       let page = 1;
@@ -66,7 +63,7 @@ async function bootstrapAllTokens(res) {
       let hasMore = true;
 
       while (hasMore) {
-        console.log(`📄 Fetching ${factory.name} page ${page}...`);
+        console.log(`Fetching ${factory.name} page ${page}...`);
 
         const apiUrl = `https://api.scan.pulsechain.com/api?module=account&action=txlist&address=${factory.address}&sort=desc&page=${page}&offset=${pageSize}`;
         
@@ -77,39 +74,34 @@ async function bootstrapAllTokens(res) {
 
         const data = await response.json();
         if (data.status !== '1' || !data.result || data.result.length === 0) {
-          console.log(`📄 ${factory.name} page ${page}: No more data`);
+          console.log(`${factory.name} page ${page}: No more data`);
           hasMore = false;
           break;
         }
 
-        // Filter for successful transactions TO the factory (token creation)
         const factoryTransactions = data.result.filter(tx => 
           tx.to && 
           tx.to.toLowerCase() === factory.address.toLowerCase() && 
           tx.isError === '0'
         );
 
-        console.log(`📄 ${factory.name} page ${page}: Found ${factoryTransactions.length} token creation transactions`);
+        console.log(`${factory.name} page ${page}: Found ${factoryTransactions.length} token creation transactions`);
 
         for (const tx of factoryTransactions) {
           results.processed++;
 
           try {
-            // Check if we already have this token
             const existingToken = await kv.get(`token:${tx.hash}`);
             if (existingToken) {
               results.skipped++;
               continue;
             }
 
-            // Extract token data
             const tokenData = await extractTokenDataFromTx(tx, factory.name);
             
             if (tokenData) {
-              // Store in database
               await kv.set(`token:${tx.hash}`, tokenData);
               
-              // Update indexes
               const indexPromises = [];
               if (tokenData.creator) {
                 indexPromises.push(kv.sadd(`creator:${tokenData.creator.toLowerCase()}`, tx.hash));
@@ -123,7 +115,7 @@ async function bootstrapAllTokens(res) {
               results.added++;
               
               if (results.added % 50 === 0) {
-                console.log(`✅ Processed ${results.added} tokens so far...`);
+                console.log(`Processed ${results.added} tokens so far...`);
               }
 
             } else {
@@ -136,14 +128,12 @@ async function bootstrapAllTokens(res) {
           }
         }
 
-        // Check if we got fewer results than page size (last page)
         if (data.result.length < pageSize) {
           hasMore = false;
         } else {
           page++;
         }
 
-        // Add delay to be nice to the API
         await new Promise(resolve => setTimeout(resolve, 200));
       }
 
@@ -153,10 +143,9 @@ async function bootstrapAllTokens(res) {
     }
   }
 
-  // Set the initial scan timestamp to now
   await kv.set('last_scan_timestamp', Math.floor(Date.now() / 1000));
 
-  console.log('\n🎉 BOOTSTRAP COMPLETE:', results);
+  console.log('BOOTSTRAP COMPLETE:', results);
 
   return res.status(200).json({
     success: true,
@@ -185,10 +174,9 @@ async function incrementalUpdate(res, sinceTimestamp) {
   let latestTimestamp = sinceTimestamp;
 
   for (const factory of factoriesToScan) {
-    console.log(`\n🏭 Checking ${factory.name} for new tokens...`);
+    console.log(`Checking ${factory.name} for new tokens...`);
 
     try {
-      // Only check recent transactions for incremental updates
       const apiUrl = `https://api.scan.pulsechain.com/api?module=account&action=txlist&address=${factory.address}&sort=desc&page=1&offset=50`;
       
       const response = await fetch(apiUrl);
@@ -202,7 +190,6 @@ async function incrementalUpdate(res, sinceTimestamp) {
         continue;
       }
 
-      // Filter for NEW successful transactions
       const newTransactions = data.result.filter(tx => 
         tx.to && 
         tx.to.toLowerCase() === factory.address.toLowerCase() && 
@@ -216,21 +203,17 @@ async function incrementalUpdate(res, sinceTimestamp) {
         results.processed++;
 
         try {
-          // Check if we already have this token
           const existingToken = await kv.get(`token:${tx.hash}`);
           if (existingToken) {
             results.skipped++;
             continue;
           }
 
-          // Extract token data
           const tokenData = await extractTokenDataFromTx(tx, factory.name);
           
           if (tokenData) {
-            // Store in database
             await kv.set(`token:${tx.hash}`, tokenData);
             
-            // Update indexes
             const indexPromises = [];
             if (tokenData.creator) {
               indexPromises.push(kv.sadd(`creator:${tokenData.creator.toLowerCase()}`, tx.hash));
@@ -242,9 +225,8 @@ async function incrementalUpdate(res, sinceTimestamp) {
             await Promise.all(indexPromises);
 
             results.added++;
-            console.log(`✅ Added new token: ${tx.hash.slice(0, 10)}...`);
+            console.log(`Added new token: ${tx.hash.slice(0, 10)}...`);
 
-            // Track latest timestamp
             const txTimestamp = parseInt(tx.timeStamp);
             if (txTimestamp > latestTimestamp) {
               latestTimestamp = txTimestamp;
@@ -268,11 +250,10 @@ async function incrementalUpdate(res, sinceTimestamp) {
     }
   }
 
-  // Update scan timestamp
   const newScanTimestamp = latestTimestamp > sinceTimestamp ? latestTimestamp : Math.floor(Date.now() / 1000);
   await kv.set('last_scan_timestamp', newScanTimestamp);
 
-  console.log('\n📊 Incremental scan complete:', results);
+  console.log('Incremental scan complete:', results);
 
   const message = results.added > 0 
     ? `Found ${results.added} new tokens` 
@@ -299,7 +280,7 @@ async function extractTokenDataFromTx(tx, factoryVersion) {
       timestamp: timestamp,
       blockNumber: tx.blockNumber,
       gasUsed: tx.gasUsed,
-      status: 'basic', // Will be enhanced by frontend when displayed
+      status: 'basic',
       addedAt: new Date().toISOString()
     };
 
