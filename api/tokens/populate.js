@@ -1,4 +1,4 @@
-import { kv } from '@vercel/kv';
+import { kv } from '../lib/redis.js';
 
 const FACTORY_ADDRESSES = {
   factory1: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7',
@@ -101,7 +101,7 @@ async function bootstrapAllTokens(res) {
             
             if (tokenData) {
               // Store individual token
-              await kv.set(`token:${tx.hash}`, JSON.stringify(tokenData));
+              await kv.set(`token:${tx.hash}`, tokenData);
               
               // Update all tokens list
               const allTokens = await kv.get('all_tokens') || [];
@@ -230,7 +230,7 @@ async function incrementalUpdate(res, sinceTimestamp) {
           
           if (tokenData) {
             // Store individual token
-            await kv.set(`token:${tx.hash}`, JSON.stringify(tokenData));
+            await kv.set(`token:${tx.hash}`, tokenData);
             
             // Update all tokens list
             const allTokens = await kv.get('all_tokens') || [];
