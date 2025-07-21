@@ -4,7 +4,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST' && !req.headers['x-vercel-cron']) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-
+ 
   try {
     console.log('Starting scheduled token update...');
 
