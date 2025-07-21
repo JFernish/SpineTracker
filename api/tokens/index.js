@@ -21,53 +21,53 @@ export default async function handler(req, res) {
       
       // Use efficient indexed queries when possible
       if (factory) {
-        // Query by factory index
+        // Query by factory index - use array instead of Redis sets
         const factoryKey = `factory:${factory.toLowerCase()}`;
-        const tokenHashes = await kv.smembers(factoryKey);
+        const tokenHashes = await kv.get(factoryKey) || [];
         
         if (tokenHashes.length > 0) {
-          const keys = tokenHashes.map(hash => `token:${hash}`);
-          const tokenData = await kv.mget(...keys);
-          
-          for (let i = 0; i < tokenHashes.length; i++) {
-            if (tokenData[i]) {
+          // Get token data for each hash
+          for (const hash of tokenHashes) {
+            const tokenData = await kv.get(`token:${hash}`);
+            if (tokenData) {
+              const parsedToken = typeof tokenData === 'string' ? JSON.parse(tokenData) : tokenData;
               tokens.push({
-                ...tokenData[i],
-                id: tokenHashes[i]
+                ...parsedToken,
+                id: hash
               });
             }
           }
         }
       } else if (creator) {
-        // Query by creator index
+        // Query by creator index - use array instead of Redis sets
         const creatorKey = `creator:${creator.toLowerCase()}`;
-        const tokenHashes = await kv.smembers(creatorKey);
+        const tokenHashes = await kv.get(creatorKey) || [];
         
         if (tokenHashes.length > 0) {
-          const keys = tokenHashes.map(hash => `token:${hash}`);
-          const tokenData = await kv.mget(...keys);
-          
-          for (let i = 0; i < tokenHashes.length; i++) {
-            if (tokenData[i]) {
+          // Get token data for each hash
+          for (const hash of tokenHashes) {
+            const tokenData = await kv.get(`token:${hash}`);
+            if (tokenData) {
+              const parsedToken = typeof tokenData === 'string' ? JSON.parse(tokenData) : tokenData;
               tokens.push({
-                ...tokenData[i],
-                id: tokenHashes[i]
+                ...parsedToken,
+                id: hash
               });
             }
           }
         }
       } else {
-        // Get all tokens
-        const allKeys = await kv.keys('token:*');
+        // Get all tokens - KV doesn't have keys() so we'll track all token hashes
+        const allTokenHashes = await kv.get('all_tokens') || [];
         
-        if (allKeys.length > 0) {
-          const tokenData = await kv.mget(...allKeys);
-          
-          for (let i = 0; i < allKeys.length; i++) {
-            if (tokenData[i]) {
+        if (allTokenHashes.length > 0) {
+          for (const hash of allTokenHashes) {
+            const tokenData = await kv.get(`token:${hash}`);
+            if (tokenData) {
+              const parsedToken = typeof tokenData === 'string' ? JSON.parse(tokenData) : tokenData;
               tokens.push({
-                ...tokenData[i],
-                id: allKeys[i].replace('token:', '')
+                ...parsedToken,
+                id: hash
               });
             }
           }
@@ -99,15 +99,32 @@ export default async function handler(req, res) {
         addedAt: new Date().toISOString()
       });
 
-      // Update indexes for efficient querying
+      // Update indexes using arrays instead of Redis sets
       const promises = [];
       
+      // Add to all tokens list
+      const allTokens = await kv.get('all_tokens') || [];
+      if (!allTokens.includes(tokenData.txHash)) {
+        allTokens.push(tokenData.txHash);
+        promises.push(kv.set('all_tokens', allTokens));
+      }
+      
       if (tokenData.creator) {
-        promises.push(kv.sadd(`creator:${tokenData.creator.toLowerCase()}`, tokenData.txHash));
+        const creatorKey = `creator:${tokenData.creator.toLowerCase()}`;
+        const creatorTokens = await kv.get(creatorKey) || [];
+        if (!creatorTokens.includes(tokenData.txHash)) {
+          creatorTokens.push(tokenData.txHash);
+          promises.push(kv.set(creatorKey, creatorTokens));
+        }
       }
 
       if (tokenData.factoryVersion) {
-        promises.push(kv.sadd(`factory:${tokenData.factoryVersion.toLowerCase()}`, tokenData.txHash));
+        const factoryKey = `factory:${tokenData.factoryVersion.toLowerCase()}`;
+        const factoryTokens = await kv.get(factoryKey) || [];
+        if (!factoryTokens.includes(tokenData.txHash)) {
+          factoryTokens.push(tokenData.txHash);
+          promises.push(kv.set(factoryKey, factoryTokens));
+        }
       }
 
       await Promise.all(promises);
