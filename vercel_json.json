@@ -3,7 +3,8 @@
   "name": "dynamic-spine-token-tracker",
   "functions": {
     "api/**/*.js": {
-      "runtime": "nodejs18.x"
+      "runtime": "nodejs18.x",
+      "maxDuration": 300
     }
   },
   "crons": [
