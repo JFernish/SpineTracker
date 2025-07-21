@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-
+ 
   const isVercelCron = req.headers['x-vercel-cron'];
   const authHeader = req.headers['authorization'];
   const validAuth = authHeader === `Bearer ${process.env.CRON_SECRET || 'default-secret'}`;
