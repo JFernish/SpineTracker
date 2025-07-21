@@ -1,5 +1,4 @@
 import { kv } from '../../lib/redis.js';
-import { ethers } from 'ethers';
 
 const FACTORY_ADDRESSES = {
   factory1: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7',
@@ -357,7 +356,7 @@ async function extractCompleteTokenData(tx, factoryVersion) {
     }
 
     // Extract token contract address from Transfer events
-    const tokenContractAddress = findTokenContractFromLogs(receipt.logs);
+    const tokenContractAddress = findTokenContractFromLogs(receipt.logs, tx.from);
     
     // Extract initial supply from MV token transfers
     const initialSupply = extractInitialSupply(receipt);
@@ -406,18 +405,32 @@ async function extractCompleteTokenData(tx, factoryVersion) {
   }
 }
 
-function findTokenContractFromLogs(logs) {
+function findTokenContractFromLogs(logs, creatorAddress) {
   const transferTopic = ethers.id("Transfer(address,address,uint256)");
   
+  // Find Transfer event where tokens go to the creator (minting to creator)
   for (const log of logs) {
     if (log.topics && log.topics[0] === transferTopic) {
-      // Look for mint event (from zero address)
-      if (log.topics[1] === ethers.ZeroHash && log.topics[2] !== ethers.ZeroHash) {
-        return log.address;
+      // Look for mint event from zero address TO the creator
+      if (log.topics[1] === ethers.ZeroHash && 
+          log.topics[2] && 
+          log.topics[2].toLowerCase() === ethers.zeroPadValue(creatorAddress.toLowerCase(), 32).toLowerCase()) {
+        return log.address; // This is the token that went to the creator
       }
     }
   }
-  return null;
+  
+  // Fallback: if no direct transfer to creator, get the last Transfer event
+  let tokenAddress = null;
+  for (const log of logs) {
+    if (log.topics && log.topics[0] === transferTopic) {
+      if (log.topics[1] === ethers.ZeroHash && log.topics[2] !== ethers.ZeroHash) {
+        tokenAddress = log.address;
+      }
+    }
+  }
+  
+  return tokenAddress;
 }
 
 function extractInitialSupply(receipt) {
