@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Database</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            max-width: 600px;
+            background: rgba(20, 20, 40, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            border: 1px solid rgba(157, 78, 221, 0.1);
+        }
+        
+        h1 {
+            color: #ff6b6b;
+            margin-bottom: 20px;
+        }
+        
+        .warning {
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #ff6b6b;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-safe {
+            background: linear-gradient(45deg, #6a4c93, #9d4edd);
+        }
+        
+        .btn-safe:hover {
+            box-shadow: 0 6px 20px rgba(157, 78, 221, 0.4);
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        
+        .result.success {
+            background: rgba(6, 255, 165, 0.1);
+            border: 1px solid rgba(6, 255, 165, 0.3);
+            color: #06ffa5;
+        }
+        
+        .result.error {
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            color: #ff6b6b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚠️ Clear Token Database</h1>
+        
+        <div class="warning">
+            <strong>WARNING:</strong> This will permanently delete all token data from your database!
+            <br><br>
+            This is necessary to switch from basic data to complete token data.
+            <br><br>
+            After clearing, you'll need to run the update to repopulate with enhanced data.
+        </div>
+        
+        <button class="btn" onclick="clearDatabase()">🗑️ Clear All Token Data</button>
+        <br>
+        <button class="btn btn-safe" onclick="goBack()">← Cancel - Go Back</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function clearDatabase() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="result">Clearing database...</div>';
+            
+            try {
+                const response = await fetch('/api/clear-database', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        confirm: 'YES_DELETE_ALL_DATA'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            ✅ Database cleared successfully!
+                            <br><br>
+                            Deleted ${data.deletedTokens} tokens
+                            <br><br>
+                            <strong>Next step:</strong> 
+                            <a href="/api/update" style="color: #06ffa5;">Click here to repopulate with complete data</a>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ Error: ${data.error}
+                            <br><br>
+                            ${data.details || ''}
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        ❌ Failed to clear database: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function goBack() {
+            window.location.href = '/token-library.html';
+        }
+    </script>
+</body>
+</html>
