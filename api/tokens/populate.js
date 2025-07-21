@@ -1,15 +1,33 @@
 import { kv } from '../../lib/redis.js';
+import { ethers } from 'ethers';
 
 const FACTORY_ADDRESSES = {
   factory1: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7',
   factory2: '0x0c4F73328dFCECfbecf235C9F78A4494a7EC5ddC'
 };
- 
+
+// Token ABI for contract calls
+const TOKEN_ABI = [
+  {"type":"function","name":"name","inputs":[],"outputs":[{"name":"","type":"string","internalType":"string"}],"stateMutability":"view"},
+  {"type":"function","name":"symbol","inputs":[],"outputs":[{"name":"","type":"string","internalType":"string"}],"stateMutability":"view"},
+  {"type":"function","name":"Parent","inputs":[],"outputs":[{"name":"","type":"address","internalType":"address"}],"stateMutability":"view"},
+  {"type":"function","name":"parent","inputs":[],"outputs":[{"name":"","type":"address","internalType":"address"}],"stateMutability":"view"}
+];
+
+let provider = null;
+
+async function getProvider() {
+  if (!provider) {
+    provider = new ethers.JsonRpcProvider('https://rpc-pulsechain.g4mm4.io');
+  }
+  return provider;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
- 
+
   const isVercelCron = req.headers['x-vercel-cron'];
   const authHeader = req.headers['authorization'];
   const validAuth = authHeader === `Bearer ${process.env.CRON_SECRET || 'default-secret'}`;
@@ -97,10 +115,11 @@ async function bootstrapAllTokens(res) {
               continue;
             }
 
-            const tokenData = await extractTokenDataFromTx(tx, factory.name);
+            // Extract COMPLETE token data
+            const tokenData = await extractCompleteTokenData(tx, factory.name);
             
             if (tokenData) {
-              // Store individual token
+              // Store complete token data
               await kv.set(`token:${tx.hash}`, tokenData);
               
               // Update all tokens list
@@ -131,7 +150,7 @@ async function bootstrapAllTokens(res) {
 
               results.added++;
               
-              if (results.added % 50 === 0) {
+              if (results.added % 25 === 0) {
                 console.log(`Processed ${results.added} tokens so far...`);
               }
 
@@ -143,6 +162,9 @@ async function bootstrapAllTokens(res) {
             console.error(`Error processing transaction ${tx.hash}:`, error);
             results.errors++;
           }
+
+          // Small delay to avoid overwhelming RPC
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
 
         if (data.result.length < pageSize) {
@@ -168,7 +190,7 @@ async function bootstrapAllTokens(res) {
     success: true,
     bootstrap: true,
     results,
-    message: `Bootstrap complete! Found ${results.added} historical tokens. Future scans will be incremental.`
+    message: `Bootstrap complete! Found ${results.added} historical tokens with complete data. Future scans will be incremental.`
   });
 }
 
@@ -226,10 +248,11 @@ async function incrementalUpdate(res, sinceTimestamp) {
             continue;
           }
 
-          const tokenData = await extractTokenDataFromTx(tx, factory.name);
+          // Extract COMPLETE token data for new tokens too
+          const tokenData = await extractCompleteTokenData(tx, factory.name);
           
           if (tokenData) {
-            // Store individual token
+            // Store complete token data
             await kv.set(`token:${tx.hash}`, tokenData);
             
             // Update all tokens list
@@ -259,7 +282,7 @@ async function incrementalUpdate(res, sinceTimestamp) {
             }
 
             results.added++;
-            console.log(`Added new token: ${tx.hash.slice(0, 10)}...`);
+            console.log(`Added new token: ${tokenData.tokenName} (${tx.hash.slice(0, 10)}...)`);
 
             const txTimestamp = parseInt(tx.timeStamp);
             if (txTimestamp > latestTimestamp) {
@@ -275,7 +298,7 @@ async function incrementalUpdate(res, sinceTimestamp) {
           results.errors++;
         }
 
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
 
     } catch (error) {
@@ -290,7 +313,7 @@ async function incrementalUpdate(res, sinceTimestamp) {
   console.log('Incremental scan complete:', results);
 
   const message = results.added > 0 
-    ? `Found ${results.added} new tokens` 
+    ? `Found ${results.added} new tokens with complete data` 
     : 'No new tokens found';
 
   return res.status(200).json({
@@ -302,10 +325,60 @@ async function incrementalUpdate(res, sinceTimestamp) {
   });
 }
 
-async function extractTokenDataFromTx(tx, factoryVersion) {
+async function extractCompleteTokenData(tx, factoryVersion) {
   try {
+    const rpcProvider = await getProvider();
     const timestamp = new Date(parseInt(tx.timeStamp) * 1000).toISOString();
     
+    // Get transaction receipt to extract token data
+    const receipt = await rpcProvider.getTransactionReceipt(tx.hash);
+    if (!receipt) {
+      console.log(`No receipt found for ${tx.hash}`);
+      return null;
+    }
+
+    const transaction = await rpcProvider.getTransaction(tx.hash);
+    
+    // Extract token creation parameters from transaction input
+    let tokenName = 'Unknown';
+    let tokenSymbol = 'Unknown';
+    let parentAddress = ethers.ZeroAddress;
+    
+    try {
+      const inputData = transaction.data.slice(10); // Remove function selector
+      const abiCoder = new ethers.AbiCoder();
+      const decoded = abiCoder.decode(['string', 'string', 'uint256', 'address'], '0x' + inputData);
+      
+      tokenName = decoded[0] || 'Unknown';
+      tokenSymbol = decoded[1] || 'Unknown';
+      parentAddress = decoded[3] || ethers.ZeroAddress;
+    } catch (error) {
+      console.log(`Error decoding transaction data for ${tx.hash}:`, error.message);
+    }
+
+    // Extract token contract address from Transfer events
+    const tokenContractAddress = findTokenContractFromLogs(receipt.logs);
+    
+    // Extract initial supply from MV token transfers
+    const initialSupply = extractInitialSupply(receipt);
+    const initialSupplyFormatted = formatSupply(initialSupply);
+    
+    // Get parent token info if it exists
+    let parentName = 'None';
+    let parentDisplayName = 'None';
+    
+    if (parentAddress !== ethers.ZeroAddress) {
+      try {
+        const parentContract = new ethers.Contract(parentAddress, TOKEN_ABI, rpcProvider);
+        parentName = await parentContract.name().catch(() => 'Unknown Parent');
+        parentDisplayName = parentName;
+      } catch (error) {
+        console.log(`Error getting parent name for ${parentAddress}:`, error.message);
+        parentName = 'Unknown Parent';
+        parentDisplayName = 'Unknown Parent';
+      }
+    }
+
     return {
       txHash: tx.hash,
       creator: tx.from,
@@ -314,12 +387,76 @@ async function extractTokenDataFromTx(tx, factoryVersion) {
       timestamp: timestamp,
       blockNumber: tx.blockNumber,
       gasUsed: tx.gasUsed,
-      status: 'basic',
+      // Complete token data stored in database
+      tokenContractAddress,
+      tokenName,
+      tokenSymbol,
+      initialSupply,
+      initialSupplyFormatted,
+      parent: parentAddress,
+      parentName,
+      parentDisplayName,
+      status: 'complete',
       addedAt: new Date().toISOString()
     };
 
   } catch (error) {
-    console.error('Error extracting basic token data:', error);
+    console.error('Error extracting complete token data:', error);
     return null;
+  }
+}
+
+function findTokenContractFromLogs(logs) {
+  const transferTopic = ethers.id("Transfer(address,address,uint256)");
+  
+  for (const log of logs) {
+    if (log.topics && log.topics[0] === transferTopic) {
+      // Look for mint event (from zero address)
+      if (log.topics[1] === ethers.ZeroHash && log.topics[2] !== ethers.ZeroHash) {
+        return log.address;
+      }
+    }
+  }
+  return null;
+}
+
+function extractInitialSupply(receipt) {
+  try {
+    const transferTopic = ethers.id("Transfer(address,address,uint256)");
+    const MV_TOKEN_ADDRESS = "0xA1BEe1daE9Af77dAC73aA0459eD63b4D93fC6d29";
+    
+    // Find MV token transfers (these represent the initial supply cost)
+    const mvTransfers = receipt.logs.filter(log => 
+      log.topics && 
+      log.topics[0] === transferTopic && 
+      log.address.toLowerCase() === MV_TOKEN_ADDRESS.toLowerCase()
+    );
+
+    let mvAmount = 0n;
+    for (const event of mvTransfers) {
+      try {
+        const value = ethers.getBigInt(event.data);
+        if (value > mvAmount) {
+          mvAmount = value;
+        }
+      } catch (error) {
+        console.error('Error parsing MV transfer event:', error);
+      }
+    }
+    return mvAmount.toString();
+  } catch (error) {
+    console.error('Error extracting initial supply:', error);
+    return '0';
+  }
+}
+
+function formatSupply(supplyWei) {
+  try {
+    const supply = parseFloat(ethers.formatEther(supplyWei));
+    if (supply === 0) return '0';
+    const result = supply.toPrecision(3);
+    return parseFloat(result).toString();
+  } catch (error) {
+    return '0';
   }
 }
