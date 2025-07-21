@@ -4,7 +4,7 @@ const FACTORY_ADDRESSES = {
   factory1: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7',
   factory2: '0x0c4F73328dFCECfbecf235C9F78A4494a7EC5ddC'
 };
-
+ 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
