@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('🔧 Manual update initiated...');
+    console.log('Manual update initiated...');
 
     // Call the populate endpoint to trigger bootstrap or incremental update
     const populateUrl = `${req.headers.host?.includes('localhost') ? 'http' : 'https'}://${req.headers.host}/api/tokens/populate`;
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
 
     const result = await populateResponse.json();
 
-    console.log('✅ Manual update complete:', result);
+    console.log('Manual update complete:', result);
 
     // Return HTML response for browser access
     if (req.method === 'GET') {
@@ -79,31 +79,31 @@ export default async function handler(req, res) {
           </style>
         </head>
         <body>
-          <h1>🚀 SpineTracker Token Library Update</h1>
+          <h1>SpineTracker Token Library Update</h1>
           ${result.success ? 
             `<div class="success">
-              <h3>✅ Update Successful!</h3>
+              <h3>Update Successful!</h3>
               <p><strong>${result.message}</strong></p>
-              ${result.bootstrap ? '<p>🎉 <strong>Bootstrap completed!</strong> All historical tokens have been loaded into the database.</p>' : ''}
+              ${result.bootstrap ? '<p>Bootstrap completed! All historical tokens have been loaded into the database.</p>' : ''}
               ${result.results ? `
                 <ul>
-                  <li>📊 Processed: ${result.results.processed} transactions</li>
-                  <li>➕ Added: ${result.results.added} new tokens</li>
-                  <li>⏭️ Skipped: ${result.results.skipped} existing tokens</li>
+                  <li>Processed: ${result.results.processed} transactions</li>
+                  <li>Added: ${result.results.added} new tokens</li>
+                  <li>Skipped: ${result.results.skipped} existing tokens</li>
                 </ul>
               ` : ''}
-              <p><strong><a href="/token-library.html">→ View Token Library Database</a></strong></p>
+              <p><strong><a href="/token-library.html">View Token Library Database</a></strong></p>
             </div>` :
             `<div class="error">
-              <h3>❌ Update Failed</h3>
+              <h3>Update Failed</h3>
               <p>${result.error || 'Unknown error'}</p>
             </div>`
           }
           <details>
-            <summary>📋 Technical Details</summary>
+            <summary>Technical Details</summary>
             <pre>${JSON.stringify(result, null, 2)}</pre>
           </details>
-          <p><a href="https://spinetracker.vercel.app/">← Back to SpineTracker</a></p>
+          <p><a href="https://spinetracker.vercel.app/">Back to SpineTracker</a></p>
         </body>
         </html>
       `);
@@ -118,7 +118,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('❌ Manual update failed:', error);
+    console.error('Manual update failed:', error);
     
     const errorResponse = { 
       success: false,
@@ -133,9 +133,9 @@ export default async function handler(req, res) {
         <html>
         <head><title>Update Failed</title></head>
         <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px;">
-          <h1>❌ Update Failed</h1>
+          <h1>Update Failed</h1>
           <p>${error.message}</p>
-          <p><a href="https://spinetracker.vercel.app/">← Back to SpineTracker</a></p>
+          <p><a href="https://spinetracker.vercel.app/">Back to SpineTracker</a></p>
         </body>
         </html>
       `);
