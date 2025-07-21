@@ -874,6 +874,8 @@
                 
                 const resultDiv = document.createElement('div');
                 resultDiv.className = `result-item-compact ${token.status === 'basic' ? 'loading' : ''}`;
+                resultDiv.style.display = 'block'; // Force display
+                resultDiv.style.marginBottom = '5px'; // Force spacing
 
                 resultDiv.innerHTML = `
                     <div class="results-grid">
@@ -894,7 +896,11 @@
             });
 
             console.log('Finished displaying, DOM children:', resultsDiv.children.length); // Debug log
-            document.getElementById('resultsSection').style.display = 'block';
+            
+            // Force the results section to be visible
+            const resultsSection = document.getElementById('resultsSection');
+            resultsSection.style.display = 'block';
+            resultsSection.style.visibility = 'visible';
         }
 
         function updateStats() {
