@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Token Library Database</title>
+    <title>Token Library</title>
     <style>
         * {
             margin: 0;
@@ -183,6 +183,8 @@
             padding: 25px;
             margin-bottom: 25px;
             border: 2px solid rgba(157, 78, 221, 0.2);
+            max-height: 80vh;
+            overflow-y: auto;
         }
         
         .results-header {
@@ -193,11 +195,14 @@
             font-weight: 600;
             color: #ffffff;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
         
         .results-grid-header {
             display: grid;
-            grid-template-columns: 140px 120px 80px 120px 180px 100px 100px 140px 120px 60px;
+            grid-template-columns: 140px 120px 80px 120px 60px 180px 100px 100px 140px 120px;
             gap: 12px;
             align-items: center;
         }
@@ -244,7 +249,7 @@
         
         .results-grid {
             display: grid;
-            grid-template-columns: 140px 120px 80px 120px 180px 100px 100px 140px 120px 60px;
+            grid-template-columns: 140px 120px 80px 120px 60px 180px 100px 100px 140px 120px;
             gap: 12px;
             align-items: center;
         }
@@ -313,6 +318,7 @@
             padding: 4px;
             border-radius: 4px;
             text-align: center;
+            color: #06ffa5;
         }
         
         .leaf-indicator:hover {
@@ -356,37 +362,9 @@
             100% { transform: rotate(360deg); }
         }
         
-        .pagination {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            margin: 20px 0;
-            flex-wrap: wrap;
-        }
-        
-        .page-btn {
-            padding: 8px 12px;
-            background: rgba(157, 78, 221, 0.2);
-            border: 1px solid rgba(157, 78, 221, 0.3);
-            border-radius: 8px;
-            color: #9d4edd;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .page-btn:hover {
-            background: rgba(157, 78, 221, 0.3);
-        }
-        
-        .page-btn.active {
-            background: #9d4edd;
-            color: white;
-        }
-        
         @media (max-width: 1200px) {
             .results-grid-header, .results-grid {
-                grid-template-columns: 120px 100px 60px 100px 130px 70px 80px 110px 90px 50px;
+                grid-template-columns: 120px 100px 60px 100px 50px 130px 70px 80px 110px 90px;
                 gap: 8px;
             }
         }
@@ -420,8 +398,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Token Library Database</h1>
-            <p>Persistent token data from PulseChain V3/V4 factories with real-time updates</p>
+            <h1>🌿 Token Library 🌿</h1>
+            <p>Persistent token data from PulseChain V3/V4 factories with automatic updates</p>
             <p style="margin-top: 10px;">
                 <a href="https://spinetracker.vercel.app/" style="color: #06ffa5; text-decoration: none; font-weight: 500; border: 1px solid rgba(6, 255, 165, 0.3); padding: 8px 16px; border-radius: 20px; transition: all 0.3s ease;" 
                    onmouseover="this.style.background='rgba(6, 255, 165, 0.1)'" 
@@ -433,10 +411,9 @@
 
         <div class="controls">
             <div class="filter-group">
-                <button class="btn filter-btn" id="allBtn" onclick="setFilter('all')">🔍 All Tokens</button>
-                <button class="btn filter-btn" id="v3Btn" onclick="setFilter('v3')">V3 Factory</button>
-                <button class="btn filter-btn" id="v4Btn" onclick="setFilter('v4')">V4 Factory</button>
-                <button class="btn filter-btn" id="mariaBtn" onclick="setFilter('maria')">👑 Maria Addresses</button>
+                <button class="btn filter-btn" id="v3Btn" onclick="toggleFactory('v3')">V3 Factory</button>
+                <button class="btn filter-btn" id="v4Btn" onclick="toggleFactory('v4')">V4 Factory</button>
+                <button class="btn filter-btn" id="nonMariaBtn" onclick="toggleNonMaria()">Show Non-Maria Tokens</button>
             </div>
             
             <div class="filter-group">
@@ -463,7 +440,7 @@
             </div>
             <div class="stat-item">
                 <div class="stat-number" id="mariaCount">-</div>
-                <div class="stat-label">Maria Addresses</div>
+                <div class="stat-label">Maria Tokens</div>
             </div>
         </div>
 
@@ -479,20 +456,35 @@
                     <div class="sortable-header" onclick="sortData('creator')">Creator</div>
                     <div class="sortable-header" onclick="sortData('factory')">Factory</div>
                     <div>Child Address</div>
+                    <div class="sortable-header" onclick="sortData('isLeaf')">Leaf</div>
                     <div class="sortable-header" onclick="sortData('tokenName')">Token Name</div>
                     <div class="sortable-header" onclick="sortData('tokenSymbol')">Symbol</div>
                     <div class="sortable-header" onclick="sortData('initialSupply')">Initial Supply</div>
                     <div class="sortable-header" onclick="sortData('parentName')">Parent Name</div>
                     <div>Parent Address</div>
-                    <div class="sortable-header" onclick="sortData('isLeaf')">Leaf</div>
                 </div>
             </div>
             <div id="results"></div>
+        </div>
+        
+        <div style="margin-top: 30px; padding: 25px; background: rgba(20, 20, 40, 0.6); border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.1); text-align: center;">
+            <p style="color: #06ffa5; font-weight: 600; margin-bottom: 10px;">Your support is greatly appreciated and helps me continue improving the website.</p>
+            <p style="color: #3a86ff; font-family: 'Courier New', monospace; font-size: 0.9rem; margin-bottom: 20px; cursor: pointer;" onclick="copyToClipboard('0x809b15CCdC92882035C274738318296525b98aD8')" title="Click to copy address">0x809b15CCdC92882035C274738318296525b98aD8</p>
             
-            <div class="pagination" id="pagination" style="display: none;">
-                <button class="page-btn" onclick="previousPage()">« Previous</button>
-                <span id="pageInfo">Page 1 of 1</span>
-                <button class="page-btn" onclick="nextPage()">Next »</button>
+            <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 20px;">
+                <p style="color: #9d4edd; font-weight: 600; margin-bottom: 15px;">Disclaimer:</p>
+                <p style="color: #c0c0c0; font-size: 0.85rem; line-height: 1.5; text-align: left; max-width: 800px; margin: 0 auto 15px;">
+                    V3/V4 tokens may be created by anyone. This website provides a comprehensive listing that is not curated and is not an endorsement of any listed tokens. A V3/V4 token is only as good as the community that supports it and the liquidity that is provided. Always DYOR.
+                </p>
+                <p style="color: #c0c0c0; font-size: 0.85rem; line-height: 1.5; text-align: left; max-width: 800px; margin: 0 auto 15px;">
+                    All content provided on this site is for informational purposes only and does not constitute financial advice. None of the information presented here should be considered as investment advice or a recommendation to buy, sell, or hold any financial product or instrument.
+                </p>
+                <p style="color: #c0c0c0; font-size: 0.85rem; line-height: 1.5; text-align: left; max-width: 800px; margin: 0 auto 15px;">
+                    Please perform your own research and consult with a qualified financial advisor before making any investment decisions. We do not take responsibility for any financial losses you may incur as a result of using the information provided on this site.
+                </p>
+                <p style="color: #c0c0c0; font-size: 0.85rem; line-height: 1.5; text-align: left; max-width: 800px; margin: 0 auto;">
+                    Remember, all investments carry risk, and past performance is not indicative of future results.
+                </p>
             </div>
         </div>
     </div>
@@ -500,7 +492,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.1/ethers.umd.min.js"></script>
     <script>
         // Configuration
-        const ITEMS_PER_PAGE = 50;
         const MARIA_ADDRESSES = [
             '0xBF182955401aF3f2f7e244cb31184E93E74a2501'.toLowerCase(),
             '0x7a20189b297343cf26d8548764b04891f37f3414'.toLowerCase()
@@ -509,8 +500,8 @@
         // State
         let allTokens = [];
         let filteredTokens = [];
-        let currentFilter = 'all';
-        let currentPage = 1;
+        let activeFactories = ['v3', 'v4']; // Both factories active by default
+        let showNonMaria = false; // Default to showing only Maria tokens
         let sortColumn = 'timestamp';
         let sortDirection = 'desc';
         let provider;
@@ -519,7 +510,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             initProvider();
             loadTokenData();
-            setFilter('all');
+            updateButtonStates();
         });
 
         async function initProvider() {
@@ -545,7 +536,6 @@
             setStatus('Loading tokens from database...', 'loading');
 
             try {
-                // Simple load - get all tokens since we're only dealing with incremental additions
                 const response = await fetch('/api/tokens');
                 
                 if (!response.ok) {
@@ -746,43 +736,47 @@
             }
         }
 
-        function setFilter(filterType) {
-            currentFilter = filterType;
-            currentPage = 1;
-
-            // Update button states
-            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(filterType + 'Btn').classList.add('active');
-
+        function toggleFactory(factory) {
+            if (activeFactories.includes(factory)) {
+                activeFactories = activeFactories.filter(f => f !== factory);
+            } else {
+                activeFactories.push(factory);
+            }
+            updateButtonStates();
             applyCurrentFilter();
+        }
+
+        function toggleNonMaria() {
+            showNonMaria = !showNonMaria;
+            updateButtonStates();
+            applyCurrentFilter();
+        }
+
+        function updateButtonStates() {
+            document.getElementById('v3Btn').classList.toggle('active', activeFactories.includes('v3'));
+            document.getElementById('v4Btn').classList.toggle('active', activeFactories.includes('v4'));
+            document.getElementById('nonMariaBtn').classList.toggle('active', showNonMaria);
         }
 
         function applyCurrentFilter() {
             let filtered = [...allTokens];
 
-            switch(currentFilter) {
-                case 'v3':
-                    filtered = filtered.filter(token => 
-                        token.factoryVersion?.toLowerCase() === 'v3'
-                    );
-                    break;
-                case 'v4':
-                    filtered = filtered.filter(token => 
-                        token.factoryVersion?.toLowerCase() === 'v4'
-                    );
-                    break;
-                case 'maria':
-                    filtered = filtered.filter(token => 
-                        token.creator && MARIA_ADDRESSES.includes(token.creator.toLowerCase())
-                    );
-                    break;
-                default: // 'all'
-                    break;
+            // Factory filter
+            if (activeFactories.length > 0 && activeFactories.length < 2) {
+                filtered = filtered.filter(token => 
+                    activeFactories.includes(token.factoryVersion?.toLowerCase())
+                );
             }
+
+            // Maria filter
+            filtered = filtered.filter(token => {
+                const isMaria = token.creator && MARIA_ADDRESSES.includes(token.creator.toLowerCase());
+                return showNonMaria ? !isMaria : isMaria;
+            });
 
             filteredTokens = filtered;
             sortData(sortColumn, false);
-            displayCurrentPage();
+            displayResults();
         }
 
         function sortData(column, toggleDirection = true) {
@@ -840,18 +834,14 @@
                 return 0;
             });
 
-            displayCurrentPage();
+            displayResults();
         }
 
-        function displayCurrentPage() {
-            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-            const endIndex = startIndex + ITEMS_PER_PAGE;
-            const pageTokens = filteredTokens.slice(startIndex, endIndex);
-
+        function displayResults() {
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = '';
 
-            pageTokens.forEach(token => {
+            filteredTokens.forEach(token => {
                 const resultDiv = document.createElement('div');
                 resultDiv.className = `result-item-compact ${token.status === 'basic' ? 'loading' : ''}`;
 
@@ -861,55 +851,19 @@
                         <div class="field-value">${createClickableAddress(token.creator)}</div>
                         <div class="field-value" style="font-weight: 600; color: ${token.factoryVersion === 'V4' ? '#9d4edd' : '#06ffa5'};">${token.factoryVersion || 'Unknown'}</div>
                         <div class="field-value">${createClickableAddress(token.tokenContractAddress)}</div>
+                        <div class="field-value">${createLeafIndicator(token)}</div>
                         <div class="field-value token-name" title="${token.tokenName || 'Loading...'}">${token.tokenName || 'Loading...'}</div>
                         <div class="field-value token-symbol" title="${token.tokenSymbol || '...'}">${token.tokenSymbol || '...'}</div>
                         <div class="field-value supply-value">${token.initialSupplyFormatted || '...'}</div>
                         <div class="field-value parent-name" title="${token.parentName || 'Loading...'}">${token.parentDisplayName || token.parentName || 'Loading...'}</div>
                         <div class="field-value">${createClickableAddress(token.parent)}</div>
-                        <div class="field-value">${createLeafIndicator(token)}</div>
                     </div>
                 `;
 
                 resultsDiv.appendChild(resultDiv);
             });
 
-            updatePagination();
             document.getElementById('resultsSection').style.display = 'block';
-        }
-
-        function updatePagination() {
-            const totalPages = Math.ceil(filteredTokens.length / ITEMS_PER_PAGE);
-            const paginationDiv = document.getElementById('pagination');
-            const pageInfo = document.getElementById('pageInfo');
-
-            if (totalPages <= 1) {
-                paginationDiv.style.display = 'none';
-            } else {
-                paginationDiv.style.display = 'flex';
-                pageInfo.textContent = `Page ${currentPage} of ${totalPages} (${filteredTokens.length} tokens)`;
-                
-                // Update button states
-                const prevBtn = paginationDiv.querySelector('button:first-child');
-                const nextBtn = paginationDiv.querySelector('button:last-child');
-                
-                prevBtn.disabled = currentPage === 1;
-                nextBtn.disabled = currentPage === totalPages;
-            }
-        }
-
-        function previousPage() {
-            if (currentPage > 1) {
-                currentPage--;
-                displayCurrentPage();
-            }
-        }
-
-        function nextPage() {
-            const totalPages = Math.ceil(filteredTokens.length / ITEMS_PER_PAGE);
-            if (currentPage < totalPages) {
-                currentPage++;
-                displayCurrentPage();
-            }
         }
 
         function updateStats() {
@@ -919,7 +873,7 @@
                 token.creator && MARIA_ADDRESSES.includes(token.creator.toLowerCase())
             ).length;
 
-            document.getElementById('totalTokens').textContent = allTokens.length;
+            document.getElementById('totalTokens').textContent = filteredTokens.length;
             document.getElementById('v3Count').textContent = v3Count;
             document.getElementById('v4Count').textContent = v4Count;
             document.getElementById('mariaCount').textContent = mariaCount;
@@ -936,7 +890,7 @@
             
             return `<span class="leaf-indicator clickable" 
                            onclick="openMainSiteWithToken('${token.tokenContractAddress}')" 
-                           title="Leaf token - Click to analyze chain on main site">🍃</span>`;
+                           title="Leaf token - Click to analyze chain on main site">🌿</span>`;
         }
 
         function openMainSiteWithToken(contractAddress) {
