@@ -20,10 +20,10 @@
   "license": "MIT",
   "devDependencies": {},
   "dependencies": {
-    "redis": "^4.6.0"
+    "redis": "^4.6.0",
+    "ethers": "^6.7.1"
   },
   "engines": {
     "node": ">=18"
   }
 }
-   
