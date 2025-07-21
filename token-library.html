@@ -201,21 +201,22 @@
         .results-section {
             background: rgba(20, 20, 40, 0.8);
             border-radius: 15px;
-            padding: 25px;
+            padding: 0;
             margin-bottom: 25px;
             border: 2px solid rgba(157, 78, 221, 0.2);
             height: 500px;
-            overflow-y: scroll;
+            overflow: hidden;
+            position: relative;
         }
         
         .results-header {
             background: rgba(40, 40, 80, 0.95);
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 15px;
+            padding: 15px 25px;
+            border-radius: 13px 13px 0 0;
+            margin-bottom: 0;
             font-weight: 600;
             color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
             position: sticky;
             top: 0;
             z-index: 100;
@@ -224,13 +225,19 @@
         
         .results-grid-header {
             display: grid;
-            grid-template-columns: 140px 120px 80px 120px 60px 180px 100px 100px 140px 120px;
+            grid-template-columns: 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 1fr 0.8fr;
             gap: 12px;
             align-items: center;
         }
         
         .results-grid-header > div {
             font-size: 0.85rem;
+        }
+        
+        .results-content {
+            height: calc(500px - 60px);
+            overflow-y: auto;
+            padding: 0 25px 25px 25px;
         }
         
         .sortable-header {
@@ -267,7 +274,7 @@
         
         .results-grid {
             display: grid;
-            grid-template-columns: 140px 120px 80px 120px 60px 180px 100px 100px 140px 120px;
+            grid-template-columns: 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 1fr 0.8fr;
             gap: 12px;
             align-items: center;
         }
@@ -382,7 +389,7 @@
         
         @media (max-width: 1200px) {
             .results-grid-header, .results-grid {
-                grid-template-columns: 120px 100px 60px 100px 50px 130px 70px 80px 110px 90px;
+                grid-template-columns: 1fr 1fr 0.5fr 1fr 0.4fr 1.2fr 0.6fr 0.7fr 1fr 0.7fr;
                 gap: 8px;
             }
         }
@@ -487,7 +494,9 @@
                     <div>Parent Address</div>
                 </div>
             </div>
-            <div id="results"></div>
+            <div class="results-content">
+                <div id="results"></div>
+            </div>
         </div>
         
         <div style="margin-top: 30px; padding: 25px; background: rgba(20, 20, 40, 0.6); border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.1); text-align: center;" id="disclaimers">
