@@ -1,9 +1,21 @@
-import { kv } from '@vercel/kv';
+import { createClient } from 'redis';
 
 const FACTORY_ADDRESSES = {
   factory1: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7',
   factory2: '0x0c4F73328dFCECfbecf235C9F78A4494a7EC5ddC'
 };
+
+let redis = null;
+
+async function getRedisClient() {
+  if (!redis) {
+    redis = createClient({
+      url: process.env.REDIS_URL
+    });
+    await redis.connect();
+  }
+  return redis;
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -19,15 +31,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const lastScanTimestamp = await kv.get('last_scan_timestamp');
+    const client = await getRedisClient();
+    const lastScanTimestamp = await client.get('last_scan_timestamp');
     const isBootstrap = !lastScanTimestamp;
     
     if (isBootstrap) {
       console.log('BOOTSTRAP MODE: Scanning for ALL historical tokens...');
-      return await bootstrapAllTokens(res);
+      return await bootstrapAllTokens(res, client);
     } else {
       console.log('INCREMENTAL MODE: Checking for new tokens...');
-      return await incrementalUpdate(res, lastScanTimestamp);
+      return await incrementalUpdate(res, client, parseInt(lastScanTimestamp));
     }
 
   } catch (error) {
@@ -39,7 +52,7 @@ export default async function handler(req, res) {
   }
 }
 
-async function bootstrapAllTokens(res) {
+async function bootstrapAllTokens(res, client) {
   console.log('Scanning both factories for ALL historical tokens...');
   
   const results = {
@@ -91,7 +104,7 @@ async function bootstrapAllTokens(res) {
           results.processed++;
 
           try {
-            const existingToken = await kv.get(`token:${tx.hash}`);
+            const existingToken = await client.get(`token:${tx.hash}`);
             if (existingToken) {
               results.skipped++;
               continue;
@@ -100,14 +113,14 @@ async function bootstrapAllTokens(res) {
             const tokenData = await extractTokenDataFromTx(tx, factory.name);
             
             if (tokenData) {
-              await kv.set(`token:${tx.hash}`, tokenData);
+              await client.set(`token:${tx.hash}`, JSON.stringify(tokenData));
               
               const indexPromises = [];
               if (tokenData.creator) {
-                indexPromises.push(kv.sadd(`creator:${tokenData.creator.toLowerCase()}`, tx.hash));
+                indexPromises.push(client.sAdd(`creator:${tokenData.creator.toLowerCase()}`, tx.hash));
               }
               if (tokenData.factoryVersion) {
-                indexPromises.push(kv.sadd(`factory:${tokenData.factoryVersion.toLowerCase()}`, tx.hash));
+                indexPromises.push(client.sAdd(`factory:${tokenData.factoryVersion.toLowerCase()}`, tx.hash));
               }
               
               await Promise.all(indexPromises);
@@ -143,7 +156,7 @@ async function bootstrapAllTokens(res) {
     }
   }
 
-  await kv.set('last_scan_timestamp', Math.floor(Date.now() / 1000));
+  await client.set('last_scan_timestamp', Math.floor(Date.now() / 1000).toString());
 
   console.log('BOOTSTRAP COMPLETE:', results);
 
@@ -155,7 +168,7 @@ async function bootstrapAllTokens(res) {
   });
 }
 
-async function incrementalUpdate(res, sinceTimestamp) {
+async function incrementalUpdate(res, client, sinceTimestamp) {
   console.log(`Looking for tokens created since: ${new Date(sinceTimestamp * 1000).toISOString()}`);
 
   const results = {
@@ -203,7 +216,7 @@ async function incrementalUpdate(res, sinceTimestamp) {
         results.processed++;
 
         try {
-          const existingToken = await kv.get(`token:${tx.hash}`);
+          const existingToken = await client.get(`token:${tx.hash}`);
           if (existingToken) {
             results.skipped++;
             continue;
@@ -212,14 +225,14 @@ async function incrementalUpdate(res, sinceTimestamp) {
           const tokenData = await extractTokenDataFromTx(tx, factory.name);
           
           if (tokenData) {
-            await kv.set(`token:${tx.hash}`, tokenData);
+            await client.set(`token:${tx.hash}`, JSON.stringify(tokenData));
             
             const indexPromises = [];
             if (tokenData.creator) {
-              indexPromises.push(kv.sadd(`creator:${tokenData.creator.toLowerCase()}`, tx.hash));
+              indexPromises.push(client.sAdd(`creator:${tokenData.creator.toLowerCase()}`, tx.hash));
             }
             if (tokenData.factoryVersion) {
-              indexPromises.push(kv.sadd(`factory:${tokenData.factoryVersion.toLowerCase()}`, tx.hash));
+              indexPromises.push(client.sAdd(`factory:${tokenData.factoryVersion.toLowerCase()}`, tx.hash));
             }
             
             await Promise.all(indexPromises);
@@ -251,7 +264,7 @@ async function incrementalUpdate(res, sinceTimestamp) {
   }
 
   const newScanTimestamp = latestTimestamp > sinceTimestamp ? latestTimestamp : Math.floor(Date.now() / 1000);
-  await kv.set('last_scan_timestamp', newScanTimestamp);
+  await client.set('last_scan_timestamp', newScanTimestamp.toString());
 
   console.log('Incremental scan complete:', results);
 
