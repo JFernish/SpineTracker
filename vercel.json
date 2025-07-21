@@ -10,7 +10,7 @@
   "crons": [
     {
       "path": "/api/cron/update-tokens",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 6 * * *"
     }
   ],
   "installCommand": "npm install",
