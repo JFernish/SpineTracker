@@ -12,22 +12,8 @@
       "schedule": "*/15 * * * *"
     }
   ],
-  "builds": [
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ],
+  "installCommand": "npm install",
+  "buildCommand": "echo 'API functions ready'",
   "headers": [
     {
       "source": "/(.*)",
