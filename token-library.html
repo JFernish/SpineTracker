@@ -255,17 +255,13 @@
             border-left: 3px solid #6a4c93;
             transition: all 0.2s ease;
             border: 1px solid rgba(255, 255, 255, 0.05);
+            display: block;
         }
         
         .result-item-compact:hover {
             box-shadow: 0 4px 12px rgba(157, 78, 221, 0.2);
             transform: translateY(-1px);
             background: rgba(40, 40, 80, 0.8);
-        }
-        
-        .result-item-compact.loading {
-            border-left-color: #9d4edd;
-            background: rgba(40, 40, 80, 0.6);
         }
         
         .results-grid {
@@ -512,7 +508,6 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.1/ethers.umd.min.js"></script>
     <script>
         // Configuration
         const MARIA_ADDRESSES = [
@@ -527,22 +522,12 @@
         let showNonMaria = false; // Default to showing only Maria tokens
         let sortColumn = 'timestamp';
         let sortDirection = 'desc';
-        let provider;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            initProvider();
             loadTokenData();
             updateButtonStates();
         });
-
-        async function initProvider() {
-            try {
-                provider = new ethers.JsonRpcProvider('https://rpc-pulsechain.g4mm4.io');
-            } catch (error) {
-                console.error('Failed to initialize provider:', error);
-            }
-        }
 
         function setStatus(message, type = 'loading') {
             const status = document.getElementById('status');
@@ -571,9 +556,6 @@
                 // Calculate leaf status for all tokens
                 calculateLeafTokens();
 
-                // Enhance basic tokens that need it (limit to first 20 for performance)
-                await enhanceBasicTokens();
-
                 setStatus(`Loaded ${allTokens.length} tokens`, 'connected');
                 updateStats();
                 applyCurrentFilter();
@@ -593,7 +575,7 @@
             const usedAsParents = new Set();
             
             allTokens.forEach(token => {
-                if (token.parent && token.parent !== ethers.ZeroAddress && token.parent.toLowerCase() !== '0x0000000000000000000000000000000000000000') {
+                if (token.parent && token.parent !== '0x0000000000000000000000000000000000000000' && token.parent.toLowerCase() !== '0x0000000000000000000000000000000000000000') {
                     usedAsParents.add(token.parent.toLowerCase());
                 }
             });
@@ -606,160 +588,6 @@
                     token.isLeaf = false; // Unknown tokens are not considered leaves
                 }
             });
-        }
-
-        async function enhanceBasicTokens() {
-            if (!provider) return;
-
-            const basicTokens = allTokens.filter(token => token.status === 'basic');
-            
-            if (basicTokens.length === 0) return;
-
-            setStatus(`Enhancing ${basicTokens.length} tokens...`, 'loading');
-
-            for (let i = 0; i < Math.min(basicTokens.length, 10); i++) {
-                const token = basicTokens[i];
-                
-                try {
-                    const enhanced = await enhanceTokenData(token);
-                    if (enhanced) {
-                        // Replace the basic token with enhanced data
-                        const index = allTokens.findIndex(t => t.txHash === token.txHash);
-                        if (index !== -1) {
-                            allTokens[index] = enhanced;
-                        }
-                    }
-                } catch (error) {
-                    console.error(`Failed to enhance token ${token.txHash}:`, error);
-                }
-
-                // Small delay
-                await new Promise(resolve => setTimeout(resolve, 200));
-            }
-            
-            // Refresh display after enhancement
-            applyCurrentFilter();
-        }
-
-        async function enhanceTokenData(basicToken) {
-            try {
-                const receipt = await provider.getTransactionReceipt(basicToken.txHash);
-                if (!receipt) return null;
-
-                const tx = await provider.getTransaction(basicToken.txHash);
-                
-                // Extract token data similar to original implementation
-                let tokenName = 'Unknown';
-                let tokenSymbol = 'Unknown';
-                let parentAddress = ethers.ZeroAddress;
-                
-                try {
-                    const inputData = tx.data.slice(10);
-                    const abiCoder = new ethers.AbiCoder();
-                    const decoded = abiCoder.decode(['string', 'string', 'uint256', 'address'], '0x' + inputData);
-                    
-                    tokenName = decoded[0] || 'Unknown';
-                    tokenSymbol = decoded[1] || 'Unknown';
-                    parentAddress = decoded[3] || ethers.ZeroAddress;
-                } catch (error) {
-                    console.error('Error decoding transaction data:', error);
-                }
-
-                const tokenContractAddress = findTokenContractFromLogs(receipt.logs);
-                const initialSupply = extractInitialSupply(receipt);
-                
-                // Get parent info
-                let parentName = 'None';
-                let parentDisplayName = 'None';
-                
-                if (parentAddress !== ethers.ZeroAddress) {
-                    try {
-                        const parentContract = new ethers.Contract(parentAddress, TOKEN_ABI, provider);
-                        parentName = await parentContract.name().catch(() => 'Unknown Parent');
-                        parentDisplayName = parentName;
-                    } catch (error) {
-                        parentName = 'Unknown Parent';
-                        parentDisplayName = 'Unknown Parent';
-                    }
-                }
-
-                return {
-                    ...basicToken,
-                    tokenContractAddress,
-                    tokenName,
-                    tokenSymbol,
-                    initialSupply,
-                    initialSupplyFormatted: formatSupply(initialSupply),
-                    parent: parentAddress,
-                    parentName,
-                    parentDisplayName,
-                    status: 'enhanced'
-                };
-
-            } catch (error) {
-                console.error('Enhancement error:', error);
-                return null;
-            }
-        }
-
-        // Token extraction functions (same as original)
-        const TOKEN_ABI = [
-            {"type":"function","name":"name","inputs":[],"outputs":[{"name":"","type":"string","internalType":"string"}],"stateMutability":"view"},
-            {"type":"function","name":"symbol","inputs":[],"outputs":[{"name":"","type":"string","internalType":"string"}],"stateMutability":"view"},
-            {"type":"function","name":"Parent","inputs":[],"outputs":[{"name":"","type":"address","internalType":"address"}],"stateMutability":"view"},
-            {"type":"function","name":"parent","inputs":[],"outputs":[{"name":"","type":"address","internalType":"address"}],"stateMutability":"view"}
-        ];
-
-        function findTokenContractFromLogs(logs) {
-            const transferTopic = ethers.id("Transfer(address,address,uint256)");
-            
-            for (const log of logs) {
-                if (log.topics && log.topics[0] === transferTopic) {
-                    if (log.topics[1] === ethers.ZeroHash && log.topics[2] !== ethers.ZeroHash) {
-                        return log.address;
-                    }
-                }
-            }
-            return null;
-        }
-
-        function extractInitialSupply(receipt) {
-            try {
-                const transferTopic = ethers.id("Transfer(address,address,uint256)");
-                const MV_TOKEN_ADDRESS = "0xA1BEe1daE9Af77dAC73aA0459eD63b4D93fC6d29";
-                
-                const mvTransfers = receipt.logs.filter(log => 
-                    log.topics && 
-                    log.topics[0] === transferTopic && 
-                    log.address.toLowerCase() === MV_TOKEN_ADDRESS.toLowerCase()
-                );
-
-                let mvAmount = 0n;
-                for (const event of mvTransfers) {
-                    try {
-                        const value = ethers.getBigInt(event.data);
-                        if (value > mvAmount) {
-                            mvAmount = value;
-                        }
-                    } catch (error) {
-                        console.error('Error parsing MV transfer event:', error);
-                    }
-                }
-                return mvAmount.toString();
-            } catch (error) {
-                return '0';
-            }
-        }
-
-        function formatSupply(supplyWei) {
-            try {
-                const supply = parseFloat(ethers.formatEther(supplyWei));
-                if (supply === 0) return '0';
-                const result = supply.toPrecision(3);
-                return parseFloat(result).toString();
-            } catch (error) {
-                return '0';
-            }
         }
 
         function toggleFactory(factory) {
@@ -867,15 +695,9 @@
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = '';
 
-            console.log('Displaying tokens:', filteredTokens.length); // Debug log
-
-            filteredTokens.forEach((token, index) => {
-                console.log('Processing token', index, token.txHash); // Debug log
-                
+            filteredTokens.forEach(token => {
                 const resultDiv = document.createElement('div');
-                resultDiv.className = `result-item-compact ${token.status === 'basic' ? 'loading' : ''}`;
-                resultDiv.style.display = 'block'; // Force display
-                resultDiv.style.marginBottom = '5px'; // Force spacing
+                resultDiv.className = 'result-item-compact';
 
                 resultDiv.innerHTML = `
                     <div class="results-grid">
@@ -884,10 +706,10 @@
                         <div class="field-value" style="font-weight: 600; color: ${token.factoryVersion === 'V4' ? '#9d4edd' : '#06ffa5'};">${token.factoryVersion || 'Unknown'}</div>
                         <div class="field-value">${createClickableAddress(token.tokenContractAddress)}</div>
                         <div class="field-value">${createLeafIndicator(token)}</div>
-                        <div class="field-value token-name" title="${token.tokenName || 'Loading...'}">${token.tokenName || 'Loading...'}</div>
-                        <div class="field-value token-symbol" title="${token.tokenSymbol || '...'}">${token.tokenSymbol || '...'}</div>
-                        <div class="field-value supply-value">${token.initialSupplyFormatted || '...'}</div>
-                        <div class="field-value parent-name" title="${token.parentName || 'Loading...'}">${token.parentDisplayName || token.parentName || 'Loading...'}</div>
+                        <div class="field-value token-name" title="${token.tokenName || 'Unknown'}">${token.tokenName || 'Unknown'}</div>
+                        <div class="field-value token-symbol" title="${token.tokenSymbol || 'Unknown'}">${token.tokenSymbol || 'Unknown'}</div>
+                        <div class="field-value supply-value">${token.initialSupplyFormatted || '0'}</div>
+                        <div class="field-value parent-name" title="${token.parentName || 'None'}">${token.parentDisplayName || token.parentName || 'None'}</div>
                         <div class="field-value">${createClickableAddress(token.parent)}</div>
                     </div>
                 `;
@@ -895,12 +717,7 @@
                 resultsDiv.appendChild(resultDiv);
             });
 
-            console.log('Finished displaying, DOM children:', resultsDiv.children.length); // Debug log
-            
-            // Force the results section to be visible
-            const resultsSection = document.getElementById('resultsSection');
-            resultsSection.style.display = 'block';
-            resultsSection.style.visibility = 'visible';
+            document.getElementById('resultsSection').style.display = 'block';
         }
 
         function updateStats() {
@@ -936,14 +753,14 @@
             window.open(mainSiteUrl, '_blank');
         }
 
-        // Utility functions (same as original)
+        // Utility functions
         function shortenAddress(address) {
-            if (!address || address === ethers.ZeroAddress) return 'None';
+            if (!address || address === '0x0000000000000000000000000000000000000000') return 'None';
             return `${address.slice(0, 6)}...${address.slice(-4)}`;
         }
 
         function createClickableAddress(address, displayText = null) {
-            if (!address || address === ethers.ZeroAddress) return 'None';
+            if (!address || address === '0x0000000000000000000000000000000000000000') return 'None';
             const display = displayText || shortenAddress(address);
             return `<span class="clickable-address" onclick="copyToClipboard('${address}')" title="Click to copy: ${address}">${display}</span>`;
         }
