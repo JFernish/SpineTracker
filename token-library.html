@@ -615,7 +615,7 @@
                 if (token.parent && 
                     token.parent !== '0x0000000000000000000000000000000000000000' && 
                     token.parentName && 
-                    (token.parentName.includes('Pulsex LP') || (token.parentSymbol && token.parentSymbol.includes('PLP')))) {
+                    (token.parentName.includes('PulseX LP') || (token.parentSymbol && token.parentSymbol.includes('PLP')))) {
                     
                     try {
                         const plpDisplayName = await getPLPComponents(token.parent, token.parentName);
