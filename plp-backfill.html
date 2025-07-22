@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLP Components Backfill</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(20, 20, 40, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(157, 78, 221, 0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #ffffff;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #9d4edd, #6a4c93, #3a86ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #6a4c93, #9d4edd);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(157, 78, 221, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(157, 78, 221, 0.4);
+            background: linear-gradient(45deg, #9d4edd, #3a86ff);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn.success {
+            background: linear-gradient(45deg, #06ffa5, #00cc88);
+            box-shadow: 0 4px 15px rgba(6, 255, 165, 0.3);
+        }
+        
+        .btn.danger {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            box-shadow: 0 4px 15px rgba(244, 67, 54, 0.3);
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 500;
+            margin: 20px 0;
+        }
+        
+        .status.connected {
+            background: rgba(6, 255, 165, 0.2);
+            color: #06ffa5;
+            border: 1px solid rgba(6, 255, 165, 0.3);
+        }
+        
+        .status.error {
+            background: rgba(244, 67, 54, 0.2);
+            color: #e57373;
+            border: 1px solid rgba(244, 67, 54, 0.3);
+        }
+        
+        .status.loading {
+            background: rgba(157, 78, 221, 0.2);
+            color: #9d4edd;
+            border: 1px solid rgba(157, 78, 221, 0.3);
+        }
+        
+        .log {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #c0c0c0;
+            white-space: pre-wrap;
+        }
+        
+        .progress {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 25px;
+            height: 30px;
+            margin: 20px 0;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(45deg, #06ffa5, #00cc88);
+            height: 100%;
+            border-radius: 25px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: 600;
+            color: #ffffff;
+            font-size: 0.9rem;
+        }
+        
+        .info-box {
+            background: rgba(58, 134, 255, 0.1);
+            border: 2px solid rgba(58, 134, 255, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #3a86ff;
+        }
+        
+        .warning-box {
+            background: rgba(255, 193, 7, 0.1);
+            border: 2px solid rgba(255, 193, 7, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 PLP Components Backfill</h1>
+            <p>Add PLP component data to existing database records</p>
+        </div>
+        
+        <div class="info-box">
+            <h3>📋 What this does:</h3>
+            <ul style="margin: 10px 0 0 20px; line-height: 1.6;">
+                <li>Scans your database for tokens with PLP parents</li>
+                <li>Gets component info (like "PLS + USDC") for each unique PLP</li>
+                <li>Updates all affected token records with component data</li>
+                <li>Makes your library load much faster (no more RPC calls for PLP data)</li>
+            </ul>
+        </div>
+        
+        <div class="warning-box">
+            <h3>⚠️ Before you start:</h3>
+            <ul style="margin: 10px 0 0 20px; line-height: 1.6;">
+                <li>This will make RPC calls (about 60 calls for 20 PLP addresses)</li>
+                <li>Takes about 1-2 minutes to complete</li>
+                <li>Safe to run - only adds data, doesn't remove anything</li>
+                <li>Can be run multiple times safely</li>
+            </ul>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <button class="btn" onclick="startBackfill()" id="startBtn">
+                🚀 Start PLP Backfill
+            </button>
+            <button class="btn danger" onclick="clearLog()" id="clearBtn">
+                🗑️ Clear Log
+            </button>
+        </div>
+        
+        <div class="status" id="status" style="display: none;">
+            <span>Ready</span>
+        </div>
+        
+        <div class="progress" id="progressContainer" style="display: none;">
+            <div class="progress-bar" id="progressBar"></div>
+            <div class="progress-text" id="progressText">0%</div>
+        </div>
+        
+        <div class="log" id="log" style="display: none;"></div>
+        
+        <div style="margin-top: 30px; padding: 20px; background: rgba(20, 20, 40, 0.6); border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.1); text-align: center;">
+            <p style="color: #06ffa5; font-weight: 600; margin-bottom: 10px;">After successful backfill:</p>
+            <p style="color: #c0c0c0; font-size: 0.9rem; line-height: 1.4;">Your library will load much faster since PLP component data will be served from the database instead of making RPC calls. You can also update your daily update script to include PLP data for future tokens.</p>
+        </div>
+    </div>
+
+    <script>
+        let isRunning = false;
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            logDiv.style.display = 'block';
+        }
+        
+        function setStatus(message, type = 'loading') {
+            const status = document.getElementById('status');
+            status.className = `status ${type}`;
+            status.querySelector('span').textContent = message;
+            status.style.display = 'flex';
+        }
+        
+        function setProgress(percentage, text) {
+            const container = document.getElementById('progressContainer');
+            const bar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            
+            container.style.display = 'block';
+            bar.style.width = percentage + '%';
+            progressText.textContent = text || `${Math.round(percentage)}%`;
+        }
+        
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+            document.getElementById('log').style.display = 'none';
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('progressContainer').style.display = 'none';
+        }
+        
+        async function startBackfill() {
+            if (isRunning) return;
+            
+            isRunning = true;
+            const startBtn = document.getElementById('startBtn');
+            startBtn.disabled = true;
+            startBtn.textContent = '🔄 Running...';
+            
+            try {
+                setStatus('Starting PLP backfill...', 'loading');
+                log('🚀 Starting PLP components backfill...');
+                setProgress(0, 'Initializing...');
+                
+                // Call our backfill API endpoint
+                const response = await fetch('/api/backfill-plp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ start: true })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    setStatus('✅ Backfill completed successfully!', 'connected');
+                    setProgress(100, 'Complete!');
+                    log(`🎉 Backfill complete!`);
+                    log(`📊 Processed ${result.uniquePLPCount || 0} unique PLP addresses`);
+                    log(`📝 Updated ${result.updatedTokens || 0} token records`);
+                    log(`⏱️ Total time: ${result.duration || 'N/A'}`);
+                    
+                    startBtn.textContent = '✅ Completed';
+                    startBtn.className = 'btn success';
+                } else {
+                    throw new Error(result.error || 'Unknown error occurred');
+                }
+                
+            } catch (error) {
+                console.error('Backfill failed:', error);
+                setStatus('❌ Backfill failed', 'error');
+                log(`💥 Backfill failed: ${error.message}`);
+                
+                startBtn.textContent = '❌ Failed';
+                startBtn.className = 'btn danger';
+            }
+            
+            isRunning = false;
+            
+            // Reset button after 5 seconds
+            setTimeout(() => {
+                startBtn.disabled = false;
+                startBtn.textContent = '🚀 Start PLP Backfill';
+                startBtn.className = 'btn';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
