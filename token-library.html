@@ -326,6 +326,7 @@
             font-weight: 600;
             color: #9d4edd;
             font-family: 'Segoe UI', sans-serif;
+            text-align: right;
         }
         
         .parent-name {
@@ -542,6 +543,7 @@
         let sortColumn = 'timestamp';
         let sortDirection = 'desc';
         let provider;
+        let plpCache = new Map(); // Cache for PLP component data
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
@@ -608,29 +610,78 @@
                 return;
             }
 
-            console.log('Processing PLP components...');
-            let plpCount = 0;
+            // Find all unique PLP addresses first
+            const uniquePLPs = new Map();
+            let totalPLPs = 0;
             
-            for (let token of allTokens) {
+            allTokens.forEach(token => {
                 if (token.parent && 
                     token.parent !== '0x0000000000000000000000000000000000000000' && 
                     token.parentName && 
                     (token.parentName.includes('PulseX LP') || (token.parentSymbol && token.parentSymbol.includes('PLP')))) {
                     
-                    try {
-                        const plpDisplayName = await getPLPComponents(token.parent, token.parentName);
-                        token.parentDisplayName = plpDisplayName;
-                        plpCount++;
-                    } catch (error) {
-                        console.error(`Error getting PLP components for ${token.parent}:`, error);
-                        token.parentDisplayName = token.parentName;
+                    if (!uniquePLPs.has(token.parent.toLowerCase())) {
+                        uniquePLPs.set(token.parent.toLowerCase(), {
+                            address: token.parent,
+                            name: token.parentName,
+                            tokens: []
+                        });
                     }
-                } else {
-                    token.parentDisplayName = token.parentName || 'None';
+                    uniquePLPs.get(token.parent.toLowerCase()).tokens.push(token);
+                    totalPLPs++;
+                }
+            });
+
+            if (uniquePLPs.size === 0) {
+                console.log('No PLP tokens found');
+                return;
+            }
+
+            console.log(`Processing ${uniquePLPs.size} unique PLP addresses for ${totalPLPs} total PLP tokens`);
+            
+            let processed = 0;
+            for (let [addressKey, plpData] of uniquePLPs) {
+                processed++;
+                setStatus(`Processing PLP ${processed}/${uniquePLPs.size}: ${plpData.name}...`, 'loading');
+                
+                try {
+                    // Check cache first
+                    let plpDisplayName;
+                    if (plpCache.has(addressKey)) {
+                        plpDisplayName = plpCache.get(addressKey);
+                        console.log(`Using cached data for ${plpData.address}`);
+                    } else {
+                        plpDisplayName = await getPLPComponents(plpData.address, plpData.name);
+                        plpCache.set(addressKey, plpDisplayName);
+                        console.log(`Cached PLP data for ${plpData.address}`);
+                    }
+                    
+                    // Apply to all tokens with this parent
+                    plpData.tokens.forEach(token => {
+                        token.parentDisplayName = plpDisplayName;
+                    });
+                    
+                } catch (error) {
+                    console.error(`Error getting PLP components for ${plpData.address}:`, error);
+                    plpData.tokens.forEach(token => {
+                        token.parentDisplayName = token.parentName;
+                    });
+                }
+                
+                // Small delay between requests
+                if (processed < uniquePLPs.size) {
+                    await new Promise(resolve => setTimeout(resolve, 300));
                 }
             }
             
-            console.log(`Processed ${plpCount} PLP tokens`);
+            // Set display names for non-PLP tokens
+            allTokens.forEach(token => {
+                if (!token.parentDisplayName) {
+                    token.parentDisplayName = token.parentName || 'None';
+                }
+            });
+            
+            console.log(`Completed PLP processing for ${uniquePLPs.size} unique addresses. Cache now contains ${plpCache.size} entries.`);
         }
 
         async function getPLPComponents(parentAddress, parentName) {
