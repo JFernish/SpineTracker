@@ -610,45 +610,74 @@
                 return;
             }
 
-            console.log('Processing PLP components...');
-            let plpProcessed = 0;
+            // First, find all PLP tokens and group by address
+            const plpGroups = new Map();
+            let totalPLPTokens = 0;
             
-            for (let token of allTokens) {
-                // Check name is PLP
+            allTokens.forEach(token => {
                 if (token.parent && 
                     token.parent !== '0x0000000000000000000000000000000000000000' && 
                     token.parentName && 
                     token.parentName.includes('PulseX LP')) {
                     
                     const addressKey = token.parent.toLowerCase();
-                    
-                    // Check if address in cache
-                    if (plpCache.has(addressKey)) {
-                        // If yes, use cache
-                        token.parentDisplayName = plpCache.get(addressKey);
-                        console.log(`✓ Using cached data for ${token.parent}`);
-                    } else {
-                        // If no, make blockchain call and add to cache
-                        console.log(`→ Fetching components for ${token.parent}`);
-                        setStatus(`Processing PLP ${++plpProcessed}...`, 'loading');
-                        
-                        try {
-                            const plpDisplayName = await getPLPComponents(token.parent, token.parentName);
-                            plpCache.set(addressKey, plpDisplayName);
-                            token.parentDisplayName = plpDisplayName;
-                            console.log(`✓ Cached PLP data for ${token.parent}`);
-                        } catch (error) {
-                            console.error(`Error getting PLP components for ${token.parent}:`, error);
-                            token.parentDisplayName = token.parentName;
-                        }
+                    if (!plpGroups.has(addressKey)) {
+                        plpGroups.set(addressKey, {
+                            address: token.parent,
+                            name: token.parentName,
+                            tokens: []
+                        });
                     }
+                    plpGroups.get(addressKey).tokens.push(token);
+                    totalPLPTokens++;
                 } else {
                     // Not a PLP
                     token.parentDisplayName = token.parentName || 'None';
                 }
+            });
+
+            if (plpGroups.size === 0) {
+                console.log('No PLP tokens found');
+                return;
+            }
+
+            console.log(`Found ${totalPLPTokens} PLP tokens across ${plpGroups.size} unique addresses`);
+            
+            let processed = 0;
+            let cacheHits = 0;
+            
+            for (let [addressKey, group] of plpGroups) {
+                processed++;
+                
+                // Check if address in cache
+                let plpDisplayName;
+                if (plpCache.has(addressKey)) {
+                    // If yes, use cache
+                    plpDisplayName = plpCache.get(addressKey);
+                    cacheHits++;
+                    console.log(`✓ Cache hit for ${group.address} (${group.tokens.length} tokens)`);
+                } else {
+                    // If no, make blockchain call and add to cache
+                    console.log(`→ Fetching components for ${group.address} (${group.tokens.length} tokens)`);
+                    setStatus(`Processing PLP ${processed}/${plpGroups.size}...`, 'loading');
+                    
+                    try {
+                        plpDisplayName = await getPLPComponents(group.address, group.name);
+                        plpCache.set(addressKey, plpDisplayName);
+                        console.log(`✓ Cached PLP data for ${group.address}`);
+                    } catch (error) {
+                        console.error(`Error getting PLP components for ${group.address}:`, error);
+                        plpDisplayName = group.name;
+                    }
+                }
+                
+                // Apply to ALL tokens with this parent address
+                group.tokens.forEach(token => {
+                    token.parentDisplayName = plpDisplayName;
+                });
             }
             
-            console.log(`Completed PLP processing. Made ${plpProcessed} blockchain calls. Cache now contains ${plpCache.size} entries.`);
+            console.log(`Completed: ${processed} unique PLPs, ${cacheHits} cache hits, ${processed - cacheHits} blockchain calls`);
         }
 
         async function getPLPComponents(parentAddress, parentName) {
