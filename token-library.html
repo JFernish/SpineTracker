@@ -610,78 +610,45 @@
                 return;
             }
 
-            // Find all unique PLP addresses first
-            const uniquePLPs = new Map();
-            let totalPLPs = 0;
+            console.log('Processing PLP components...');
+            let plpProcessed = 0;
             
-            allTokens.forEach(token => {
+            for (let token of allTokens) {
+                // Check name is PLP
                 if (token.parent && 
                     token.parent !== '0x0000000000000000000000000000000000000000' && 
                     token.parentName && 
-                    (token.parentName.includes('PulseX LP') || (token.parentSymbol && token.parentSymbol.includes('PLP')))) {
+                    token.parentName.includes('PulseX LP')) {
                     
-                    if (!uniquePLPs.has(token.parent.toLowerCase())) {
-                        uniquePLPs.set(token.parent.toLowerCase(), {
-                            address: token.parent,
-                            name: token.parentName,
-                            tokens: []
-                        });
-                    }
-                    uniquePLPs.get(token.parent.toLowerCase()).tokens.push(token);
-                    totalPLPs++;
-                }
-            });
-
-            if (uniquePLPs.size === 0) {
-                console.log('No PLP tokens found');
-                return;
-            }
-
-            console.log(`Processing ${uniquePLPs.size} unique PLP addresses for ${totalPLPs} total PLP tokens`);
-            
-            let processed = 0;
-            for (let [addressKey, plpData] of uniquePLPs) {
-                processed++;
-                setStatus(`Processing PLP ${processed}/${uniquePLPs.size}: ${plpData.name}...`, 'loading');
-                
-                try {
-                    // Check cache first
-                    let plpDisplayName;
+                    const addressKey = token.parent.toLowerCase();
+                    
+                    // Check if address in cache
                     if (plpCache.has(addressKey)) {
-                        plpDisplayName = plpCache.get(addressKey);
-                        console.log(`Using cached data for ${plpData.address}`);
+                        // If yes, use cache
+                        token.parentDisplayName = plpCache.get(addressKey);
+                        console.log(`✓ Using cached data for ${token.parent}`);
                     } else {
-                        plpDisplayName = await getPLPComponents(plpData.address, plpData.name);
-                        plpCache.set(addressKey, plpDisplayName);
-                        console.log(`Cached PLP data for ${plpData.address}`);
+                        // If no, make blockchain call and add to cache
+                        console.log(`→ Fetching components for ${token.parent}`);
+                        setStatus(`Processing PLP ${++plpProcessed}...`, 'loading');
+                        
+                        try {
+                            const plpDisplayName = await getPLPComponents(token.parent, token.parentName);
+                            plpCache.set(addressKey, plpDisplayName);
+                            token.parentDisplayName = plpDisplayName;
+                            console.log(`✓ Cached PLP data for ${token.parent}`);
+                        } catch (error) {
+                            console.error(`Error getting PLP components for ${token.parent}:`, error);
+                            token.parentDisplayName = token.parentName;
+                        }
                     }
-                    
-                    // Apply to all tokens with this parent
-                    plpData.tokens.forEach(token => {
-                        token.parentDisplayName = plpDisplayName;
-                    });
-                    
-                } catch (error) {
-                    console.error(`Error getting PLP components for ${plpData.address}:`, error);
-                    plpData.tokens.forEach(token => {
-                        token.parentDisplayName = token.parentName;
-                    });
-                }
-                
-                // Small delay between requests
-                if (processed < uniquePLPs.size) {
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                }
-            }
-            
-            // Set display names for non-PLP tokens
-            allTokens.forEach(token => {
-                if (!token.parentDisplayName) {
+                } else {
+                    // Not a PLP
                     token.parentDisplayName = token.parentName || 'None';
                 }
-            });
+            }
             
-            console.log(`Completed PLP processing for ${uniquePLPs.size} unique addresses. Cache now contains ${plpCache.size} entries.`);
+            console.log(`Completed PLP processing. Made ${plpProcessed} blockchain calls. Cache now contains ${plpCache.size} entries.`);
         }
 
         async function getPLPComponents(parentAddress, parentName) {
@@ -689,8 +656,8 @@
                 const plpContract = new ethers.Contract(parentAddress, TOKEN_ABI, provider);
                 
                 const componentResults = await Promise.allSettled([
-                    plpContract.token0().catch(() => null),
-                    plpContract.token1().catch(() => null)
+                    plpContract.token0(),
+                    plpContract.token1()
                 ]);
                 
                 if (componentResults[0].status === 'fulfilled' && componentResults[1].status === 'fulfilled' &&
@@ -700,8 +667,8 @@
                     const token1Contract = new ethers.Contract(componentResults[1].value, TOKEN_ABI, provider);
                     
                     const nameResults = await Promise.allSettled([
-                        token0Contract.symbol().catch(() => 'UNK'),
-                        token1Contract.symbol().catch(() => 'UNK')
+                        token0Contract.symbol(),
+                        token1Contract.symbol()
                     ]);
                     
                     const token0Symbol = nameResults[0].status === 'fulfilled' ? nameResults[0].value : 'UNK';
