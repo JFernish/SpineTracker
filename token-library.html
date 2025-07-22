@@ -425,7 +425,6 @@
         <div class="header">
             <h1>🌿 Token Library 🌿</h1>
             <p>Persistent token data from PulseChain V3/V4 factories with automatic updates</p>
-
             <p style="margin-top: 10px;">
                 <a href="https://spinetracker.vercel.app/" style="color: #06ffa5; text-decoration: none; font-weight: 500; border: 1px solid rgba(6, 255, 165, 0.3); padding: 8px 16px; border-radius: 20px; transition: all 0.3s ease;" 
                    onmouseover="this.style.background='rgba(6, 255, 165, 0.1)'" 
@@ -521,22 +520,12 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.1/ethers.umd.min.js"></script>
     <script>
-        // Extended Token contract ABI for PLP component detection
+        // Token contract ABI for PLP detection
         const TOKEN_ABI = [
             {"type":"function","name":"name","inputs":[],"outputs":[{"name":"","type":"string","internalType":"string"}],"stateMutability":"view"},
             {"type":"function","name":"symbol","inputs":[],"outputs":[{"name":"","type":"string","internalType":"string"}],"stateMutability":"view"},
-            {"type":"function","name":"decimals","inputs":[],"outputs":[{"name":"","type":"uint8","internalType":"uint8"}],"stateMutability":"view"},
-            {"type":"function","name":"totalSupply","inputs":[],"outputs":[{"name":"","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},
-            {"type":"function","name":"balanceOf","inputs":[{"name":"account","type":"address","internalType":"address"}],"outputs":[{"name":"","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},
-            {"type":"function","name":"Creator","inputs":[],"outputs":[{"name":"","type":"address","internalType":"address"}],"stateMutability":"view"},
-            {"type":"function","name":"Parent","inputs":[],"outputs":[{"name":"","type":"address","internalType":"address"}],"stateMutability":"view"},
-            {"type":"function","name":"Mint","inputs":[],"outputs":[{"name":"","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},
-            {"type":"function","name":"creator","inputs":[],"outputs":[{"name":"","type":"address","internalType":"address"}],"stateMutability":"view"},
-            {"type":"function","name":"parent","inputs":[],"outputs":[{"name":"","type":"address","internalType":"address"}],"stateMutability":"view"},
-            {"type":"function","name":"owner","inputs":[],"outputs":[{"name":"","type":"address","internalType":"address"}],"stateMutability":"view"},
             {"type":"function","name":"token0","inputs":[],"outputs":[{"name":"","type":"address","internalType":"address"}],"stateMutability":"view"},
-            {"type":"function","name":"token1","inputs":[],"outputs":[{"name":"","type":"address","internalType":"address"}],"stateMutability":"view"},
-            {"type":"event","name":"Transfer","inputs":[{"name":"from","type":"address","indexed":true,"internalType":"address"},{"name":"to","type":"address","indexed":true,"internalType":"address"},{"name":"value","type":"uint256","indexed":false,"internalType":"uint256"}],"anonymous":false}
+            {"type":"function","name":"token1","inputs":[],"outputs":[{"name":"","type":"address","internalType":"address"}],"stateMutability":"view"}
         ];
 
         // Configuration
@@ -552,7 +541,7 @@
         let showNonMaria = false; // Default to showing only Maria tokens
         let sortColumn = 'timestamp';
         let sortDirection = 'desc';
-        let provider; // For PLP component detection
+        let provider;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
@@ -596,7 +585,7 @@
                 // Calculate leaf status for all tokens
                 calculateLeafTokens();
 
-                // Process PLP components for parent names
+                // Process PLP components AFTER leaf calculation
                 await processPLPComponents();
 
                 setStatus(`Loaded ${allTokens.length} tokens`, 'connected');
@@ -614,19 +603,24 @@
         }
 
         async function processPLPComponents() {
-            if (!provider) return;
+            if (!provider) {
+                console.log('No provider available for PLP processing');
+                return;
+            }
 
-            console.log('Processing PLP components for parent tokens...');
+            console.log('Processing PLP components...');
+            let plpCount = 0;
             
             for (let token of allTokens) {
                 if (token.parent && 
                     token.parent !== '0x0000000000000000000000000000000000000000' && 
                     token.parentName && 
-                    (token.parentName.includes('PLP') || (token.parentSymbol && token.parentSymbol.includes('PLP')))) {
+                    (token.parentName.includes('Pulsex LP') || (token.parentSymbol && token.parentSymbol.includes('PLP')))) {
                     
                     try {
                         const plpDisplayName = await getPLPComponents(token.parent, token.parentName);
                         token.parentDisplayName = plpDisplayName;
+                        plpCount++;
                     } catch (error) {
                         console.error(`Error getting PLP components for ${token.parent}:`, error);
                         token.parentDisplayName = token.parentName;
@@ -635,6 +629,8 @@
                     token.parentDisplayName = token.parentName || 'None';
                 }
             }
+            
+            console.log(`Processed ${plpCount} PLP tokens`);
         }
 
         async function getPLPComponents(parentAddress, parentName) {
@@ -683,3 +679,227 @@
                     token.parent !== undefined) {
                     usedAsParents.add(token.parent.toLowerCase());
                 }
+            });
+            
+            console.log('Found', usedAsParents.size, 'addresses used as parents');
+            
+            // Mark tokens as leaf if their contract address is NOT used as parent by any other token
+            let leafCount = 0;
+            allTokens.forEach(token => {
+                if (token.tokenContractAddress && 
+                    token.tokenContractAddress !== '0x0000000000000000000000000000000000000000' &&
+                    token.tokenContractAddress !== null &&
+                    token.tokenContractAddress !== undefined) {
+                    token.isLeaf = !usedAsParents.has(token.tokenContractAddress.toLowerCase());
+                    if (token.isLeaf) leafCount++;
+                } else {
+                    token.isLeaf = false; // Unknown tokens are not considered leaves
+                }
+            });
+            
+            console.log('Found', leafCount, 'leaf tokens');
+        }
+
+        function toggleFactory(factory) {
+            if (activeFactories.includes(factory)) {
+                activeFactories = activeFactories.filter(f => f !== factory);
+            } else {
+                activeFactories.push(factory);
+            }
+            updateButtonStates();
+            applyCurrentFilter();
+        }
+
+        function toggleNonMaria() {
+            showNonMaria = !showNonMaria;
+            updateButtonStates();
+            applyCurrentFilter();
+        }
+
+        function updateButtonStates() {
+            document.getElementById('v3Btn').classList.toggle('active', activeFactories.includes('v3'));
+            document.getElementById('v4Btn').classList.toggle('active', activeFactories.includes('v4'));
+            document.getElementById('nonMariaBtn').classList.toggle('active', showNonMaria);
+        }
+
+        function applyCurrentFilter() {
+            let filtered = [...allTokens];
+
+            // Factory filter
+            if (activeFactories.length > 0 && activeFactories.length < 2) {
+                filtered = filtered.filter(token => 
+                    activeFactories.includes(token.factoryVersion?.toLowerCase())
+                );
+            }
+
+            // Maria filter
+            filtered = filtered.filter(token => {
+                const isMaria = token.creator && MARIA_ADDRESSES.includes(token.creator.toLowerCase());
+                return showNonMaria ? !isMaria : isMaria;
+            });
+
+            filteredTokens = filtered;
+            sortData(sortColumn, false);
+            updateStats();
+        }
+
+        function sortData(column, toggleDirection = true) {
+            if (toggleDirection) {
+                if (sortColumn === column) {
+                    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortColumn = column;
+                    sortDirection = 'desc';
+                }
+            }
+
+            filteredTokens.sort((a, b) => {
+                let aVal, bVal;
+                
+                switch(column) {
+                    case 'timestamp':
+                        aVal = new Date(a.timestamp || 0);
+                        bVal = new Date(b.timestamp || 0);
+                        break;
+                    case 'creator':
+                        aVal = (a.creator || '').toLowerCase();
+                        bVal = (b.creator || '').toLowerCase();
+                        break;
+                    case 'factory':
+                        aVal = (a.factoryVersion || '').toLowerCase();
+                        bVal = (b.factoryVersion || '').toLowerCase();
+                        break;
+                    case 'tokenName':
+                        aVal = (a.tokenName || '').toLowerCase();
+                        bVal = (b.tokenName || '').toLowerCase();
+                        break;
+                    case 'tokenSymbol':
+                        aVal = (a.tokenSymbol || '').toLowerCase();
+                        bVal = (b.tokenSymbol || '').toLowerCase();
+                        break;
+                    case 'initialSupply':
+                        aVal = parseFloat(a.initialSupplyFormatted || 0);
+                        bVal = parseFloat(b.initialSupplyFormatted || 0);
+                        break;
+                    case 'isLeaf':
+                        aVal = a.isLeaf ? 1 : 0;
+                        bVal = b.isLeaf ? 1 : 0;
+                        break;
+                    case 'parentName':
+                        aVal = (a.parentName || '').toLowerCase();
+                        bVal = (b.parentName || '').toLowerCase();
+                        break;
+                    default:
+                        return 0;
+                }
+
+                if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            displayResults();
+        }
+
+        function displayResults() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            filteredTokens.forEach(token => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'result-item-compact';
+
+                resultDiv.innerHTML = `
+                    <div class="results-grid">
+                        <div class="field-value">${formatDateTime(token.timestamp)}</div>
+                        <div class="field-value">${createClickableAddress(token.creator)}</div>
+                        <div class="field-value" style="font-weight: 600; color: ${token.factoryVersion === 'V4' ? '#9d4edd' : '#06ffa5'};">${token.factoryVersion || 'Unknown'}</div>
+                        <div class="field-value">${createClickableAddress(token.tokenContractAddress)}</div>
+                        <div class="field-value">${createLeafIndicator(token)}</div>
+                        <div class="field-value token-name" title="${token.tokenName || 'Unknown'}">${token.tokenName || 'Unknown'}</div>
+                        <div class="field-value token-symbol" title="${token.tokenSymbol || 'Unknown'}">${token.tokenSymbol || 'Unknown'}</div>
+                        <div class="field-value supply-value">${token.initialSupplyFormatted || '0'}</div>
+                        <div class="field-value parent-name" title="${token.parentName || 'None'}">${token.parentDisplayName || token.parentName || 'None'}</div>
+                        <div class="field-value">${createClickableAddress(token.parent)}</div>
+                    </div>
+                `;
+
+                resultsDiv.appendChild(resultDiv);
+            });
+
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+
+        function updateStats() {
+            const v3Count = allTokens.filter(token => token.factoryVersion === 'V3').length;
+            const v4Count = allTokens.filter(token => token.factoryVersion === 'V4').length;
+            const mariaCount = allTokens.filter(token => 
+                token.creator && MARIA_ADDRESSES.includes(token.creator.toLowerCase())
+            ).length;
+
+            document.getElementById('totalTokens').textContent = allTokens.length;
+            document.getElementById('v3Count').textContent = v3Count;
+            document.getElementById('v4Count').textContent = v4Count;
+            document.getElementById('mariaCount').textContent = mariaCount;
+        }
+
+        async function refreshData() {
+            await loadTokenData();
+        }
+
+        function createLeafIndicator(token) {
+            if (!token.isLeaf || !token.tokenContractAddress) {
+                return ''; // Show nothing if not a leaf or no contract address
+            }
+            
+            return `<span class="leaf-indicator clickable" 
+                           onclick="openMainSiteWithToken('${token.tokenContractAddress}')" 
+                           title="Leaf token - Click to analyze chain on main site">🌿</span>`;
+        }
+
+        function openMainSiteWithToken(contractAddress) {
+            // Open main site with the contract address pre-filled
+            const mainSiteUrl = `https://spinetracker.vercel.app/?token=${encodeURIComponent(contractAddress)}`;
+            window.open(mainSiteUrl, '_blank');
+        }
+
+        // Utility functions
+        function shortenAddress(address) {
+            if (!address || address === '0x0000000000000000000000000000000000000000') return 'None';
+            return `${address.slice(0, 6)}...${address.slice(-4)}`;
+        }
+
+        function createClickableAddress(address, displayText = null) {
+            if (!address || address === '0x0000000000000000000000000000000000000000') return 'None';
+            const display = displayText || shortenAddress(address);
+            return `<span class="clickable-address" onclick="copyToClipboard('${address}')" title="Click to copy: ${address}">${display}</span>`;
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                console.log('Address copied to clipboard');
+            }).catch(err => {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            });
+        }
+
+        function formatDateTime(timestamp) {
+            if (!timestamp) return 'Unknown';
+            const date = new Date(timestamp);
+            return date.toLocaleDateString('en-US', {
+                month: '2-digit',
+                day: '2-digit',
+                year: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+        }
+    </script>
+</body>
+</html>
