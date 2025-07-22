@@ -490,7 +490,6 @@
                 }
                 const data = await response.json();
                 allTokens = data.tokens || [];
-                calculateLeafTokens();
                 setStatus(`Loaded ${allTokens.length} tokens`, 'connected');
                 updateStats();
                 applyCurrentFilter();
@@ -502,10 +501,10 @@
             }
             showLoading(false);
         }
-        function calculateLeafTokens() {
+        function calculateLeafTokens(tokensToAnalyze) {
             const usedAsParents = new Set();
-            console.log('Calculating leaf tokens for', allTokens.length, 'tokens');
-            allTokens.forEach(token => {
+            console.log('Calculating leaf tokens for', tokensToAnalyze.length, 'filtered tokens');
+            tokensToAnalyze.forEach(token => {
                 if (token.parent && 
                     token.parent !== '0x0000000000000000000000000000000000000000' && 
                     token.parent.toLowerCase() !== '0x0000000000000000000000000000000000000000' &&
@@ -514,9 +513,9 @@
                     usedAsParents.add(token.parent.toLowerCase());
                 }
             });
-            console.log('Found', usedAsParents.size, 'addresses used as parents');
+            console.log('Found', usedAsParents.size, 'addresses used as parents in filtered set');
             let leafCount = 0;
-            allTokens.forEach(token => {
+            tokensToAnalyze.forEach(token => {
                 if (token.tokenContractAddress && 
                     token.tokenContractAddress !== '0x0000000000000000000000000000000000000000' &&
                     token.tokenContractAddress !== null &&
@@ -527,7 +526,7 @@
                     token.isLeaf = false;
                 }
             });
-            console.log('Found', leafCount, 'leaf tokens');
+            console.log('Found', leafCount, 'leaf tokens in filtered set');
         }
         function toggleFactory(factory) {
             if (activeFactories.includes(factory)) {
@@ -559,6 +558,7 @@
                 const isMaria = token.creator && MARIA_ADDRESSES.includes(token.creator.toLowerCase());
                 return showNonMaria ? !isMaria : isMaria;
             });
+            calculateLeafTokens(filtered);
             filteredTokens = filtered;
             sortData(sortColumn, false);
             updateStats();
