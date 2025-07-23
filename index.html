@@ -1019,6 +1019,13 @@
                 buildTokenTable();
                 document.getElementById('refreshBtn').disabled = false;
                 setStatus(`✅ Discovered ${discoveredTokens.length} tokens in spine!`, 'connected');
+
+ 		// *** NEW: Automatically start loading data after discovery is complete ***
+       			 await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay
+        	logDiscovery(`🔄 Automatically starting data loading...`);
+      	 	await refreshData();
+       		 // *** END NEW SECTION ***
+
             } catch (error) {
                 console.error('Discovery failed:', error);
                 setStatus(`❌ Discovery failed: ${error.message}`, 'error');
