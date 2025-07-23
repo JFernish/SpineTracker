@@ -215,7 +215,7 @@
         }
         .plp-components {
             font-size: 0.75rem;
-            color: #888;
+            color: #b0b0b0;
             font-style: italic;
             margin-top: 2px;
             font-weight: normal;
@@ -375,7 +375,7 @@
                     🧬 Discover Spine
                 </button>
                 <button class="btn" onclick="refreshData()" id="refreshBtn" disabled>
-                    🔄 Get Data
+                    🔄 Refresh Data
                 </button>
             </div>
             <div class="control-group">
@@ -423,7 +423,7 @@
             </p>
         </div>
         <div class="footer">
-            <p style="text-align: left;"><strong>Instructions:</strong> 1) Enter any V3/V4 child token address (or visit library to find an address) → 2) Click "Discover Spine" → 3) Click "Get Data" to load prices/multipliers</p>
+            <p style="text-align: left;"><strong>Instructions:</strong> 1) Enter any V3/V4 child token address (or visit library to find an address) → 2) Click "Discover Spine" → 3) Click "Refresh Data" to refresh prices/multipliers</p>
             <p style="text-align: left;"><strong>Parity %:</strong> Shows minting opportunity - Green >100% = profitable to mint/sell child, Red <100% = profitable to buy child (assuming price will return to parity)</p>
             <p style="text-align: left;"><strong>Parity Calculation:</strong> Child Price ÷ (Parent Price × Multiplier) × 100%</p>
             <p style="text-align: left;"><strong>Enhanced Pricing:</strong> Prioritizes PLS pairs → USDC/USDT → ETH pairs for maximum accuracy</p>
@@ -434,7 +434,6 @@
             <div style="margin-top: 30px; padding: 25px; background: rgba(20, 20, 40, 0.6); border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.1); text-align: center;">
                 <p style="color: #06ffa5; font-weight: 600; margin-bottom: 10px;">Your support is greatly appreciated and helps me continue improving the website.</p>
                 <p style="color: #3a86ff; font-family: 'Courier New', monospace; font-size: 0.9rem; margin-bottom: 20px; cursor: pointer;" onclick="copyToClipboard('0x809b15CCdC92882035C274738318296525b98aD8')" title="Click to copy address">0x809b15CCdC92882035C274738318296525b98aD8</p>
-                
                 <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 20px;">
                     <p style="color: #9d4edd; font-weight: 600; margin-bottom: 15px;">Important Disclaimers:</p>
                     <p style="color: #c0c0c0; font-size: 0.85rem; line-height: 1.5; text-align: left; max-width: 800px; margin: 0 auto 15px;">
@@ -450,13 +449,11 @@
             </div>
         </div>
     </div>
-
     <script>
         let discoveredTokens = [];
         let tokenMultipliers = new Map();
         const priceCache = new Map();
         const CACHE_DURATION = 60000;
-
         async function makeRPCCall(method, params = []) {
             const rpcUrl = document.getElementById('rpcUrl').value;
             const response = await fetch(rpcUrl, {
@@ -480,7 +477,6 @@
             }
             return data.result;
         }
-
         async function getTokenDecimals(address) {
             try {
                 console.log(`🔢 Getting decimals for ${address}...`);
@@ -503,20 +499,17 @@
                 return 18;
             }
         }
-
         function setStatus(message, type = 'loading') {
             const status = document.getElementById('status');
             status.className = `status ${type}`;
             status.querySelector('span').textContent = message;
         }
-
         function logDiscovery(message) {
             const log = document.getElementById('discoveryLog');
             const timestamp = new Date().toLocaleTimeString();
             log.textContent += `\n[${timestamp}] ${message}`;
             log.scrollTop = log.scrollHeight;
         }
-
         function formatPrice(price) {
             if (price < 1) {
                 return price.toFixed(5);
@@ -527,7 +520,6 @@
                 });
             }
         }
-
         async function getPLPComponents(address) {
             try {
                 console.log(`🔍 Getting PLP components for ${address}...`);
@@ -563,7 +555,6 @@
                 return null;
             }
         }
-
         async function getPulseXPriceWithHierarchy(tokenAddress) {
             console.log(`🔍 Getting price for ${tokenAddress}...`);
             const cacheKey = `price_${tokenAddress.toLowerCase()}`;
@@ -604,7 +595,6 @@
             console.log(`⚠️ All pricing sources failed, using fallback data`);
             return getFallbackPriceData(tokenAddress);
         }
-
         async function getGeckoTerminalPrice(tokenAddress, preferPLSPairs = false) {
             const pulseChainId = 'pulsechain';
             const url = `https://api.geckoterminal.com/api/v2/networks/${pulseChainId}/tokens/${tokenAddress.toLowerCase()}`;
@@ -636,7 +626,6 @@
             }
             throw new Error('No price data in GeckoTerminal response');
         }
-
         async function getDexScreenerPrice(tokenAddress) {
             const url = `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`;
             const response = await fetch(url);
@@ -659,7 +648,6 @@
             }
             throw new Error('No suitable pairs found on DexScreener');
         }
-
         function getFallbackPriceData(tokenAddress) {
             return {
                 price: 0,
@@ -670,7 +658,6 @@
                 pairInfo: 'No pairs found'
             };
         }
-
         function hexToString(hex) {
             let result = '';
             for (let i = 0; i < hex.length; i += 2) {
@@ -681,7 +668,6 @@
             }
             return result.replace(/[^\x20-\x7E]/g, '');
         }
-
         async function getTokenSymbol(address) {
             console.log(`🔍 getTokenSymbol called for ${address}`);
             try {
@@ -778,7 +764,6 @@
             console.log(`❌ All symbol lookups failed for ${address}, using fallback`);
             return `Token_${address.slice(-4)}`;
         }
-
         async function getTokenNameFromGecko(address) {
             try {
                 const pulseChainId = 'pulsechain';
@@ -803,7 +788,6 @@
                 return null;
             }
         }
-
         async function getMultiplierWithDecimalAdjustment(childAddress, parentAddress) {
             try {
                 console.log(`🔢 Getting multiplier for child ${childAddress} with parent ${parentAddress}...`);
@@ -858,7 +842,6 @@
                 };
             }
         }
-
         async function getParentToken(address) {
             try {
                 console.log(`Calling Parent() on ${address} with correct selector...`);
@@ -885,7 +868,6 @@
                 return null;
             }
         }
-
         function storeTokenDataForMultiHop() {
             try {
                 if (discoveredTokens.length > 0) {
@@ -899,7 +881,6 @@
                 console.error('❌ Failed to store token data:', error);
             }
         }
-
         function handleTokenInputKeypress(event) {
             if (event.key === 'Enter') {
                 const tokenAddress = document.getElementById('startingToken').value.trim();
@@ -908,7 +889,6 @@
                 }
             }
         }
-
         function toggleDiscoveryLog() {
             const log = document.getElementById('discoveryLog');
             const btn = document.getElementById('logToggleBtn');
@@ -922,7 +902,6 @@
                 btn.title = 'Show discovery log';
             }
         }
-
         async function testConnection() {
             const testBtn = document.getElementById('testBtn');
             testBtn.disabled = true;
@@ -954,7 +933,6 @@
                 testBtn.disabled = false;
             }
         }
-
         async function discoverSpine() {
             const discoverBtn = document.getElementById('discoverBtn');
             const startingAddress = document.getElementById('startingToken').value.trim();
@@ -1019,13 +997,37 @@
                 buildTokenTable();
                 document.getElementById('refreshBtn').disabled = false;
                 setStatus(`✅ Discovered ${discoveredTokens.length} tokens in spine!`, 'connected');
-
- 		// *** NEW: Automatically start loading data after discovery is complete ***
-       			 await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay
-        	logDiscovery(`🔄 Automatically starting data loading...`);
-      	 	await refreshData();
-       		 // *** END NEW SECTION ***
-
+                const rootParent = discoveredTokens.find(token => token.type === 'parent');
+                if (rootParent) {
+                    try {
+                        const tokenSymbol = await getTokenSymbol(rootParent.address);
+                        rootParent.name = tokenSymbol;
+                        if (tokenSymbol === 'PLP') {
+                            console.log(`🔍 Root parent is PLP, getting components...`);
+                            const plpComponents = await getPLPComponents(rootParent.address);
+                            console.log(`📍 PLP components result: ${plpComponents}`);
+                            if (plpComponents) {
+                                rootParent.plpComponents = plpComponents;
+                                const tokenIndex = discoveredTokens.findIndex(token => token.address === rootParent.address);
+                                if (tokenIndex !== -1) {
+                                    const tokenNameCell = document.getElementById(`token-name-${tokenIndex}`);
+                                    if (tokenNameCell) {
+                                        let displayName = tokenSymbol;
+                                        displayName += `<div class="plp-components">${plpComponents}</div>`;
+                                        tokenNameCell.innerHTML = displayName;
+                                    }
+                                }
+                            }
+                        } else {
+                            console.log(`✅ Root parent is not PLP (${tokenSymbol}), no component lookup needed`);
+                        }
+                    } catch (error) {
+                        console.log(`❌ PLP component lookup failed: ${error.message}`);
+                    }
+                }
+                await new Promise(resolve => setTimeout(resolve, 500));
+                logDiscovery(`🔄 Automatically starting data loading...`);
+                await refreshData();
             } catch (error) {
                 console.error('Discovery failed:', error);
                 setStatus(`❌ Discovery failed: ${error.message}`, 'error');
@@ -1035,7 +1037,6 @@
                 discoverBtn.textContent = '🧬 Discover Spine';
             }
         }
-
         function buildTokenTable() {
             const tableBody = document.getElementById('tokenTable');
             tableBody.innerHTML = '';
@@ -1056,11 +1057,9 @@
                 tableBody.appendChild(row);
             });
         }
-
         function copyAddress(address) {
             navigator.clipboard.writeText(address);
         }
-
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
                 console.log('Address copied to clipboard');
@@ -1073,7 +1072,6 @@
                 document.body.removeChild(textArea);
             });
         }
-
         function updateTotalMultiplier(tokenData) {
             let totalMultiplier = 1;
             let parentPrice = 0;
@@ -1098,14 +1096,12 @@
                 section.style.display = 'none';
             }
         }
-
         function formatNumber(num) {
             if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
             if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
             if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
             return num.toFixed(2);
         }
-
         async function refreshData() {
             if (discoveredTokens.length === 0) {
                 alert('No tokens discovered yet. Click "Discover V4 Spine" first.');
@@ -1195,8 +1191,8 @@
                     const tokenNameCell = document.getElementById(`token-name-${i}`);
                     if (tokenNameCell) {
                         let displayName = data.symbol;
-                        if (data.plpComponents) {
-                            displayName += `<div class="plp-components">${data.plpComponents}</div>`;
+                        if (data.token.plpComponents) {
+                            displayName += `<div class="plp-components">${data.token.plpComponents}</div>`;
                         }
                         tokenNameCell.innerHTML = displayName;
                     }
@@ -1235,7 +1231,6 @@
                     }
                 }
                 updateTotalMultiplier(tokenData);
-                await checkRootParentForPLP(tokenData);
                 setStatus('Data loaded successfully with decimal-adjusted multipliers and parity calculations!', 'connected');
                 document.getElementById('lastUpdate').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
             } catch (error) {
@@ -1243,33 +1238,9 @@
                 setStatus(`❌ Data loading failed: ${error.message}`, 'error');
             } finally {
                 refreshBtn.disabled = false;
-                refreshBtn.textContent = '🔄 Get Data';
+                refreshBtn.textContent = '🔄 Refresh Data';
             }
         }
-
-        async function checkRootParentForPLP(tokenData) {
-            const rootParent = tokenData.find(data => data && data.token.type === 'parent');
-            if (!rootParent) return;
-            
-            if (rootParent.symbol === 'PLP') {
-                console.log(`🔍 Root parent is PLP, getting components...`);
-                try {
-                    const plpComponents = await getPLPComponents(rootParent.token.address);
-                    console.log(`📍 PLP components result: ${plpComponents}`);
-                    const tokenNameCell = document.getElementById(`token-name-${rootParent.index}`);
-                    if (tokenNameCell && plpComponents) {
-                        let displayName = rootParent.symbol;
-                        displayName += `<div class="plp-components">${plpComponents}</div>`;
-                        tokenNameCell.innerHTML = displayName;
-                    }
-                } catch (error) {
-                    console.log(`❌ PLP component lookup failed: ${error.message}`);
-                }
-            } else {
-                console.log(`✅ Root parent is not PLP (${rootParent.symbol}), no component lookup needed`);
-            }
-        }
-
         function toggleAutoRefresh() {
             const btn = document.getElementById('autoRefreshBtn');
             const interval = parseInt(document.getElementById('refreshInterval').value) * 1000;
@@ -1290,7 +1261,6 @@
                 btn.style.background = 'linear-gradient(45deg, #27ae60, #2ecc71)';
             }
         }
-
         function openMintModal(tokenIndex) {
             const token = discoveredTokens[tokenIndex];
             if (!token) return;
@@ -1314,7 +1284,6 @@
                 tokenMultipliersCount: tokenMultipliers.size
             });
         }
-        
         function getParentTokenForMint(tokenIndex) {
             if (tokenIndex === 0) {
                 return {
@@ -1328,7 +1297,6 @@
                 name: parentToken?.name || "Unknown Parent"
             };
         }
-        
         function getMultiplierForToken(tokenIndex) {
             const row = document.getElementById(`token-row-${tokenIndex}`);
             if (row) {
@@ -1340,7 +1308,6 @@
             }
             return '1.0';
         }
-
         function checkForTokenParameter() {
             const urlParams = new URLSearchParams(window.location.search);
             const tokenParam = urlParams.get('token');
@@ -1351,17 +1318,14 @@
                 }, 1000);
             }
         }
-
         window.onload = function() {
             console.log('🧬 Enhanced Dynamic Spine Token Tracker with Decimal Adjustment Loading...');
             checkForTokenParameter();
             setTimeout(testConnection, 1000);
         };
-
         window.addEventListener('beforeunload', function() {
             storeTokenDataForMultiHop();
         });
-
         window.DynamicTracker = {
             discoverSpine,
             refreshData,
@@ -1402,7 +1366,6 @@
                 }
             }
         };
-
         console.log('🚀 Enhanced Dynamic Spine Token Tracker with Decimal Adjustment loaded!');
         console.log('🔢 NEW: Automatic decimal adjustment for parent tokens with non-18 decimals!');
         console.log('🧮 Multipliers are automatically adjusted using the formula: adjustedMultiplier = baseMultiplier × 10^(18 - parentDecimals)');
