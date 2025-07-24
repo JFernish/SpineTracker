@@ -57,6 +57,64 @@
             border-radius: 15px;
             border: 2px solid rgba(102, 126, 234, 0.2);
         }
+        
+        .search-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(40, 40, 80, 0.8);
+            border-radius: 25px;
+            padding: 8px 16px;
+            border: 2px solid rgba(157, 78, 221, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .search-container:focus-within {
+            border-color: rgba(6, 255, 165, 0.5);
+            box-shadow: 0 0 15px rgba(6, 255, 165, 0.2);
+        }
+        
+        .search-input {
+            background: transparent;
+            border: none;
+            color: #e0e0e0;
+            font-size: 0.9rem;
+            padding: 4px 8px;
+            width: 200px;
+            outline: none;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        
+        .search-input::placeholder {
+            color: #9d4edd;
+            opacity: 0.7;
+        }
+        
+        .search-icon {
+            color: #9d4edd;
+            font-size: 1rem;
+        }
+        
+        .clear-search {
+            background: none;
+            border: none;
+            color: #06ffa5;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 2px;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            display: none;
+        }
+        
+        .clear-search:hover {
+            background: rgba(6, 255, 165, 0.2);
+            transform: scale(1.1);
+        }
+        
+        .clear-search.show {
+            display: block;
+        }
         .filter-group {
             display: flex;
             align-items: center;
@@ -199,7 +257,7 @@
         }
         .results-grid-header {
             display: grid;
-            grid-template-columns: 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 1fr 0.8fr;
+            grid-template-columns: 0.3fr 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 1fr 0.8fr;
             gap: 12px;
             align-items: center;
         }
@@ -241,7 +299,7 @@
         }
         .results-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 1fr 0.8fr;
+            grid-template-columns: 0.3fr 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 1fr 0.8fr;
             gap: 12px;
             align-items: center;
         }
@@ -296,6 +354,10 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+        .parent-name .component-tokens {
+            color: #ffffff;
+            font-weight: 600;
+        }
         .leaf-indicator {
             font-size: 1.2rem;
             cursor: pointer;
@@ -314,6 +376,23 @@
         }
         .leaf-indicator.clickable:hover {
             background-color: rgba(6, 255, 165, 0.3);
+        }
+        .favorite-star {
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 4px;
+            border-radius: 4px;
+            text-align: center;
+            color: #666;
+            user-select: none;
+        }
+        .favorite-star:hover {
+            background-color: rgba(255, 215, 0, 0.2);
+            transform: scale(1.1);
+        }
+        .favorite-star.favorited {
+            color: #FFD700;
         }
         .loading {
             display: none;
@@ -341,7 +420,7 @@
         }
         @media (max-width: 1200px) {
             .results-grid-header, .results-grid {
-                grid-template-columns: 1fr 1fr 0.5fr 1fr 0.4fr 1.2fr 0.6fr 0.7fr 1fr 0.7fr;
+                grid-template-columns: 0.3fr 1fr 1fr 0.5fr 1fr 0.4fr 1.2fr 0.6fr 0.7fr 1fr 0.7fr;
                 gap: 8px;
             }
         }
@@ -384,9 +463,22 @@
             <div class="filter-group">
                 <button class="btn filter-btn" id="v3Btn" onclick="toggleFactory('v3')">V3 Factory</button>
                 <button class="btn filter-btn" id="v4Btn" onclick="toggleFactory('v4')">V4 Factory</button>
-                <button class="btn filter-btn" id="nonMariaBtn" onclick="toggleNonMaria()" title="Will show tokens created by addresses other than Maria's:
+                <button class="btn filter-btn active" id="mariaBtn" onclick="toggleMaria()" title="Show tokens created by Maria's addresses:
+0xBF182955401aF3f2f7e244cb31184E93E74a2501
+0x7a20189b297343cf26d8548764b04891f37f3414">Show Maria Tokens</button>
+                <button class="btn filter-btn" id="nonMariaBtn" onclick="toggleNonMaria()" title="Show tokens created by addresses other than Maria's:
 0xBF182955401aF3f2f7e244cb31184E93E74a2501
 0x7a20189b297343cf26d8548764b04891f37f3414">Show Non-Maria Tokens</button>
+                <div class="search-container">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" 
+                           class="search-input" 
+                           id="searchInput" 
+                           placeholder="Search tokens..." 
+                           oninput="handleSearch()"
+                           onkeypress="handleSearchKeypress(event)">
+                    <button class="clear-search" id="clearSearch" onclick="clearSearch()" title="Clear search">✕</button>
+                </div>
             </div>
             <div class="filter-group">
                 <button class="btn" onclick="refreshData()">🔄 Refresh</button>
@@ -421,6 +513,7 @@
         <div class="results-section" id="resultsSection" style="display: none;">
             <div class="results-header">
                 <div class="results-grid-header">
+                    <div class="sortable-header" onclick="sortData('isFavorite')" title="Click to sort by favorites">⭐</div>
                     <div class="sortable-header" onclick="sortData('timestamp')">Date/Time Created</div>
                     <div class="sortable-header" onclick="sortData('creator')">Creator</div>
                     <div class="sortable-header" onclick="sortData('factory')">Factory</div>
@@ -465,21 +558,61 @@
         let allTokens = [];
         let filteredTokens = [];
         let activeFactories = ['v3', 'v4'];
-        let showNonMaria = false;
+        let showMaria = true; // Maria tokens are shown by default
+        let showNonMaria = false; // Non-Maria tokens are hidden by default
+        let searchTerm = ''; // Current search term
+        let favorites = []; // Array of favorite token addresses
         let sortColumn = 'timestamp';
         let sortDirection = 'desc';
+        
         document.addEventListener('DOMContentLoaded', function() {
+            loadFavorites();
             loadTokenData();
             updateButtonStates();
         });
+        
+        function loadFavorites() {
+            try {
+                const saved = localStorage.getItem('tokenLibraryFavorites');
+                favorites = saved ? JSON.parse(saved) : [];
+            } catch (error) {
+                console.error('Error loading favorites:', error);
+                favorites = [];
+            }
+        }
+        
+        function saveFavorites() {
+            try {
+                localStorage.setItem('tokenLibraryFavorites', JSON.stringify(favorites));
+            } catch (error) {
+                console.error('Error saving favorites:', error);
+            }
+        }
+        
+        function toggleFavorite(tokenAddress) {
+            if (!tokenAddress) return;
+            
+            const index = favorites.indexOf(tokenAddress.toLowerCase());
+            if (index > -1) {
+                favorites.splice(index, 1);
+            } else {
+                favorites.push(tokenAddress.toLowerCase());
+            }
+            
+            saveFavorites();
+            applyCurrentFilter(); // Refresh display to update star
+        }
+        
         function setStatus(message, type = 'loading') {
             const status = document.getElementById('status');
             status.className = `status ${type}`;
             status.querySelector('span').textContent = message;
         }
+        
         function showLoading(show) {
             document.getElementById('loading').className = show ? 'loading show' : 'loading';
         }
+        
         async function loadTokenData() {
             showLoading(true);
             setStatus('Loading tokens from database...', 'loading');
@@ -501,6 +634,7 @@
             }
             showLoading(false);
         }
+        
         function calculateLeafTokens(tokensToAnalyze) {
             const usedAsParents = new Set();
             console.log('Calculating leaf tokens for', tokensToAnalyze.length, 'filtered tokens');
@@ -528,6 +662,7 @@
             });
             console.log('Found', leafCount, 'leaf tokens in filtered set');
         }
+        
         function toggleFactory(factory) {
             if (activeFactories.includes(factory)) {
                 activeFactories = activeFactories.filter(f => f !== factory);
@@ -537,32 +672,119 @@
             updateButtonStates();
             applyCurrentFilter();
         }
+        
+        function toggleMaria() {
+            showMaria = !showMaria;
+            updateButtonStates();
+            applyCurrentFilter();
+        }
+        
         function toggleNonMaria() {
             showNonMaria = !showNonMaria;
             updateButtonStates();
             applyCurrentFilter();
         }
+        
         function updateButtonStates() {
             document.getElementById('v3Btn').classList.toggle('active', activeFactories.includes('v3'));
             document.getElementById('v4Btn').classList.toggle('active', activeFactories.includes('v4'));
+            document.getElementById('mariaBtn').classList.toggle('active', showMaria);
             document.getElementById('nonMariaBtn').classList.toggle('active', showNonMaria);
         }
+        
         function applyCurrentFilter() {
             let filtered = [...allTokens];
+            
+            // Filter by factory version
             if (activeFactories.length > 0 && activeFactories.length < 2) {
                 filtered = filtered.filter(token => 
                     activeFactories.includes(token.factoryVersion?.toLowerCase())
                 );
             }
+            
+            // Filter by Maria/Non-Maria tokens
             filtered = filtered.filter(token => {
                 const isMaria = token.creator && MARIA_ADDRESSES.includes(token.creator.toLowerCase());
-                return showNonMaria ? !isMaria : isMaria;
+                
+                // If both are checked, show all tokens
+                if (showMaria && showNonMaria) {
+                    return true;
+                }
+                // If only Maria is checked, show only Maria tokens
+                else if (showMaria && !showNonMaria) {
+                    return isMaria;
+                }
+                // If only Non-Maria is checked, show only Non-Maria tokens
+                else if (!showMaria && showNonMaria) {
+                    return !isMaria;
+                }
+                // If neither is checked, show nothing
+                else {
+                    return false;
+                }
             });
+            
+            // Apply search filter
+            if (searchTerm.trim()) {
+                const search = searchTerm.toLowerCase().trim();
+                filtered = filtered.filter(token => {
+                    return (
+                        (token.tokenName && token.tokenName.toLowerCase().includes(search)) ||
+                        (token.tokenSymbol && token.tokenSymbol.toLowerCase().includes(search)) ||
+                        (token.creator && token.creator.toLowerCase().includes(search)) ||
+                        (token.tokenContractAddress && token.tokenContractAddress.toLowerCase().includes(search)) ||
+                        (token.parent && token.parent.toLowerCase().includes(search)) ||
+                        (token.parentName && token.parentName.toLowerCase().includes(search)) ||
+                        (token.factoryVersion && token.factoryVersion.toLowerCase().includes(search))
+                    );
+                });
+            }
+            
+            // Add favorite status to tokens
+            filtered.forEach(token => {
+                token.isFavorite = token.tokenContractAddress ? 
+                    favorites.includes(token.tokenContractAddress.toLowerCase()) : false;
+            });
+            
             calculateLeafTokens(filtered);
             filteredTokens = filtered;
             sortData(sortColumn, false);
             updateStats();
         }
+        
+        function handleSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const clearButton = document.getElementById('clearSearch');
+            
+            searchTerm = searchInput.value;
+            
+            // Show/hide clear button
+            if (searchTerm.trim()) {
+                clearButton.classList.add('show');
+            } else {
+                clearButton.classList.remove('show');
+            }
+            
+            applyCurrentFilter();
+        }
+        
+        function handleSearchKeypress(event) {
+            if (event.key === 'Enter') {
+                handleSearch();
+            }
+        }
+        
+        function clearSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const clearButton = document.getElementById('clearSearch');
+            
+            searchInput.value = '';
+            searchTerm = '';
+            clearButton.classList.remove('show');
+            
+            applyCurrentFilter();
+        }
+        
         function sortData(column, toggleDirection = true) {
             if (toggleDirection) {
                 if (sortColumn === column) {
@@ -572,6 +794,7 @@
                     sortDirection = 'desc';
                 }
             }
+            
             filteredTokens.sort((a, b) => {
                 let aVal, bVal;
                 switch(column) {
@@ -603,6 +826,10 @@
                         aVal = a.isLeaf ? 1 : 0;
                         bVal = b.isLeaf ? 1 : 0;
                         break;
+                    case 'isFavorite':
+                        aVal = a.isFavorite ? 1 : 0;
+                        bVal = b.isFavorite ? 1 : 0;
+                        break;
                     case 'parentName':
                         aVal = (a.parentName || '').toLowerCase();
                         bVal = (b.parentName || '').toLowerCase();
@@ -610,20 +837,25 @@
                     default:
                         return 0;
                 }
+                
                 if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
                 if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
                 return 0;
             });
+            
             displayResults();
         }
+        
         function displayResults() {
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = '';
+            
             filteredTokens.forEach(token => {
                 const resultDiv = document.createElement('div');
                 resultDiv.className = 'result-item-compact';
                 resultDiv.innerHTML = `
                     <div class="results-grid">
+                        <div class="field-value">${createFavoriteStar(token)}</div>
                         <div class="field-value">${formatDateTime(token.timestamp)}</div>
                         <div class="field-value">${createClickableAddress(token.creator)}</div>
                         <div class="field-value" style="font-weight: 600; color: ${token.factoryVersion === 'V4' ? '#9d4edd' : '#06ffa5'};">${token.factoryVersion || 'Unknown'}</div>
@@ -632,28 +864,59 @@
                         <div class="field-value token-name" title="${token.tokenName || 'Unknown'}">${token.tokenName || 'Unknown'}</div>
                         <div class="field-value token-symbol" title="${token.tokenSymbol || 'Unknown'}">${token.tokenSymbol || 'Unknown'}</div>
                         <div class="field-value supply-value">${token.initialSupplyFormatted || '0'}</div>
-                        <div class="field-value parent-name" title="${token.parentName || 'None'}">${token.parentDisplayName || token.parentName || 'None'}</div>
+                        <div class="field-value parent-name" title="${token.parentName || 'None'}">${formatParentName(token.parentDisplayName || token.parentName || 'None')}</div>
                         <div class="field-value">${createClickableAddress(token.parent)}</div>
                     </div>
                 `;
                 resultsDiv.appendChild(resultDiv);
             });
+            
             document.getElementById('resultsSection').style.display = 'block';
         }
+        
+        function formatParentName(parentName) {
+            if (!parentName || parentName === 'None') return parentName;
+            
+            // Check if it's a PulsexLP with component tokens (contains " + ")
+            if (parentName.includes(' + ')) {
+                const parts = parentName.split(' + ');
+                if (parts.length === 2) {
+                    return `<span class="component-tokens">${parts[0]} + ${parts[1]}</span>`;
+                }
+            }
+            
+            return parentName;
+        }
+        
+        function createFavoriteStar(token) {
+            if (!token.tokenContractAddress) return '';
+            
+            const isFavorited = token.isFavorite;
+            const starClass = isFavorited ? 'favorite-star favorited' : 'favorite-star';
+            const starIcon = isFavorited ? '⭐' : '☆';
+            
+            return `<span class="${starClass}" 
+                           onclick="toggleFavorite('${token.tokenContractAddress}')" 
+                           title="${isFavorited ? 'Remove from favorites' : 'Add to favorites'}">${starIcon}</span>`;
+        }
+        
         function updateStats() {
             const v3Count = allTokens.filter(token => token.factoryVersion === 'V3').length;
             const v4Count = allTokens.filter(token => token.factoryVersion === 'V4').length;
             const mariaCount = allTokens.filter(token => 
                 token.creator && MARIA_ADDRESSES.includes(token.creator.toLowerCase())
             ).length;
+            
             document.getElementById('totalTokens').textContent = allTokens.length;
             document.getElementById('v3Count').textContent = v3Count;
             document.getElementById('v4Count').textContent = v4Count;
             document.getElementById('mariaCount').textContent = mariaCount;
         }
+        
         async function refreshData() {
             await loadTokenData();
         }
+        
         function createLeafIndicator(token) {
             if (!token.isLeaf || !token.tokenContractAddress) {
                 return '';
@@ -662,19 +925,23 @@
                            onclick="openMainSiteWithToken('${token.tokenContractAddress}')" 
                            title="Leaf token - Click to analyze chain on main site">🌿</span>`;
         }
+        
         function openMainSiteWithToken(contractAddress) {
             const mainSiteUrl = `https://spinetracker.vercel.app/?token=${encodeURIComponent(contractAddress)}`;
             window.open(mainSiteUrl, '_blank');
         }
+        
         function shortenAddress(address) {
             if (!address || address === '0x0000000000000000000000000000000000000000') return 'None';
             return `${address.slice(0, 6)}...${address.slice(-4)}`;
         }
+        
         function createClickableAddress(address, displayText = null) {
             if (!address || address === '0x0000000000000000000000000000000000000000') return 'None';
             const display = displayText || shortenAddress(address);
             return `<span class="clickable-address" onclick="copyToClipboard('${address}')" title="Click to copy: ${address}">${display}</span>`;
         }
+        
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
                 console.log('Address copied to clipboard');
@@ -687,6 +954,7 @@
                 document.body.removeChild(textArea);
             });
         }
+        
         function formatDateTime(timestamp) {
             if (!timestamp) return 'Unknown';
             const date = new Date(timestamp);
