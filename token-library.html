@@ -881,7 +881,15 @@
             if (parentName.includes(' + ')) {
                 const parts = parentName.split(' + ');
                 if (parts.length === 2) {
-                    return `<span class="component-tokens">${parts[0]} + ${parts[1]}</span>`;
+                    // Check if it starts with "PulseX LP: "
+                    if (parentName.startsWith('PulseX LP: ')) {
+                        const lpPrefix = 'PulseX LP: ';
+                        const componentsOnly = parentName.substring(lpPrefix.length);
+                        return `${lpPrefix}<span class="component-tokens">${componentsOnly}</span>`;
+                    } else {
+                        // Just component tokens without LP prefix
+                        return `<span class="component-tokens">${parts[0]} + ${parts[1]}</span>`;
+                    }
                 }
             }
             
