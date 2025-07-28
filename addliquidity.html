@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PulseX V2 Add Liquidity</title>
+    <title>🌊 PulseX V2 Add Liquidity</title>
     <style>
         * {
             margin: 0;
@@ -248,29 +248,38 @@
         <div id="status"></div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
     <script>
-        // PulseX V2 Contract Addresses
-        const ROUTER_ADDRESS = "0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02"; // PulseX Router from your tx
-        const FACTORY_ADDRESS = "0x1715a3E4A142d8b698131108995174F37aEBA10D"; // Typical V2 factory
+        // Global variables - exactly like DirectMint
+        let web3 = null;
+        let walletAccount = null;
+        let isWalletConnected = false;
+        let currentSlippage = 5.0;
+        let isCalculating = false;
+
+        // Contract addresses
+        const ROUTER_ADDRESS = "0x165C3410fC91EF562C50559f7d2289fEbed552d9";
+        const FACTORY_ADDRESS = "0x29eA7545DEf87022BAdc76323F373EA1e707C523";
         
-        // Common token addresses on PulseChain
         const TOKENS = {
             'WETH': '0xA1077a294dDE1B09bB078844df40758a5D0f9a27',
-            'USDC': '0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07',
+            'USDC': '0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07', 
             'USDT': '0x0Cb6F5a34ad42ec934882A05265A7d5F59b51A2f'
         };
 
         const ROUTER_ABI = [
             "function addLiquidity(address tokenA, address tokenB, uint amountADesired, uint amountBDesired, uint amountAMin, uint amountBMin, address to, uint deadline) external returns (uint amountA, uint amountB, uint liquidity)",
             "function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)"
+        ];
+
         const PAIR_ABI = [
-            {"constant":true,"inputs":[],"name":"getReserves","outputs":[{"name":"reserve0","type":"uint112"},{"name":"reserve1","type":"uint112"},{"name":"blockTimestampLast","type":"uint32"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[],"name":"token0","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[],"name":"token1","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"}
+            "function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)",
+            "function token0() external view returns (address)",
+            "function token1() external view returns (address)"
         ];
 
         const FACTORY_ABI = [
-            {"constant":true,"inputs":[{"name":"tokenA","type":"address"},{"name":"tokenB","type":"address"}],"name":"getPair","outputs":[{"name":"pair","type":"address"}],"payable":false,"stateMutability":"view","type":"function"}
+            "function getPair(address tokenA, address tokenB) external view returns (address pair)"
         ];
 
         const ERC20_ABI = [
@@ -280,21 +289,70 @@
             "function decimals() external view returns (uint8)"
         ];
 
-        // Web3 and wallet connection variables (matching working pattern)
-        let web3 = null;
-        let walletAccount = null;
-        let isWalletConnected = false;
-        let isCalculating = false; // Prevent infinite loops
+        // Simple wallet connection - exactly like DirectMint
+        async function connectWallet() {
+            console.log('🔗 Attempting to connect wallet...');
+            
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    web3 = new Web3(window.ethereum);
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    walletAccount = accounts[0];
+                    isWalletConnected = true;
+                    
+                    console.log('✅ Wallet connected:', walletAccount);
+                    
+                    document.getElementById('connectBtn').style.display = 'none';
+                    document.getElementById('approveABtn').style.display = 'block';
+                    document.getElementById('approveBBtn').style.display = 'block';
+                    document.getElementById('addLiquidityBtn').style.display = 'block';
+                    
+                    showStatus(`Connected: ${walletAccount.substring(0,6)}...${walletAccount.substring(38)}`, 'success');
+                    
+                    // Check approval status after connection
+                    checkApprovalStatus();
+                    
+                } catch (error) {
+                    console.error('❌ Failed to connect wallet:', error);
+                    showStatus('Failed to connect wallet: ' + error.message, 'error');
+                }
+            } else {
+                showStatus('Please install Rabby or MetaMask', 'error');
+            }
+        }
+
+        function setSlippage(percentage) {
+            currentSlippage = percentage;
+            document.querySelectorAll('.slippage-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('customSlippage').value = '';
+        }
+
+        function setTokenPair(tokenASymbol, tokenBSymbol) {
+            document.getElementById('tokenA').value = TOKENS[tokenASymbol] || '';
+            document.getElementById('tokenB').value = TOKENS[tokenBSymbol] || '';
+            
+            // Check approval status when tokens change
+            if (isWalletConnected) {
+                checkApprovalStatus();
+            }
+        }
+
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.innerHTML = message;
+            status.className = `status ${type}`;
+        }
 
         async function calculateAmountB() {
-            if (isCalculating) return;
+            if (isCalculating || !web3 || !isWalletConnected) return;
             isCalculating = true;
 
             const tokenA = document.getElementById('tokenA').value;
             const tokenB = document.getElementById('tokenB').value;
             const amountA = document.getElementById('amountA').value;
 
-            if (!tokenA || !tokenB || !amountA || !web3) {
+            if (!tokenA || !tokenB || !amountA) {
                 isCalculating = false;
                 return;
             }
@@ -313,14 +371,14 @@
         }
 
         async function calculateAmountA() {
-            if (isCalculating) return;
+            if (isCalculating || !web3 || !isWalletConnected) return;
             isCalculating = true;
 
             const tokenA = document.getElementById('tokenA').value;
             const tokenB = document.getElementById('tokenB').value;
             const amountB = document.getElementById('amountB').value;
 
-            if (!tokenA || !tokenB || !amountB || !web3) {
+            if (!tokenA || !tokenB || !amountB) {
                 isCalculating = false;
                 return;
             }
@@ -344,7 +402,7 @@
                 const pairAddress = await factory.methods.getPair(tokenA, tokenB).call();
                 
                 if (pairAddress === '0x0000000000000000000000000000000000000000') {
-                    showStatus('⚠️ WARNING: This will CREATE A NEW POOL! You will set the initial price ratio.', 'error');
+                    console.log('No existing pool found');
                     return null;
                 }
 
@@ -372,120 +430,6 @@
             }
         }
 
-        // Enhanced wallet connection with PulseChain network switching
-        async function connectWallet() {
-            console.log('🔗 Attempting to connect wallet...');
-            
-            // Check if Web3 is loaded
-            if (typeof Web3 === 'undefined') {
-                showStatus('Web3 library not loaded. Please refresh the page.', 'error');
-                console.error('❌ Web3 is not defined');
-                return;
-            }
-            
-            if (typeof window.ethereum !== 'undefined') {
-                try {
-                    // Request account access
-                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    
-                    // Check and switch to PulseChain if needed
-                    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-                    console.log('Current chain ID:', chainId);
-                    
-                    // PulseChain mainnet chain ID is 0x171 (369 in decimal)
-                    const pulseChainId = '0x171';
-                    
-                    if (chainId !== pulseChainId) {
-                        console.log('Switching to PulseChain...');
-                        try {
-                            await window.ethereum.request({
-                                method: 'wallet_switchEthereumChain',
-                                params: [{ chainId: pulseChainId }],
-                            });
-                        } catch (switchError) {
-                            // This error code indicates that the chain has not been added to MetaMask/Rabby
-                            if (switchError.code === 4902) {
-                                console.log('Adding PulseChain network...');
-                                await window.ethereum.request({
-                                    method: 'wallet_addEthereumChain',
-                                    params: [{
-                                        chainId: pulseChainId,
-                                        chainName: 'PulseChain',
-                                        nativeCurrency: {
-                                            name: 'Pulse',
-                                            symbol: 'PLS',
-                                            decimals: 18
-                                        },
-                                        rpcUrls: ['https://rpc-pulsechain.g4mm4.io'],
-                                        blockExplorerUrls: ['https://scan.pulsechain.com/']
-                                    }]
-                                });
-                            } else {
-                                throw switchError;
-                            }
-                        }
-                    }
-                    
-                    // Initialize Web3 after network is correct
-                    web3 = new Web3(window.ethereum);
-                    walletAccount = accounts[0];
-                    isWalletConnected = true;
-                    
-                    console.log('✅ Wallet connected to PulseChain:', walletAccount);
-                    
-                    document.getElementById('connectBtn').style.display = 'none';
-                    document.getElementById('approveABtn').style.display = 'block';
-                    document.getElementById('approveBBtn').style.display = 'block';
-                    document.getElementById('addLiquidityBtn').style.display = 'block';
-                    
-                    showStatus(`Connected to PulseChain: ${walletAccount.substring(0,6)}...${walletAccount.substring(38)}`, 'success');
-                    
-                    // Load token balances after connection
-                    await loadTokenBalances();
-                    await checkApprovalStatus();
-                    
-                } catch (error) {
-                    console.error('❌ Failed to connect wallet:', error);
-                    showStatus('Failed to connect wallet: ' + error.message, 'error');
-                }
-            } else {
-                showStatus('Please install Rabby or MetaMask', 'error');
-            }
-        }
-
-        async function loadTokenBalances() {
-            if (!web3 || !walletAccount) return;
-            
-            const tokenA = document.getElementById('tokenA').value;
-            const tokenB = document.getElementById('tokenB').value;
-            
-            if (!tokenA || !tokenB) return;
-            
-            try {
-                console.log('💰 Loading token balances...');
-                
-                // Load Token A balance
-                const tokenAContract = new web3.eth.Contract(ERC20_ABI, tokenA);
-                const balanceA = await tokenAContract.methods.balanceOf(walletAccount).call();
-                tokenABalance = parseFloat(web3.utils.fromWei(balanceA, 'ether'));
-                
-                // Load Token B balance
-                const tokenBContract = new web3.eth.Contract(ERC20_ABI, tokenB);
-                const balanceB = await tokenBContract.methods.balanceOf(walletAccount).call();
-                tokenBBalance = parseFloat(web3.utils.fromWei(balanceB, 'ether'));
-                
-                console.log(`✅ Token A Balance: ${tokenABalance}`);
-                console.log(`✅ Token B Balance: ${tokenBBalance}`);
-                
-                // Update status with balance info
-                showStatus(`Connected! Token A: ${tokenABalance.toFixed(4)} | Token B: ${tokenBBalance.toFixed(4)}`, 'success');
-                
-            } catch (error) {
-                console.error('❌ Failed to load token balances:', error);
-                showStatus('Connected, but could not load token balances', 'warning');
-            }
-        }
-
         async function checkApprovalStatus() {
             if (!web3 || !walletAccount) return;
             
@@ -501,7 +445,7 @@
                 const tokenAContract = new web3.eth.Contract(ERC20_ABI, tokenA);
                 const allowanceA = await tokenAContract.methods.allowance(walletAccount, ROUTER_ADDRESS).call();
                 const allowanceAEther = parseFloat(web3.utils.fromWei(allowanceA, 'ether'));
-                const isApprovedA = allowanceAEther > 1000000; // Consider approved if > 1M tokens
+                const isApprovedA = allowanceAEther > 1000000;
                 
                 // Check Token B approval
                 const tokenBContract = new web3.eth.Contract(ERC20_ABI, tokenB);
@@ -540,127 +484,11 @@
             }
         }
 
-        async function checkBalances() {
-            const amountA = parseFloat(document.getElementById('amountA').value);
-            const amountB = parseFloat(document.getElementById('amountB').value);
-            
-            if (!amountA || !amountB) return true; // If no amounts entered, allow
-            
-            let hasError = false;
-            let errorMessage = '';
-            
-            // Check Token A balance
-            if (tokenABalance < amountA) {
-                hasError = true;
-                errorMessage += `❌ Insufficient Token A! Need: ${amountA}, Have: ${tokenABalance.toFixed(4)}\n`;
-            }
-            
-            // Check Token B balance
-            if (tokenBBalance < amountB) {
-                hasError = true;
-                errorMessage += `❌ Insufficient Token B! Need: ${amountB}, Have: ${tokenBBalance.toFixed(4)}\n`;
-            }
-            
-            if (hasError) {
-                showStatus(errorMessage.trim(), 'error');
-                return false;
-            }
-            
-            return true;
-        }
-            currentSlippage = percentage;
-            document.querySelectorAll('.slippage-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('customSlippage').value = '';
-        }
-
-        function setTokenPair(tokenASymbol, tokenBSymbol) {
-            document.getElementById('tokenA').value = TOKENS[tokenASymbol] || '';
-            document.getElementById('tokenB').value = TOKENS[tokenBSymbol] || '';
-        }
-
-        function showStatus(message, type = 'info') {
-            const status = document.getElementById('status');
-            status.innerHTML = message;
-            status.className = `status ${type}`;
-        }
-
-        // Enhanced wallet connection with PulseChain network switching
-        async function connectWallet() {
-            console.log('🔗 Attempting to connect wallet...');
-            
-            if (typeof window.ethereum !== 'undefined') {
-                try {
-                    // Request account access
-                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    
-                    // Check and switch to PulseChain if needed
-                    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-                    console.log('Current chain ID:', chainId);
-                    
-                    // PulseChain mainnet chain ID is 0x171 (369 in decimal)
-                    const pulseChainId = '0x171';
-                    
-                    if (chainId !== pulseChainId) {
-                        console.log('Switching to PulseChain...');
-                        try {
-                            await window.ethereum.request({
-                                method: 'wallet_switchEthereumChain',
-                                params: [{ chainId: pulseChainId }],
-                            });
-                        } catch (switchError) {
-                            // This error code indicates that the chain has not been added to MetaMask/Rabby
-                            if (switchError.code === 4902) {
-                                console.log('Adding PulseChain network...');
-                                await window.ethereum.request({
-                                    method: 'wallet_addEthereumChain',
-                                    params: [{
-                                        chainId: pulseChainId,
-                                        chainName: 'PulseChain',
-                                        nativeCurrency: {
-                                            name: 'Pulse',
-                                            symbol: 'PLS',
-                                            decimals: 18
-                                        },
-                                        rpcUrls: ['https://rpc-pulsechain.g4mm4.io'],
-                                        blockExplorerUrls: ['https://scan.pulsechain.com/']
-                                    }]
-                                });
-                            } else {
-                                throw switchError;
-                            }
-                        }
-                    }
-                    
-                    // Initialize Web3 after network is correct
-                    web3 = new Web3(window.ethereum);
-                    walletAccount = accounts[0];
-                    isWalletConnected = true;
-                    
-                    console.log('✅ Wallet connected to PulseChain:', walletAccount);
-                    
-                    document.getElementById('connectBtn').style.display = 'none';
-                    document.getElementById('approveABtn').style.display = 'block';
-                    document.getElementById('approveBBtn').style.display = 'block';
-                    document.getElementById('addLiquidityBtn').style.display = 'block';
-                    
-                    showStatus(`Connected to PulseChain: ${walletAccount.substring(0,6)}...${walletAccount.substring(38)}`, 'success');
-                    
-                    // Load token balances after connection
-                    await loadTokenBalances();
-                    
-                } catch (error) {
-                    console.error('❌ Failed to connect wallet:', error);
-                    showStatus('Failed to connect wallet: ' + error.message, 'error');
-                }
-            } else {
-                showStatus('Please install Rabby or MetaMask', 'error');
-            }
-        }
-
         async function approveToken(token) {
-            const customSlippage = document.getElementById('customSlippage').value;
-            if (customSlippage) currentSlippage = parseFloat(customSlippage);
+            if (!isWalletConnected) {
+                showStatus('Please connect your wallet first', 'error');
+                return;
+            }
 
             const tokenAddress = token === 'A' ? document.getElementById('tokenA').value : document.getElementById('tokenB').value;
             
@@ -668,21 +496,15 @@
                 showStatus(`Please enter Token ${token} address`, 'error');
                 return;
             }
-            
-            if (!isWalletConnected) {
-                showStatus('Please connect your wallet first', 'error');
-                return;
-            }
 
             try {
                 const tokenContract = new web3.eth.Contract(ERC20_ABI, tokenAddress);
-                
                 showStatus(`Approving Token ${token}...`, 'info');
                 
                 const maxUint = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
                 const tx = await tokenContract.methods.approve(ROUTER_ADDRESS, maxUint).send({ from: walletAccount });
                 
-                showStatus(`Token ${token} approved successfully! TX: ${tx.transactionHash}`, 'success');
+                showStatus(`Token ${token} approved successfully!`, 'success');
                 
                 // Refresh approval status after successful approval
                 setTimeout(() => {
@@ -695,6 +517,11 @@
         }
 
         async function addLiquidity() {
+            if (!isWalletConnected) {
+                showStatus('Please connect your wallet first', 'error');
+                return;
+            }
+
             const tokenA = document.getElementById('tokenA').value;
             const tokenB = document.getElementById('tokenB').value;
             const amountA = document.getElementById('amountA').value;
@@ -704,51 +531,18 @@
                 showStatus('Please fill in all fields', 'error');
                 return;
             }
-            
-            if (!isWalletConnected) {
-                showStatus('Please connect your wallet first', 'error');
-                return;
-            }
-
-            // Check token balances before proceeding
-            const hasEnoughBalance = await checkBalances();
-            if (!hasEnoughBalance) {
-                return; // Error message already shown by checkBalances()
-            }
-
-            // Check if pool exists before proceeding
-            try {
-                const factory = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
-                const pairAddress = await factory.methods.getPair(tokenA, tokenB).call();
-                
-                if (pairAddress === '0x0000000000000000000000000000000000000000') {
-                    const proceed = confirm('⚠️ WARNING: This token pair has NO EXISTING POOL!\n\nYou will be creating a NEW POOL and setting the initial price ratio.\n\nThe ratio will be: 1 Token A = ' + (parseFloat(amountB)/parseFloat(amountA)).toFixed(6) + ' Token B\n\nAre you sure you want to proceed?');
-                    if (!proceed) {
-                        showStatus('Transaction cancelled', 'info');
-                        return;
-                    }
-                    showStatus('Creating new pool...', 'info');
-                } else {
-                    showStatus('Adding liquidity to existing pool...', 'info');
-                }
-            } catch (error) {
-                showStatus('Error checking pool: ' + error.message, 'error');
-                return;
-            }
 
             try {
                 const router = new web3.eth.Contract(ROUTER_ABI, ROUTER_ADDRESS);
+                showStatus('Adding liquidity...', 'info');
 
-                // Convert amounts to wei (assuming 18 decimals)
                 const amountADesired = web3.utils.toWei(amountA, 'ether');
                 const amountBDesired = web3.utils.toWei(amountB, 'ether');
                 
-                // Calculate minimum amounts with slippage
                 const slippageMultiplier = (100 - currentSlippage) / 100;
                 const amountAMin = web3.utils.toBN(amountADesired).mul(web3.utils.toBN(Math.floor(slippageMultiplier * 100))).div(web3.utils.toBN(100));
                 const amountBMin = web3.utils.toBN(amountBDesired).mul(web3.utils.toBN(Math.floor(slippageMultiplier * 100))).div(web3.utils.toBN(100));
                 
-                // Set deadline to 2 minutes from now
                 const deadline = Math.floor(Date.now() / 1000) + 120;
 
                 const tx = await router.methods.addLiquidity(
@@ -763,366 +557,17 @@
                 ).send({ from: walletAccount });
 
                 showStatus(`✅ Liquidity added successfully! TX: ${tx.transactionHash}`, 'success');
-                
-                // Refresh balances after successful transaction
-                setTimeout(() => {
-                    loadTokenBalances();
-                }, 3000);
 
             } catch (error) {
                 showStatus(`Transaction failed: ${error.message}`, 'error');
             }
         }
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
-    <script>
-        // Global variables - matching DirectMint pattern
-        let web3 = null;
-        let walletAccount = null;
-        let isWalletConnected = false;
-        let currentSlippage = 5.0;
-        let isCalculating = false;
-        let tokenABalance = 0;
-        let tokenBBalance = 0;
-
-        // PulseX V2 Contract Addresses
-        const ROUTER_ADDRESS = "0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02";
-        const FACTORY_ADDRESS = "0x1715a3E4A142d8b698131108995174F37aEBA10D";
-        
-        // Common token addresses on PulseChain
-        const TOKENS = {
-            'DAI': '0x6b175474e89094c44da98b954eedeac495271d0f',
-            'FEI': '0x956f47f50a910163d8bf957cf5846d573e7f87ca',
-            'WETH': '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-            'USDC': '0xA0b86a33E6441f8C2a1B745b9fAE3e3A6A8e9a7B',
-            'USDT': '0xdAC17F958D2ee523a2206206994597C13D831ec7'
-        };
-
-        const ROUTER_ABI = [
-            {"constant":false,"inputs":[{"name":"tokenA","type":"address"},{"name":"tokenB","type":"address"},{"name":"amountADesired","type":"uint256"},{"name":"amountBDesired","type":"uint256"},{"name":"amountAMin","type":"uint256"},{"name":"amountBMin","type":"uint256"},{"name":"to","type":"address"},{"name":"deadline","type":"uint256"}],"name":"addLiquidity","outputs":[{"name":"amountA","type":"uint256"},{"name":"amountB","type":"uint256"},{"name":"liquidity","type":"uint256"}],"payable":false,"stateMutability":"nonpayable","type":"function"},
-            {"constant":true,"inputs":[{"name":"amountIn","type":"uint256"},{"name":"path","type":"address[]"}],"name":"getAmountsOut","outputs":[{"name":"amounts","type":"uint256[]"}],"payable":false,"stateMutability":"view","type":"function"}
-        ];
-
-        const ERC20_ABI = [
-            {"constant":false,"inputs":[{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},
-            {"constant":true,"inputs":[{"name":"owner","type":"address"},{"name":"spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[{"name":"account","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"}
-        ];
-
-        const PAIR_ABI = [
-            {"constant":true,"inputs":[],"name":"getReserves","outputs":[{"name":"reserve0","type":"uint112"},{"name":"reserve1","type":"uint112"},{"name":"blockTimestampLast","type":"uint32"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[],"name":"token0","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[],"name":"token1","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"}
-        ];
-
-        const FACTORY_ABI = [
-            {"constant":true,"inputs":[{"name":"tokenA","type":"address"},{"name":"tokenB","type":"address"}],"name":"getPair","outputs":[{"name":"pair","type":"address"}],"payable":false,"stateMutability":"view","type":"function"}
-        ];
-
-        // Enhanced wallet connection following working pattern
-        async function connectWallet() {
-            console.log('🔗 Attempting to connect wallet...');
-            
-            if (typeof window.ethereum !== 'undefined') {
-                try {
-                    web3 = new Web3(window.ethereum);
-                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    walletAccount = accounts[0];
-                    isWalletConnected = true;
-                    
-                    console.log('✅ Wallet connected:', walletAccount);
-                    
-                    document.getElementById('connectBtn').style.display = 'none';
-                    document.getElementById('approveABtn').style.display = 'block';
-                    document.getElementById('approveBBtn').style.display = 'block';
-                    document.getElementById('addLiquidityBtn').style.display = 'block';
-                    
-                    showStatus(`Connected: ${walletAccount.substring(0,6)}...${walletAccount.substring(38)}`, 'success');
-                    
-                } catch (error) {
-                    console.error('❌ Failed to connect wallet:', error);
-                    showStatus('Failed to connect wallet: ' + error.message, 'error');
-                }
-            } else {
-                showStatus('Please install Rabby or MetaMask', 'error');
-            }
-        }
-
-        function setSlippage(percentage) {
-            currentSlippage = percentage;
-            document.querySelectorAll('.slippage-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('customSlippage').value = '';
-        }
-
-        function setTokenPair(tokenASymbol, tokenBSymbol) {
-            document.getElementById('tokenA').value = TOKENS[tokenASymbol] || '';
-            document.getElementById('tokenB').value = TOKENS[tokenBSymbol] || '';
-            
-            // Reload balances and approval status when tokens change
-            if (isWalletConnected) {
-                loadTokenBalances();
-                checkApprovalStatus();
-            }
-        }
-
-        function showStatus(message, type = 'info') {
-            const status = document.getElementById('status');
-            status.innerHTML = message;
-            status.className = `status ${type}`;
-        }
-
-        async function calculateAmountB() {
-            if (isCalculating) return;
-            isCalculating = true;
-
-            const tokenA = document.getElementById('tokenA').value;
-            const tokenB = document.getElementById('tokenB').value;
-            const amountA = document.getElementById('amountA').value;
-
-            if (!tokenA || !tokenB || !amountA || !web3) {
-                isCalculating = false;
-                return;
-            }
-
-            try {
-                const ratio = await getPoolRatio(tokenA, tokenB);
-                if (ratio) {
-                    const calculatedAmountB = parseFloat(amountA) * ratio;
-                    document.getElementById('amountB').value = calculatedAmountB.toFixed(6);
-                }
-            } catch (error) {
-                console.log('Could not calculate amount B:', error.message);
-            }
-
-            isCalculating = false;
-        }
-
-        async function calculateAmountA() {
-            if (isCalculating) return;
-            isCalculating = true;
-
-            const tokenA = document.getElementById('tokenA').value;
-            const tokenB = document.getElementById('tokenB').value;
-            const amountB = document.getElementById('amountB').value;
-
-            if (!tokenA || !tokenB || !amountB || !web3) {
-                isCalculating = false;
-                return;
-            }
-
-            try {
-                const ratio = await getPoolRatio(tokenA, tokenB);
-                if (ratio) {
-                    const calculatedAmountA = parseFloat(amountB) / ratio;
-                    document.getElementById('amountA').value = calculatedAmountA.toFixed(6);
-                }
-            } catch (error) {
-                console.log('Could not calculate amount A:', error.message);
-            }
-
-            isCalculating = false;
-        }
-
-        async function getPoolRatio(tokenA, tokenB) {
-            try {
-                const factory = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
-                const pairAddress = await factory.methods.getPair(tokenA, tokenB).call();
-                
-                if (pairAddress === '0x0000000000000000000000000000000000000000') {
-                    showStatus('⚠️ WARNING: This will CREATE A NEW POOL! You will set the initial price ratio.', 'error');
-                    return null;
-                }
-
-                const pair = new web3.eth.Contract(PAIR_ABI, pairAddress);
-                const reserves = await pair.methods.getReserves().call();
-                const token0 = await pair.methods.token0().call();
-                
-                // Determine which reserve corresponds to which token
-                let reserveA, reserveB;
-                if (token0.toLowerCase() === tokenA.toLowerCase()) {
-                    reserveA = reserves[0];
-                    reserveB = reserves[1];
-                } else {
-                    reserveA = reserves[1];
-                    reserveB = reserves[0];
-                }
-
-                // Return ratio (tokenB amount per 1 tokenA)
-                const ratio = parseFloat(web3.utils.fromWei(reserveB, 'ether')) / parseFloat(web3.utils.fromWei(reserveA, 'ether'));
-                return ratio;
-
-            } catch (error) {
-                console.log('Error getting pool ratio:', error);
-                return null;
-            }
-        }
-
-        async function approveToken(token) {
-            const customSlippage = document.getElementById('customSlippage').value;
-            if (customSlippage) currentSlippage = parseFloat(customSlippage);
-
-            const tokenAddress = token === 'A' ? document.getElementById('tokenA').value : document.getElementById('tokenB').value;
-            
-            if (!tokenAddress) {
-                showStatus(`Please enter Token ${token} address`, 'error');
-                return;
-            }
-
-            try {
-                const tokenContract = new web3.eth.Contract(ERC20_ABI, tokenAddress);
-                
-                showStatus(`Approving Token ${token}...`, 'info');
-                
-                const maxUint = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
-                const tx = await tokenContract.methods.approve(ROUTER_ADDRESS, maxUint).send({ from: walletAccount });
-                
-                showStatus(`Token ${token} approved successfully!`, 'success');
-            } catch (error) {
-                showStatus(`Approval failed: ${error.message}`, 'error');
-            }
-        }
-
-        async function addLiquidity() {
-            const tokenA = document.getElementById('tokenA').value;
-            const tokenB = document.getElementById('tokenB').value;
-            const amountA = document.getElementById('amountA').value;
-            const amountB = document.getElementById('amountB').value;
-
-            if (!tokenA || !tokenB || !amountA || !amountB) {
-                showStatus('Please fill in all fields', 'error');
-                return;
-            }
-
-            // Check if pool exists before proceeding
-            try {
-                const factory = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
-                const pairAddress = await factory.methods.getPair(tokenA, tokenB).call();
-                
-                if (pairAddress === '0x0000000000000000000000000000000000000000') {
-                    const proceed = confirm('⚠️ WARNING: This token pair has NO EXISTING POOL!\n\nYou will be creating a NEW POOL and setting the initial price ratio.\n\nThe ratio will be: 1 Token A = ' + (parseFloat(amountB)/parseFloat(amountA)).toFixed(6) + ' Token B\n\nAre you sure you want to proceed?');
-                    if (!proceed) {
-                        showStatus('Transaction cancelled', 'info');
-                        return;
-                    }
-                    showStatus('Creating new pool...', 'info');
-                } else {
-                    showStatus('Adding liquidity to existing pool...', 'info');
-                }
-            } catch (error) {
-                showStatus('Error checking pool: ' + error.message, 'error');
-                return;
-            }
-
-            try {
-                const router = new web3.eth.Contract(ROUTER_ABI, ROUTER_ADDRESS);
-
-                // Convert amounts to wei (assuming 18 decimals)
-                const amountADesired = web3.utils.toWei(amountA, 'ether');
-                const amountBDesired = web3.utils.toWei(amountB, 'ether');
-                
-                // Calculate minimum amounts with slippage
-                const slippageMultiplier = (100 - currentSlippage) / 100;
-                const amountAMin = web3.utils.toBN(amountADesired).mul(web3.utils.toBN(Math.floor(slippageMultiplier * 100))).div(web3.utils.toBN(100));
-                const amountBMin = web3.utils.toBN(amountBDesired).mul(web3.utils.toBN(Math.floor(slippageMultiplier * 100))).div(web3.utils.toBN(100));
-                
-                // Set deadline to 2 minutes from now
-                const deadline = Math.floor(Date.now() / 1000) + 120;
-
-                const tx = await router.methods.addLiquidity(
-                    tokenA,
-                    tokenB,
-                    amountADesired,
-                    amountBDesired,
-                    amountAMin.toString(),
-                    amountBMin.toString(),
-                    walletAccount,
-                    deadline
-                ).send({ from: walletAccount });
-
-                showStatus(`Transaction submitted: ${tx.transactionHash}`, 'info');
-                showStatus(`Liquidity added successfully! TX: ${tx.transactionHash}`, 'success');
-
-            } catch (error) {
-                showStatus(`Transaction failed: ${error.message}`, 'error');
-            }
-        }
-
-        // Initialize page - matching DirectMint pattern
+        // Initialize
         window.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 PulseX Liquidity Page Ready!');
-            
-            // Check if Web3 loaded properly
-            if (typeof Web3 === 'undefined') {
-                console.error('❌ Web3 failed to load from CDN');
-                showStatus('Web3 library failed to load. Please refresh the page.', 'error');
-                
-                // Try loading Web3 again
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js';
-                script.onload = function() {
-                    console.log('✅ Web3 loaded successfully on retry');
-                    showStatus('Ready to connect wallet to PulseChain', 'info');
-                };
-                script.onerror = function() {
-                    console.error('❌ Web3 failed to load even on retry');
-                    showStatus('Failed to load Web3. Check your internet connection.', 'error');
-                };
-                document.head.appendChild(script);
-            } else {
-                console.log('✅ Web3 loaded successfully');
-                showStatus('Ready to connect wallet to PulseChain', 'info');
-            }
-            
-            // Clear any pre-populated data - start fresh
-            document.getElementById('tokenA').value = '';
-            document.getElementById('tokenB').value = '';
-            console.log('✅ App initialized');
+            showStatus('Ready to connect wallet', 'info');
         });
-
-        // Handle account changes - matching DirectMint pattern
-        if (typeof window.ethereum !== 'undefined') {
-            window.ethereum.on('accountsChanged', function (accounts) {
-                if (accounts.length === 0) {
-                    disconnectWallet();
-                } else if (accounts[0] !== walletAccount) {
-                    walletAccount = accounts[0];
-                    console.log('🔄 Account changed to:', walletAccount);
-                    if (isWalletConnected) {
-                        loadTokenBalances();
-                        checkApprovalStatus();
-                    }
-                }
-            });
-            
-            window.ethereum.on('chainChanged', function (chainId) {
-                console.log('🌐 Network changed to:', chainId);
-                if (isWalletConnected) {
-                    loadTokenBalances();
-                    checkApprovalStatus();
-                }
-            });
-        }
-
-        function disconnectWallet() {
-            walletAccount = null;
-            isWalletConnected = false;
-            web3 = null;
-            tokenABalance = 0;
-            tokenBBalance = 0;
-            
-            document.getElementById('connectBtn').style.display = 'block';
-            document.getElementById('approveABtn').style.display = 'none';
-            document.getElementById('approveBBtn').style.display = 'none';
-            document.getElementById('addLiquidityBtn').style.display = 'none';
-            
-            console.log('👋 Wallet disconnected');
-            showStatus('Wallet disconnected', 'info');
-        }
-
-        console.log('🎯 PulseX Liquidity Page loaded with DirectMint matching pattern!');
-    </script>
     </script>
 </body>
 </html>
