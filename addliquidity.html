@@ -372,6 +372,80 @@
             }
         }
 
+        // Enhanced wallet connection with PulseChain network switching
+        async function connectWallet() {
+            console.log('🔗 Attempting to connect wallet...');
+            
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    // Request account access
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    
+                    // Check and switch to PulseChain if needed
+                    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                    console.log('Current chain ID:', chainId);
+                    
+                    // PulseChain mainnet chain ID is 0x171 (369 in decimal)
+                    const pulseChainId = '0x171';
+                    
+                    if (chainId !== pulseChainId) {
+                        console.log('Switching to PulseChain...');
+                        try {
+                            await window.ethereum.request({
+                                method: 'wallet_switchEthereumChain',
+                                params: [{ chainId: pulseChainId }],
+                            });
+                        } catch (switchError) {
+                            // This error code indicates that the chain has not been added to MetaMask/Rabby
+                            if (switchError.code === 4902) {
+                                console.log('Adding PulseChain network...');
+                                await window.ethereum.request({
+                                    method: 'wallet_addEthereumChain',
+                                    params: [{
+                                        chainId: pulseChainId,
+                                        chainName: 'PulseChain',
+                                        nativeCurrency: {
+                                            name: 'Pulse',
+                                            symbol: 'PLS',
+                                            decimals: 18
+                                        },
+                                        rpcUrls: ['https://rpc-pulsechain.g4mm4.io'],
+                                        blockExplorerUrls: ['https://scan.pulsechain.com/']
+                                    }]
+                                });
+                            } else {
+                                throw switchError;
+                            }
+                        }
+                    }
+                    
+                    // Initialize Web3 after network is correct
+                    web3 = new Web3(window.ethereum);
+                    walletAccount = accounts[0];
+                    isWalletConnected = true;
+                    
+                    console.log('✅ Wallet connected to PulseChain:', walletAccount);
+                    
+                    document.getElementById('connectBtn').style.display = 'none';
+                    document.getElementById('approveABtn').style.display = 'block';
+                    document.getElementById('approveBBtn').style.display = 'block';
+                    document.getElementById('addLiquidityBtn').style.display = 'block';
+                    
+                    showStatus(`Connected to PulseChain: ${walletAccount.substring(0,6)}...${walletAccount.substring(38)}`, 'success');
+                    
+                    // Load token balances after connection
+                    await loadTokenBalances();
+                    await checkApprovalStatus();
+                    
+                } catch (error) {
+                    console.error('❌ Failed to connect wallet:', error);
+                    showStatus('Failed to connect wallet: ' + error.message, 'error');
+                }
+            } else {
+                showStatus('Please install Rabby or MetaMask', 'error');
+            }
+        }
+
         async function loadTokenBalances() {
             if (!web3 || !walletAccount) return;
             
@@ -402,6 +476,60 @@
             } catch (error) {
                 console.error('❌ Failed to load token balances:', error);
                 showStatus('Connected, but could not load token balances', 'warning');
+            }
+        }
+
+        async function checkApprovalStatus() {
+            if (!web3 || !walletAccount) return;
+            
+            const tokenA = document.getElementById('tokenA').value;
+            const tokenB = document.getElementById('tokenB').value;
+            
+            if (!tokenA || !tokenB) return;
+            
+            try {
+                console.log('🔍 Checking approval status...');
+                
+                // Check Token A approval
+                const tokenAContract = new web3.eth.Contract(ERC20_ABI, tokenA);
+                const allowanceA = await tokenAContract.methods.allowance(walletAccount, ROUTER_ADDRESS).call();
+                const allowanceAEther = parseFloat(web3.utils.fromWei(allowanceA, 'ether'));
+                const isApprovedA = allowanceAEther > 1000000; // Consider approved if > 1M tokens
+                
+                // Check Token B approval
+                const tokenBContract = new web3.eth.Contract(ERC20_ABI, tokenB);
+                const allowanceB = await tokenBContract.methods.allowance(walletAccount, ROUTER_ADDRESS).call();
+                const allowanceBEther = parseFloat(web3.utils.fromWei(allowanceB, 'ether'));
+                const isApprovedB = allowanceBEther > 1000000;
+                
+                // Update button text based on approval status
+                const btnA = document.getElementById('approveABtn');
+                const btnB = document.getElementById('approveBBtn');
+                
+                if (isApprovedA) {
+                    btnA.textContent = 'Token A Already Approved ✓';
+                    btnA.style.background = 'rgba(6, 255, 165, 0.3)';
+                    btnA.disabled = true;
+                } else {
+                    btnA.textContent = 'Approve Token A';
+                    btnA.style.background = '';
+                    btnA.disabled = false;
+                }
+                
+                if (isApprovedB) {
+                    btnB.textContent = 'Token B Already Approved ✓';
+                    btnB.style.background = 'rgba(6, 255, 165, 0.3)';
+                    btnB.disabled = true;
+                } else {
+                    btnB.textContent = 'Approve Token B';
+                    btnB.style.background = '';
+                    btnB.disabled = false;
+                }
+                
+                console.log(`✅ Approval status - A: ${isApprovedA}, B: ${isApprovedB}`);
+                
+            } catch (error) {
+                console.error('❌ Error checking approval status:', error);
             }
         }
 
@@ -548,6 +676,12 @@
                 const tx = await tokenContract.methods.approve(ROUTER_ADDRESS, maxUint).send({ from: walletAccount });
                 
                 showStatus(`Token ${token} approved successfully! TX: ${tx.transactionHash}`, 'success');
+                
+                // Refresh approval status after successful approval
+                setTimeout(() => {
+                    checkApprovalStatus();
+                }, 2000);
+                
             } catch (error) {
                 showStatus(`Approval failed: ${error.message}`, 'error');
             }
@@ -719,9 +853,10 @@
             document.getElementById('tokenA').value = TOKENS[tokenASymbol] || '';
             document.getElementById('tokenB').value = TOKENS[tokenBSymbol] || '';
             
-            // Reload balances when tokens change
+            // Reload balances and approval status when tokens change
             if (isWalletConnected) {
                 loadTokenBalances();
+                checkApprovalStatus();
             }
         }
 
@@ -907,45 +1042,57 @@
             }
         }
 
-        // Initialize when Web3 is loaded and expose functions globally
-        function initializeApp() {
+        // Initialize page - matching DirectMint pattern
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 PulseX Liquidity Page Ready!');
             // Clear any pre-populated data - start fresh
             document.getElementById('tokenA').value = '';
             document.getElementById('tokenB').value = '';
             showStatus('Ready to connect wallet to PulseChain', 'info');
-            console.log('✅ App initialized with Web3');
+            console.log('✅ App initialized');
+        });
+
+        // Handle account changes - matching DirectMint pattern
+        if (typeof window.ethereum !== 'undefined') {
+            window.ethereum.on('accountsChanged', function (accounts) {
+                if (accounts.length === 0) {
+                    disconnectWallet();
+                } else if (accounts[0] !== walletAccount) {
+                    walletAccount = accounts[0];
+                    console.log('🔄 Account changed to:', walletAccount);
+                    if (isWalletConnected) {
+                        loadTokenBalances();
+                        checkApprovalStatus();
+                    }
+                }
+            });
             
-            // Expose functions to global window object so onclick can access them
-            window.connectWallet = connectWallet;
-            window.approveToken = approveToken;
-            window.addLiquidity = addLiquidity;
-            window.setSlippage = setSlippage;
-            window.setTokenPair = setTokenPair;
-            window.calculateAmountA = calculateAmountA;
-            window.calculateAmountB = calculateAmountB;
-            window.loadTokenBalances = loadTokenBalances;
-            window.checkBalances = checkBalances;
-            
-            console.log('✅ Functions exposed to window object');
+            window.ethereum.on('chainChanged', function (chainId) {
+                console.log('🌐 Network changed to:', chainId);
+                if (isWalletConnected) {
+                    loadTokenBalances();
+                    checkApprovalStatus();
+                }
+            });
         }
 
-        // Load Web3.js and initialize
-        function loadWeb3() {
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js';
-            script.onload = initializeApp;
-            script.onerror = function() {
-                showStatus('Failed to load Web3. Please refresh the page.', 'error');
-            };
-            document.head.appendChild(script);
+        function disconnectWallet() {
+            walletAccount = null;
+            isWalletConnected = false;
+            web3 = null;
+            tokenABalance = 0;
+            tokenBBalance = 0;
+            
+            document.getElementById('connectBtn').style.display = 'block';
+            document.getElementById('approveABtn').style.display = 'none';
+            document.getElementById('approveBBtn').style.display = 'none';
+            document.getElementById('addLiquidityBtn').style.display = 'none';
+            
+            console.log('👋 Wallet disconnected');
+            showStatus('Wallet disconnected', 'info');
         }
 
-        // Start loading when DOM is ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', loadWeb3);
-        } else {
-            loadWeb3();
-        }
+        console.log('🎯 PulseX Liquidity Page loaded with DirectMint matching pattern!');
     </script>
     </script>
 </body>
