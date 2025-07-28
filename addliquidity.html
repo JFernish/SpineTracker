@@ -202,9 +202,9 @@
         
         <div class="preset-pairs">
             <label>Quick Select Token Pairs:</label>
-            <div class="preset-button" onclick="window.setTokenPair('WETH', 'USDC')">WETH/USDC</div>
-            <div class="preset-button" onclick="window.setTokenPair('WETH', 'USDT')">WETH/USDT</div>
-            <div class="preset-button" onclick="window.setTokenPair('USDC', 'USDT')">USDC/USDT</div>
+            <div class="preset-button" onclick="setTokenPair('WETH', 'USDC')">WETH/USDC</div>
+            <div class="preset-button" onclick="setTokenPair('WETH', 'USDT')">WETH/USDT</div>
+            <div class="preset-button" onclick="setTokenPair('USDC', 'USDT')">USDC/USDT</div>
         </div>
 
         <div class="token-pair">
@@ -221,29 +221,29 @@
         <div class="token-pair">
             <div class="input-group">
                 <label>Token A Amount:</label>
-                <input type="number" id="amountA" placeholder="1000" step="0.000001" oninput="window.calculateAmountB()">
+                <input type="number" id="amountA" placeholder="1000" step="0.000001" oninput="calculateAmountB()">
             </div>
             <div class="input-group">
                 <label>Token B Amount:</label>
-                <input type="number" id="amountB" placeholder="1000" step="0.000001" oninput="window.calculateAmountA()">
+                <input type="number" id="amountB" placeholder="1000" step="0.000001" oninput="calculateAmountA()">
             </div>
         </div>
 
         <div class="slippage-section">
             <label>Slippage Tolerance:</label>
             <div class="slippage-buttons">
-                <div class="slippage-btn" onclick="window.setSlippage(0.5)">0.5%</div>
-                <div class="slippage-btn" onclick="window.setSlippage(1.0)">1.0%</div>
-                <div class="slippage-btn" onclick="window.setSlippage(2.0)">2.0%</div>
-                <div class="slippage-btn active" onclick="window.setSlippage(5.0)">5.0%</div>
+                <div class="slippage-btn" onclick="setSlippage(0.5)">0.5%</div>
+                <div class="slippage-btn" onclick="setSlippage(1.0)">1.0%</div>
+                <div class="slippage-btn" onclick="setSlippage(2.0)">2.0%</div>
+                <div class="slippage-btn active" onclick="setSlippage(5.0)">5.0%</div>
             </div>
             <input type="number" id="customSlippage" placeholder="Custom %" step="0.1" style="margin-top: 10px;">
         </div>
 
-        <button id="connectBtn" onclick="window.connectWallet()">Connect Wallet</button>
-        <button id="approveABtn" onclick="window.approveToken('A')" style="display:none;">Approve Token A</button>
-        <button id="approveBBtn" onclick="window.approveToken('B')" style="display:none;">Approve Token B</button>
-        <button id="addLiquidityBtn" onclick="window.addLiquidity()" style="display:none;">Add Liquidity</button>
+        <button id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+        <button id="approveABtn" onclick="approveToken('A')" style="display:none;">Approve Token A</button>
+        <button id="approveBBtn" onclick="approveToken('B')" style="display:none;">Approve Token B</button>
+        <button id="addLiquidityBtn" onclick="addLiquidity()" style="display:none;">Add Liquidity</button>
 
         <div id="status"></div>
     </div>
@@ -633,13 +633,14 @@
             }
         }
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
     <script>
-        // Global variables
-        let currentSlippage = 5.0;
-        let isCalculating = false;
+        // Global variables - matching DirectMint pattern
         let web3 = null;
         let walletAccount = null;
         let isWalletConnected = false;
+        let currentSlippage = 5.0;
+        let isCalculating = false;
         let tokenABalance = 0;
         let tokenBBalance = 0;
 
