@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🌊 PulseX V2 Add Liquidity</title>
+    <title>🌊 PulseX V2 Add Liquidity (Fixed)</title>
     <style>
         * {
             margin: 0;
@@ -80,6 +80,19 @@
             grid-template-columns: 1fr 1fr;
             gap: 15px;
             margin-bottom: 20px;
+        }
+        
+        .token-info {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 5px;
+        }
+        
+        .balance-info {
+            font-size: 0.8rem;
+            color: #06ffa5;
+            margin-top: 3px;
+            font-weight: 500;
         }
         
         button {
@@ -198,34 +211,39 @@
 </head>
 <body>
     <div class="container">
-        <h1>🌊 PulseX V2 Add Liquidity</h1>
+        <h1>🌊 PulseX V2 Add Liquidity (Fixed)</h1>
         
         <div class="preset-pairs">
             <label>Quick Select Token Pairs:</label>
             <div class="preset-button" onclick="setTokenPair('WETH', 'USDC')">WETH/USDC</div>
             <div class="preset-button" onclick="setTokenPair('WETH', 'USDT')">WETH/USDT</div>
             <div class="preset-button" onclick="setTokenPair('USDC', 'USDT')">USDC/USDT</div>
+            <div class="preset-button" onclick="setTokenPair('HEX', 'USDC')">HEX/USDC</div>
         </div>
 
         <div class="token-pair">
             <div class="input-group">
                 <label>Token A Address:</label>
-                <input type="text" id="tokenA" placeholder="0x..." onchange="if(isWalletConnected) { resetApprovalButtons(); checkApprovalStatus(); }">
+                <input type="text" id="tokenA" placeholder="0x..." onchange="onTokenChange()">
+                <div id="tokenAInfo" class="token-info"></div>
+                <div id="balanceAInfo" class="balance-info"></div>
             </div>
             <div class="input-group">
                 <label>Token B Address:</label>
-                <input type="text" id="tokenB" placeholder="0x..." onchange="if(isWalletConnected) { resetApprovalButtons(); checkApprovalStatus(); }">
+                <input type="text" id="tokenB" placeholder="0x..." onchange="onTokenChange()">
+                <div id="tokenBInfo" class="token-info"></div>
+                <div id="balanceBInfo" class="balance-info"></div>
             </div>
         </div>
 
         <div class="token-pair">
             <div class="input-group">
                 <label>Token A Amount:</label>
-                <input type="number" id="amountA" placeholder="1000" step="0.000001" oninput="calculateAmountB()">
+                <input type="number" id="amountA" placeholder="1000" step="0.000000001" oninput="calculateAmountB()">
             </div>
             <div class="input-group">
                 <label>Token B Amount:</label>
-                <input type="number" id="amountB" placeholder="1000" step="0.000001" oninput="calculateAmountA()">
+                <input type="number" id="amountB" placeholder="1000" step="0.000000001" oninput="calculateAmountA()">
             </div>
         </div>
 
@@ -250,12 +268,14 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
     <script>
-        // Global variables - exactly like DirectMint
+        // Global variables
         let web3 = null;
         let walletAccount = null;
         let isWalletConnected = false;
         let currentSlippage = 5.0;
         let isCalculating = false;
+        let tokenADecimals = 18;
+        let tokenBDecimals = 18;
 
         // Contract addresses
         const ROUTER_ADDRESS = "0x165C3410fC91EF562C50559f7d2289fEbed552d9";
@@ -264,7 +284,8 @@
         const TOKENS = {
             'WETH': '0xA1077a294dDE1B09bB078844df40758a5D0f9a27',
             'USDC': '0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07', 
-            'USDT': '0x0Cb6F5a34ad42ec934882A05265A7d5F59b51A2f'
+            'USDT': '0x0Cb6F5a34ad42ec934882A05265A7d5F59b51A2f',
+            'HEX': '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39'
         };
 
         const ROUTER_ABI = [
@@ -285,10 +306,10 @@
             {"constant":false,"inputs":[{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},
             {"constant":true,"inputs":[{"name":"owner","type":"address"},{"name":"spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
             {"constant":true,"inputs":[{"name":"account","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"}
+            {"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"}
         ];
 
-        // Simple wallet connection - exactly like DirectMint
         async function connectWallet() {
             console.log('🔗 Attempting to connect wallet...');
             
@@ -308,7 +329,9 @@
                     
                     showStatus(`Connected: ${walletAccount.substring(0,6)}...${walletAccount.substring(38)}`, 'success');
                     
-                    // Check approval status after connection
+                    // Load token info and balances after connection
+                    await loadTokenInfo();
+                    await loadWalletBalances();
                     checkApprovalStatus();
                     
                 } catch (error) {
@@ -331,20 +354,96 @@
             document.getElementById('tokenA').value = TOKENS[tokenASymbol] || '';
             document.getElementById('tokenB').value = TOKENS[tokenBSymbol] || '';
             
-            // Reset approval buttons to default state immediately
+            onTokenChange();
+        }
+
+        async function onTokenChange() {
             resetApprovalButtons();
-            
-            // Check approval status when tokens change
+            await loadTokenInfo();
             if (isWalletConnected) {
+                await loadWalletBalances();
                 checkApprovalStatus();
             }
         }
 
-        function resetApprovalButtons() {
+        async function loadTokenInfo() {
+            if (!web3) return;
+            
+            const tokenA = document.getElementById('tokenA').value;
+            const tokenB = document.getElementById('tokenB').value;
+            
+            // Load Token A info
+            if (tokenA) {
+                try {
+                    const tokenAContract = new web3.eth.Contract(ERC20_ABI, tokenA);
+                    const symbolA = await tokenAContract.methods.symbol().call();
+                    const decimalsA = await tokenAContract.methods.decimals().call();
+                    tokenADecimals = parseInt(decimalsA);
+                    document.getElementById('tokenAInfo').textContent = `${symbolA} (${decimalsA} decimals)`;
+                } catch (error) {
+                    document.getElementById('tokenAInfo').textContent = 'Invalid token address';
+                    tokenADecimals = 18;
+                }
+            } else {
+                document.getElementById('tokenAInfo').textContent = '';
+                tokenADecimals = 18;
+            }
+            
+            // Load Token B info
+            if (tokenB) {
+                try {
+                    const tokenBContract = new web3.eth.Contract(ERC20_ABI, tokenB);
+                    const symbolB = await tokenBContract.methods.symbol().call();
+                    const decimalsB = await tokenBContract.methods.decimals().call();
+                    tokenBDecimals = parseInt(decimalsB);
+                    document.getElementById('tokenBInfo').textContent = `${symbolB} (${decimalsB} decimals)`;
+                } catch (error) {
+                    document.getElementById('tokenBInfo').textContent = 'Invalid token address';
+                    tokenBDecimals = 18;
+                }
+            } else {
+                document.getElementById('tokenBInfo').textContent = '';
+                tokenBDecimals = 18;
+            }
+        }
+
+        async function loadWalletBalances() {
+            if (!web3 || !walletAccount) return;
+            
+            const tokenA = document.getElementById('tokenA').value;
+            const tokenB = document.getElementById('tokenB').value;
+            
+            // Load Token A balance
+            if (tokenA) {
+                try {
+                    const tokenAContract = new web3.eth.Contract(ERC20_ABI, tokenA);
+                    const balanceA = await tokenAContract.methods.balanceOf(walletAccount).call();
+                    const balanceAFormatted = parseFloat(balanceA) / Math.pow(10, tokenADecimals);
+                    document.getElementById('balanceAInfo').textContent = `Balance: ${balanceAFormatted.toLocaleString(undefined, {maximumFractionDigits: 6})}`;
+                } catch (error) {
+                    document.getElementById('balanceAInfo').textContent = 'Balance: Error loading';
+                }
+            } else {
+                document.getElementById('balanceAInfo').textContent = '';
+            }
+            
+            // Load Token B balance
+            if (tokenB) {
+                try {
+                    const tokenBContract = new web3.eth.Contract(ERC20_ABI, tokenB);
+                    const balanceB = await tokenBContract.methods.balanceOf(walletAccount).call();
+                    const balanceBFormatted = parseFloat(balanceB) / Math.pow(10, tokenBDecimals);
+                    document.getElementById('balanceBInfo').textContent = `Balance: ${balanceBFormatted.toLocaleString(undefined, {maximumFractionDigits: 6})}`;
+                } catch (error) {
+                    document.getElementById('balanceBInfo').textContent = 'Balance: Error loading';
+                }
+            } else {
+                document.getElementById('balanceBInfo').textContent = '';
+            }
+        }
             const btnA = document.getElementById('approveABtn');
             const btnB = document.getElementById('approveBBtn');
             
-            // Reset to default state
             btnA.textContent = 'Approve Token A';
             btnA.style.background = '';
             btnA.disabled = false;
@@ -358,6 +457,14 @@
             const status = document.getElementById('status');
             status.innerHTML = message;
             status.className = `status ${type}`;
+        }
+
+        function formatTokenAmount(amount, decimals) {
+            return web3.utils.toBN(amount).mul(web3.utils.toBN(10).pow(web3.utils.toBN(decimals)));
+        }
+
+        function parseTokenAmount(amount, decimals) {
+            return web3.utils.toBN(amount).div(web3.utils.toBN(10).pow(web3.utils.toBN(decimals)));
         }
 
         async function calculateAmountB() {
@@ -377,7 +484,7 @@
                 const ratio = await getPoolRatio(tokenA, tokenB);
                 if (ratio) {
                     const calculatedAmountB = parseFloat(amountA) * ratio;
-                    document.getElementById('amountB').value = calculatedAmountB.toFixed(6);
+                    document.getElementById('amountB').value = calculatedAmountB.toFixed(Math.max(6, tokenBDecimals));
                 }
             } catch (error) {
                 console.log('Could not calculate amount B:', error.message);
@@ -403,7 +510,7 @@
                 const ratio = await getPoolRatio(tokenA, tokenB);
                 if (ratio) {
                     const calculatedAmountA = parseFloat(amountB) / ratio;
-                    document.getElementById('amountA').value = calculatedAmountA.toFixed(6);
+                    document.getElementById('amountA').value = calculatedAmountA.toFixed(Math.max(6, tokenADecimals));
                 }
             } catch (error) {
                 console.log('Could not calculate amount A:', error.message);
@@ -426,7 +533,6 @@
                 const reserves = await pair.methods.getReserves().call();
                 const token0 = await pair.methods.token0().call();
                 
-                // Determine which reserve corresponds to which token
                 let reserveA, reserveB;
                 if (token0.toLowerCase() === tokenA.toLowerCase()) {
                     reserveA = reserves[0];
@@ -436,8 +542,11 @@
                     reserveB = reserves[0];
                 }
 
-                // Return ratio (tokenB amount per 1 tokenA)
-                const ratio = parseFloat(web3.utils.fromWei(reserveB, 'ether')) / parseFloat(web3.utils.fromWei(reserveA, 'ether'));
+                // Convert reserves to proper decimal format
+                const reserveAFormatted = parseFloat(web3.utils.fromWei(reserveA, tokenADecimals === 18 ? 'ether' : 'wei')) / Math.pow(10, tokenADecimals === 18 ? 0 : tokenADecimals);
+                const reserveBFormatted = parseFloat(web3.utils.fromWei(reserveB, tokenBDecimals === 18 ? 'ether' : 'wei')) / Math.pow(10, tokenBDecimals === 18 ? 0 : tokenBDecimals);
+                
+                const ratio = reserveBFormatted / reserveAFormatted;
                 return ratio;
 
             } catch (error) {
@@ -457,19 +566,14 @@
             try {
                 console.log('🔍 Checking approval status...');
                 
-                // Check Token A approval
                 const tokenAContract = new web3.eth.Contract(ERC20_ABI, tokenA);
                 const allowanceA = await tokenAContract.methods.allowance(walletAccount, ROUTER_ADDRESS).call();
-                const allowanceAEther = parseFloat(web3.utils.fromWei(allowanceA, 'ether'));
-                const isApprovedA = allowanceAEther > 1000000;
+                const isApprovedA = web3.utils.toBN(allowanceA).gt(web3.utils.toBN('1000000').mul(web3.utils.toBN(10).pow(web3.utils.toBN(tokenADecimals))));
                 
-                // Check Token B approval
                 const tokenBContract = new web3.eth.Contract(ERC20_ABI, tokenB);
                 const allowanceB = await tokenBContract.methods.allowance(walletAccount, ROUTER_ADDRESS).call();
-                const allowanceBEther = parseFloat(web3.utils.fromWei(allowanceB, 'ether'));
-                const isApprovedB = allowanceBEther > 1000000;
+                const isApprovedB = web3.utils.toBN(allowanceB).gt(web3.utils.toBN('1000000').mul(web3.utils.toBN(10).pow(web3.utils.toBN(tokenBDecimals))));
                 
-                // Update button text based on approval status
                 const btnA = document.getElementById('approveABtn');
                 const btnB = document.getElementById('approveBBtn');
                 
@@ -518,12 +622,16 @@
                 showStatus(`Approving Token ${token}...`, 'info');
                 
                 const maxUint = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
-                const tx = await tokenContract.methods.approve(ROUTER_ADDRESS, maxUint).send({ from: walletAccount });
+                const tx = await tokenContract.methods.approve(ROUTER_ADDRESS, maxUint).send({ 
+                    from: walletAccount,
+                    gas: 100000
+                });
                 
                 showStatus(`Token ${token} approved successfully!`, 'success');
                 
-                // Refresh approval status after successful approval
-                setTimeout(() => {
+                // Refresh approval status and balances after successful approval
+                setTimeout(async () => {
+                    await loadWalletBalances();
                     checkApprovalStatus();
                 }, 2000);
                 
@@ -552,36 +660,54 @@
                 const router = new web3.eth.Contract(ROUTER_ABI, ROUTER_ADDRESS);
                 showStatus('Adding liquidity...', 'info');
 
-                const amountADesired = web3.utils.toWei(amountA, 'ether');
-                const amountBDesired = web3.utils.toWei(amountB, 'ether');
+                // Format amounts with correct decimals
+                const amountADesired = formatTokenAmount(amountA, tokenADecimals).toString();
+                const amountBDesired = formatTokenAmount(amountB, tokenBDecimals).toString();
                 
+                // Calculate minimum amounts with slippage
                 const slippageMultiplier = (100 - currentSlippage) / 100;
-                const amountAMin = web3.utils.toBN(amountADesired).mul(web3.utils.toBN(Math.floor(slippageMultiplier * 100))).div(web3.utils.toBN(100));
-                const amountBMin = web3.utils.toBN(amountBDesired).mul(web3.utils.toBN(Math.floor(slippageMultiplier * 100))).div(web3.utils.toBN(100));
+                const amountAMin = web3.utils.toBN(amountADesired).mul(web3.utils.toBN(Math.floor(slippageMultiplier * 100))).div(web3.utils.toBN(100)).toString();
+                const amountBMin = web3.utils.toBN(amountBDesired).mul(web3.utils.toBN(Math.floor(slippageMultiplier * 100))).div(web3.utils.toBN(100)).toString();
                 
-                const deadline = Math.floor(Date.now() / 1000) + 120;
+                const deadline = Math.floor(Date.now() / 1000) + 600; // 10 minutes
+
+                console.log('Adding liquidity with amounts:', {
+                    tokenA, tokenB,
+                    amountADesired, amountBDesired,
+                    amountAMin, amountBMin,
+                    tokenADecimals, tokenBDecimals
+                });
 
                 const tx = await router.methods.addLiquidity(
                     tokenA,
                     tokenB,
                     amountADesired,
                     amountBDesired,
-                    amountAMin.toString(),
-                    amountBMin.toString(),
+                    amountAMin,
+                    amountBMin,
                     walletAccount,
                     deadline
-                ).send({ from: walletAccount });
+                ).send({ 
+                    from: walletAccount,
+                    gas: 3000000
+                });
 
                 showStatus(`✅ Liquidity added successfully! TX: ${tx.transactionHash}`, 'success');
 
+                // Refresh balances after successful liquidity addition
+                setTimeout(async () => {
+                    await loadWalletBalances();
+                }, 3000);
+
             } catch (error) {
+                console.error('Transaction failed:', error);
                 showStatus(`Transaction failed: ${error.message}`, 'error');
             }
         }
 
         // Initialize
         window.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 PulseX Liquidity Page Ready!');
+            console.log('🚀 PulseX Liquidity Page Ready! (Fixed Version)');
             showStatus('Ready to connect wallet', 'info');
         });
     </script>
