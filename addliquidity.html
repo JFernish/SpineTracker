@@ -376,6 +376,13 @@
         async function connectWallet() {
             console.log('🔗 Attempting to connect wallet...');
             
+            // Check if Web3 is loaded
+            if (typeof Web3 === 'undefined') {
+                showStatus('Web3 library not loaded. Please refresh the page.', 'error');
+                console.error('❌ Web3 is not defined');
+                return;
+            }
+            
             if (typeof window.ethereum !== 'undefined') {
                 try {
                     // Request account access
@@ -1045,10 +1052,32 @@
         // Initialize page - matching DirectMint pattern
         window.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 PulseX Liquidity Page Ready!');
+            
+            // Check if Web3 loaded properly
+            if (typeof Web3 === 'undefined') {
+                console.error('❌ Web3 failed to load from CDN');
+                showStatus('Web3 library failed to load. Please refresh the page.', 'error');
+                
+                // Try loading Web3 again
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js';
+                script.onload = function() {
+                    console.log('✅ Web3 loaded successfully on retry');
+                    showStatus('Ready to connect wallet to PulseChain', 'info');
+                };
+                script.onerror = function() {
+                    console.error('❌ Web3 failed to load even on retry');
+                    showStatus('Failed to load Web3. Check your internet connection.', 'error');
+                };
+                document.head.appendChild(script);
+            } else {
+                console.log('✅ Web3 loaded successfully');
+                showStatus('Ready to connect wallet to PulseChain', 'info');
+            }
+            
             // Clear any pre-populated data - start fresh
             document.getElementById('tokenA').value = '';
             document.getElementById('tokenB').value = '';
-            showStatus('Ready to connect wallet to PulseChain', 'info');
             console.log('✅ App initialized');
         });
 
