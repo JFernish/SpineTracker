@@ -210,11 +210,11 @@
         <div class="token-pair">
             <div class="input-group">
                 <label>Token A Address:</label>
-                <input type="text" id="tokenA" placeholder="0x...">
+                <input type="text" id="tokenA" placeholder="0x..." onchange="if(isWalletConnected) { resetApprovalButtons(); checkApprovalStatus(); }">
             </div>
             <div class="input-group">
                 <label>Token B Address:</label>
-                <input type="text" id="tokenB" placeholder="0x...">
+                <input type="text" id="tokenB" placeholder="0x..." onchange="if(isWalletConnected) { resetApprovalButtons(); checkApprovalStatus(); }">
             </div>
         </div>
 
@@ -331,10 +331,27 @@
             document.getElementById('tokenA').value = TOKENS[tokenASymbol] || '';
             document.getElementById('tokenB').value = TOKENS[tokenBSymbol] || '';
             
+            // Reset approval buttons to default state immediately
+            resetApprovalButtons();
+            
             // Check approval status when tokens change
             if (isWalletConnected) {
                 checkApprovalStatus();
             }
+        }
+
+        function resetApprovalButtons() {
+            const btnA = document.getElementById('approveABtn');
+            const btnB = document.getElementById('approveBBtn');
+            
+            // Reset to default state
+            btnA.textContent = 'Approve Token A';
+            btnA.style.background = '';
+            btnA.disabled = false;
+            
+            btnB.textContent = 'Approve Token B';
+            btnB.style.background = '';
+            btnB.disabled = false;
         }
 
         function showStatus(message, type = 'info') {
