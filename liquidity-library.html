@@ -257,7 +257,7 @@
         }
         .results-grid-header {
             display: grid;
-            grid-template-columns: 0.3fr 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 0.8fr 0.8fr 1fr 0.8fr;
+            grid-template-columns: 0.3fr 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 1fr 0.8fr;
             gap: 12px;
             align-items: center;
         }
@@ -299,7 +299,7 @@
         }
         .results-grid {
             display: grid;
-            grid-template-columns: 0.3fr 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 0.8fr 0.8fr 1fr 0.8fr;
+            grid-template-columns: 0.3fr 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 1fr 0.8fr;
             gap: 12px;
             align-items: center;
         }
@@ -431,7 +431,7 @@
         }
         @media (max-width: 1400px) {
             .results-grid-header, .results-grid {
-                grid-template-columns: 0.3fr 1fr 1fr 0.5fr 1fr 0.4fr 1.2fr 0.6fr 0.7fr 0.7fr 0.7fr 1fr 0.7fr;
+                grid-template-columns: 0.3fr 1fr 1fr 0.5fr 1fr 0.4fr 1.2fr 0.6fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 1fr 0.7fr;
                 gap: 8px;
             }
         }
@@ -494,6 +494,7 @@
             <div class="filter-group">
                 <button class="btn" onclick="refreshData()">🔄 Refresh</button>
                 <button class="btn" id="getLiquidityBtn" onclick="getLiquidityForCurrentTokens()" style="background: linear-gradient(45deg, #06ffa5, #00cc88);">🌊 Get Liquidity Data</button>
+                <button class="btn" onclick="exportToCSV()" style="background: linear-gradient(45deg, #ff6b6b, #ee5a24);">📊 Export CSV</button>
                 <div class="status" id="status">
                     <div class="status-dot"></div>
                     <span>Loading...</span>
@@ -535,7 +536,9 @@
                     <div class="sortable-header" onclick="sortData('tokenSymbol')">Symbol</div>
                     <div class="sortable-header" onclick="sortData('initialSupply')">Initial Supply</div>
                     <div class="sortable-header" onclick="sortData('childLiquidity')">Child/WPLS Pool (WPLS)</div>
+                    <div>Child Pool Address</div>
                     <div class="sortable-header" onclick="sortData('parentLiquidity')">Parent/WPLS Pool (WPLS)</div>
+                    <div>Parent Pool Address</div>
                     <div class="sortable-header" onclick="sortData('parentName')">Parent Name</div>
                     <div>Parent Address</div>
                 </div>
@@ -682,7 +685,7 @@
 
         async function getLiquidityData(tokenAddress) {
             if (!web3 || !tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000') {
-                return 'No Pool';
+                return { wpls: 'No Pool', poolAddress: 'None' };
             }
 
             // Check cache first
@@ -696,8 +699,9 @@
                 const pairAddress = await factory.methods.getPair(tokenAddress, WPLS_ADDRESS).call();
                 
                 if (pairAddress === '0x0000000000000000000000000000000000000000') {
-                    liquidityCache.set(cacheKey, 'No Pool');
-                    return 'No Pool';
+                    const result = { wpls: 'No Pool', poolAddress: 'None' };
+                    liquidityCache.set(cacheKey, result);
+                    return result;
                 }
 
                 const pair = new web3.eth.Contract(PAIR_ABI, pairAddress);
@@ -718,13 +722,15 @@
                 const wplsAmount = parseFloat(wplsReserve) / Math.pow(10, 18);
                 const formattedAmount = wplsAmount.toFixed(2);
                 
-                liquidityCache.set(cacheKey, formattedAmount);
-                return formattedAmount;
+                const result = { wpls: formattedAmount, poolAddress: pairAddress };
+                liquidityCache.set(cacheKey, result);
+                return result;
 
             } catch (error) {
                 console.log(`Error getting liquidity for ${tokenAddress}:`, error.message);
-                liquidityCache.set(cacheKey, 'Error');
-                return 'Error';
+                const result = { wpls: 'Error', poolAddress: 'Error' };
+                liquidityCache.set(cacheKey, result);
+                return result;
             }
         }
         
@@ -862,13 +868,17 @@
                 const token = filteredTokens[i];
                 
                 // Load child liquidity
-                if (token.tokenContractAddress && !token.childLiquidity) {
-                    token.childLiquidity = await getLiquidityData(token.tokenContractAddress);
+                if (token.tokenContractAddress && !token.childLiquidityData) {
+                    token.childLiquidityData = await getLiquidityData(token.tokenContractAddress);
+                    token.childLiquidity = token.childLiquidityData.wpls;
+                    token.childPoolAddress = token.childLiquidityData.poolAddress;
                 }
                 
                 // Load parent liquidity
-                if (token.parent && token.parent !== '0x0000000000000000000000000000000000000000' && !token.parentLiquidity) {
-                    token.parentLiquidity = await getLiquidityData(token.parent);
+                if (token.parent && token.parent !== '0x0000000000000000000000000000000000000000' && !token.parentLiquidityData) {
+                    token.parentLiquidityData = await getLiquidityData(token.parent);
+                    token.parentLiquidity = token.parentLiquidityData.wpls;
+                    token.parentPoolAddress = token.parentLiquidityData.poolAddress;
                 }
                 
                 processed++;
@@ -1013,7 +1023,9 @@
                         <div class="field-value token-symbol" title="${token.tokenSymbol || 'Unknown'}">${token.tokenSymbol || 'Unknown'}</div>
                         <div class="field-value supply-value">${token.initialSupplyFormatted || '0'}</div>
                         <div class="field-value wpls-value">${formatLiquidityValue(token.childLiquidity)}</div>
+                        <div class="field-value">${createClickableAddress(token.childPoolAddress)}</div>
                         <div class="field-value wpls-value">${formatLiquidityValue(token.parentLiquidity)}</div>
+                        <div class="field-value">${createClickableAddress(token.parentPoolAddress)}</div>
                         <div class="field-value parent-name" title="${token.parentName || 'None'}">${formatParentName(token.parentDisplayName || token.parentName || 'None')}</div>
                         <div class="field-value">${createClickableAddress(token.parent)}</div>
                     </div>
@@ -1030,6 +1042,75 @@
                 return -1; // Put these at the bottom when sorting descending
             }
             return parseFloat(liquidityValue) || 0;
+        }
+
+        function exportToCSV() {
+            if (filteredTokens.length === 0) {
+                setStatus('No tokens to export', 'error');
+                return;
+            }
+
+            // CSV headers
+            const headers = [
+                'Favorite',
+                'Date/Time Created',
+                'Creator',
+                'Factory',
+                'Child Address',
+                'Is Leaf',
+                'Token Name',
+                'Token Symbol',
+                'Initial Supply',
+                'Child/WPLS Pool (WPLS)',
+                'Child Pool Address',
+                'Parent/WPLS Pool (WPLS)',
+                'Parent Pool Address',
+                'Parent Name',
+                'Parent Address'
+            ];
+
+            // Convert tokens to CSV rows
+            const rows = filteredTokens.map(token => [
+                token.isFavorite ? 'Yes' : 'No',
+                formatDateTimeForCSV(token.timestamp),
+                token.creator || '',
+                token.factoryVersion || '',
+                token.tokenContractAddress || '',
+                token.isLeaf ? 'Yes' : 'No',
+                token.tokenName || '',
+                token.tokenSymbol || '',
+                token.initialSupplyFormatted || '',
+                token.childLiquidity || '',
+                token.childPoolAddress || '',
+                token.parentLiquidity || '',
+                token.parentPoolAddress || '',
+                token.parentName || '',
+                token.parent || ''
+            ]);
+
+            // Combine headers and data
+            const csvContent = [headers, ...rows]
+                .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+                .join('\n');
+
+            // Create and download file
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `liquidity_library_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            setStatus(`Exported ${filteredTokens.length} tokens to CSV`, 'connected');
+        }
+
+        function formatDateTimeForCSV(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            return date.toISOString();
         }
 
         function formatLiquidityValue(value) {
@@ -1089,6 +1170,10 @@
             allTokens.forEach(token => {
                 delete token.childLiquidity;
                 delete token.parentLiquidity;
+                delete token.childLiquidityData;
+                delete token.parentLiquidityData;
+                delete token.childPoolAddress;
+                delete token.parentPoolAddress;
             });
             await loadTokenData();
         }
