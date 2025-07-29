@@ -510,9 +510,8 @@
                 const reserveAFormatted = parseFloat(reserveA) / Math.pow(10, parseInt(decimalsA));
                 const reserveBFormatted = parseFloat(reserveB) / Math.pow(10, parseInt(decimalsB));
 
-                // Return ratio (tokenB amount per 1 tokenA) adjusted for decimal difference
-                const decimalDifference = parseInt(decimalsA) - parseInt(decimalsB);
-                const ratio = (reserveBFormatted / reserveAFormatted) * Math.pow(10, decimalDifference);
+                // Return simple ratio (tokenB amount per 1 tokenA)
+                const ratio = reserveBFormatted / reserveAFormatted;
                 return ratio;
 
             } catch (error) {
