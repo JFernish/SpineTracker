@@ -422,6 +422,8 @@
             const tokenB = document.getElementById('tokenB').value;
             const amountA = document.getElementById('amountA').value;
 
+            console.log(`calculateAmountB called - TokenA: ${tokenA}, TokenB: ${tokenB}, AmountA: ${amountA}`);
+
             if (!tokenA || !tokenB || !amountA) {
                 isCalculating = false;
                 return;
@@ -429,8 +431,10 @@
 
             try {
                 const ratio = await getPoolRatio(tokenA, tokenB);
+                console.log(`getPoolRatio returned: ${ratio}`);
                 if (ratio) {
                     const calculatedAmountB = parseFloat(amountA) * ratio;
+                    console.log(`Final calculated AmountB: ${calculatedAmountB}`);
                     document.getElementById('amountB').value = calculatedAmountB.toFixed(6);
                 }
             } catch (error) {
@@ -506,16 +510,18 @@
                     reserveB = reserves[0];
                 }
 
-                // Convert reserves using proper decimals  
+                // Convert reserves to human readable format using proper decimals
                 const reserveAFormatted = parseFloat(reserveA) / Math.pow(10, parseInt(decimalsA));
                 const reserveBFormatted = parseFloat(reserveB) / Math.pow(10, parseInt(decimalsB));
 
-                // Adjust for decimal difference then calculate ratio
-                const decimalDifference = parseInt(decimalsA) - parseInt(decimalsB);
-                const adjustedReserveBFormatted = reserveBFormatted * Math.pow(10, decimalDifference);
-                
-                // Return simple ratio (tokenB amount per 1 tokenA)
-                const ratio = adjustedReserveBFormatted / reserveAFormatted;
+                // Debug: Show pool reserves info
+                console.log(`Pool Reserves Debug:`);
+                console.log(`Token A (${decimalsA} decimals): Raw=${reserveA}, Formatted=${reserveAFormatted}`);
+                console.log(`Token B (${decimalsB} decimals): Raw=${reserveB}, Formatted=${reserveBFormatted}`);
+
+                // Calculate simple ratio (how much tokenB per 1 tokenA)
+                const ratio = reserveBFormatted / reserveAFormatted;
+                console.log(`Calculated ratio: ${ratio}`);
                 return ratio;
 
             } catch (error) {
