@@ -480,15 +480,21 @@
                 const reserves = await pair.methods.getReserves().call();
                 const token0 = await pair.methods.token0().call();
                 
-                // Get token decimals for proper conversion
-                const tokenAContract = new web3.eth.Contract(ERC20_ABI, tokenA);
-                const tokenBContract = new web3.eth.Contract(ERC20_ABI, tokenB);
-                const decimalsA = await tokenAContract.methods.decimals().call();
-                const decimalsB = await tokenBContract.methods.decimals().call();
+                // Use stored decimals if available, otherwise fetch them
+                let decimalsA = tokenADecimals;
+                let decimalsB = tokenBDecimals;
                 
-                // Store decimals for future use
-                tokenADecimals = parseInt(decimalsA);
-                tokenBDecimals = parseInt(decimalsB);
+                if (decimalsA === 18 || decimalsB === 18) {
+                    // Only fetch if we don't have proper decimals stored
+                    const tokenAContract = new web3.eth.Contract(ERC20_ABI, tokenA);
+                    const tokenBContract = new web3.eth.Contract(ERC20_ABI, tokenB);
+                    decimalsA = await tokenAContract.methods.decimals().call();
+                    decimalsB = await tokenBContract.methods.decimals().call();
+                    
+                    // Update stored decimals
+                    tokenADecimals = parseInt(decimalsA);
+                    tokenBDecimals = parseInt(decimalsB);
+                }
                 
                 // Determine which reserve corresponds to which token
                 let reserveA, reserveB;
