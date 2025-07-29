@@ -18,7 +18,7 @@
             color: #e0e0e0;
         }
         .container {
-            max-width: 1900px;
+            max-width: 1800px;
             margin: 0 auto;
             background: rgba(20, 20, 40, 0.95);
             border-radius: 20px;
@@ -257,7 +257,7 @@
         }
         .results-grid-header {
             display: grid;
-            grid-template-columns: 0.3fr 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 1fr 0.8fr 0.7fr;
+            grid-template-columns: 0.3fr 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr 1fr 0.8fr;
             gap: 12px;
             align-items: center;
         }
@@ -299,7 +299,7 @@
         }
         .results-grid {
             display: grid;
-            grid-template-columns: 0.3fr 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 1fr 0.8fr 0.7fr;
+            grid-template-columns: 0.3fr 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr 1fr 0.8fr;
             gap: 12px;
             align-items: center;
         }
@@ -350,12 +350,6 @@
         .wpls-value {
             font-weight: 600;
             color: #06ffa5;
-            font-family: 'Segoe UI', sans-serif;
-            text-align: right;
-        }
-        .ratio-value {
-            font-weight: 600;
-            color: #ff9500;
             font-family: 'Segoe UI', sans-serif;
             text-align: right;
         }
@@ -435,9 +429,9 @@
             font-size: 0.8rem;
             font-style: italic;
         }
-        @media (max-width: 1500px) {
+        @media (max-width: 1400px) {
             .results-grid-header, .results-grid {
-                grid-template-columns: 0.3fr 1fr 1fr 0.5fr 1fr 0.4fr 1.2fr 0.6fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 1fr 0.7fr 0.6fr;
+                grid-template-columns: 0.3fr 1fr 1fr 0.5fr 1fr 0.4fr 1.2fr 0.6fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 1fr 0.7fr;
                 gap: 8px;
             }
         }
@@ -545,9 +539,9 @@
                     <div>Child Pool Address</div>
                     <div class="sortable-header" onclick="sortData('parentLiquidity')">Parent/WPLS Pool (WPLS)</div>
                     <div>Parent Pool Address</div>
+                    <div class="sortable-header" onclick="sortData('v2PoolRatio')">Child/Parent V2 Pool Ratio %</div>
                     <div class="sortable-header" onclick="sortData('parentName')">Parent Name</div>
                     <div>Parent Address</div>
-                    <div class="sortable-header" onclick="sortData('tokenRatio')" title="Percentage of child tokens in the child/parent V2 pool relative to total tokens (child + parent) in the pool">Token Ratio %</div>
                 </div>
             </div>
             <div class="results-content">
@@ -597,10 +591,6 @@
             {"constant":true,"inputs":[],"name":"token1","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"}
         ];
 
-        const ERC20_ABI = [
-            {"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"}
-        ];
-
         let web3 = null;
         let allTokens = [];
         let filteredTokens = [];
@@ -612,7 +602,6 @@
         let sortColumn = 'timestamp';
         let sortDirection = 'desc';
         let liquidityCache = new Map();
-        let ratioCache = new Map();
         
         document.addEventListener('DOMContentLoaded', function() {
             initializeWeb3();
@@ -746,7 +735,7 @@
             }
         }
 
-        async function getTokenRatio(childAddress, parentAddress) {
+        async function getV2PoolRatio(childAddress, parentAddress) {
             if (!web3 || !childAddress || !parentAddress || 
                 childAddress === '0x0000000000000000000000000000000000000000' ||
                 parentAddress === '0x0000000000000000000000000000000000000000') {
@@ -754,9 +743,9 @@
             }
 
             // Check cache first
-            const cacheKey = `${childAddress.toLowerCase()}-${parentAddress.toLowerCase()}`;
-            if (ratioCache.has(cacheKey)) {
-                return ratioCache.get(cacheKey);
+            const cacheKey = `${childAddress.toLowerCase()}-${parentAddress.toLowerCase()}-v2ratio`;
+            if (liquidityCache.has(cacheKey)) {
+                return liquidityCache.get(cacheKey);
             }
 
             try {
@@ -765,7 +754,7 @@
                 
                 if (pairAddress === '0x0000000000000000000000000000000000000000') {
                     const result = 'No Pool';
-                    ratioCache.set(cacheKey, result);
+                    liquidityCache.set(cacheKey, result);
                     return result;
                 }
 
@@ -774,17 +763,8 @@
                     pair.methods.getReserves().call(),
                     pair.methods.token0().call()
                 ]);
-
-                // Get decimals for both tokens
-                const childContract = new web3.eth.Contract(ERC20_ABI, childAddress);
-                const parentContract = new web3.eth.Contract(ERC20_ABI, parentAddress);
                 
-                const [childDecimals, parentDecimals] = await Promise.all([
-                    childContract.methods.decimals().call(),
-                    parentContract.methods.decimals().call()
-                ]);
-
-                // Determine which reserve belongs to which token
+                // Determine which reserve is child vs parent
                 let childReserve, parentReserve;
                 if (token0.toLowerCase() === childAddress.toLowerCase()) {
                     childReserve = reserves[0];
@@ -794,22 +774,26 @@
                     parentReserve = reserves[0];
                 }
 
-                // Convert reserves to actual token amounts considering decimals
-                const childAmount = parseFloat(childReserve) / Math.pow(10, childDecimals);
-                const parentAmount = parseFloat(parentReserve) / Math.pow(10, parentDecimals);
+                // Convert to numbers and calculate ratio
+                const childAmount = parseFloat(childReserve);
+                const parentAmount = parseFloat(parentReserve);
+                const totalAmount = childAmount + parentAmount;
                 
-                // Calculate the ratio: child tokens / (child tokens + parent tokens) * 100
-                const totalTokens = childAmount + parentAmount;
-                const ratio = totalTokens > 0 ? (childAmount / totalTokens) * 100 : 0;
+                if (totalAmount === 0) {
+                    const result = 'No Pool';
+                    liquidityCache.set(cacheKey, result);
+                    return result;
+                }
                 
-                const formattedRatio = ratio.toFixed(1) + '%';
-                ratioCache.set(cacheKey, formattedRatio);
-                return formattedRatio;
+                const ratio = (childAmount / totalAmount) * 100;
+                const result = ratio.toFixed(1) + '%';
+                liquidityCache.set(cacheKey, result);
+                return result;
 
             } catch (error) {
-                console.log(`Error getting token ratio for ${childAddress}/${parentAddress}:`, error.message);
+                console.log(`Error getting V2 pool ratio for ${childAddress}/${parentAddress}:`, error.message);
                 const result = 'Error';
-                ratioCache.set(cacheKey, result);
+                liquidityCache.set(cacheKey, result);
                 return result;
             }
         }
@@ -938,9 +922,9 @@
             
             const btn = document.getElementById('getLiquidityBtn');
             btn.disabled = true;
-            btn.textContent = '🌊 Loading Liquidity & Ratios...';
+            btn.textContent = '🌊 Loading Liquidity...';
             
-            setStatus(`Getting liquidity and ratio data for ${filteredTokens.length} tokens...`, 'loading');
+            setStatus(`Getting liquidity data for ${filteredTokens.length} tokens...`, 'loading');
             
             let processed = 0;
             
@@ -960,19 +944,19 @@
                     token.parentLiquidity = token.parentLiquidityData.wpls;
                     token.parentPoolAddress = token.parentLiquidityData.poolAddress;
                 }
-
-                // Load token ratio (child/parent pool)
+                
+                // Load V2 pool ratio
                 if (token.tokenContractAddress && token.parent && 
                     token.parent !== '0x0000000000000000000000000000000000000000' && 
-                    !token.tokenRatio) {
-                    token.tokenRatio = await getTokenRatio(token.tokenContractAddress, token.parent);
+                    !token.v2PoolRatio) {
+                    token.v2PoolRatio = await getV2PoolRatio(token.tokenContractAddress, token.parent);
                 }
                 
                 processed++;
                 
                 // Update progress and display every few tokens
                 if (processed % 3 === 0 || processed === filteredTokens.length) {
-                    setStatus(`Loading data... ${processed}/${filteredTokens.length}`, 'loading');
+                    setStatus(`Getting liquidity data... ${processed}/${filteredTokens.length}`, 'loading');
                     displayResults();
                 }
                 
@@ -984,8 +968,355 @@
             
             btn.disabled = false;
             btn.textContent = '🌊 Get Liquidity Data';
-            setStatus(`Data loaded for ${processed} tokens`, 'connected');
-            console.log('✅ Liquidity and ratio data loading complete');
+            setStatus(`Liquidity data loaded for ${processed} tokens`, 'connected');
+            console.log('✅ Liquidity data loading complete');
         }
         
+        function handleSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const clearButton = document.getElementById('clearSearch');
+            
+            searchTerm = searchInput.value;
+            
+            if (searchTerm.trim()) {
+                clearButton.classList.add('show');
+            } else {
+                clearButton.classList.remove('show');
+            }
+            
+            applyCurrentFilter();
+        }
         
+        function handleSearchKeypress(event) {
+            if (event.key === 'Enter') {
+                handleSearch();
+            }
+        }
+        
+        function clearSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const clearButton = document.getElementById('clearSearch');
+            
+            searchInput.value = '';
+            searchTerm = '';
+            clearButton.classList.remove('show');
+            
+            applyCurrentFilter();
+        }
+        
+        function sortData(column, toggleDirection = true) {
+            if (toggleDirection) {
+                if (sortColumn === column) {
+                    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortColumn = column;
+                    sortDirection = 'desc';
+                }
+            }
+            
+            filteredTokens.sort((a, b) => {
+                let aVal, bVal;
+                switch(column) {
+                    case 'timestamp':
+                        aVal = new Date(a.timestamp || 0);
+                        bVal = new Date(b.timestamp || 0);
+                        break;
+                    case 'creator':
+                        aVal = (a.creator || '').toLowerCase();
+                        bVal = (b.creator || '').toLowerCase();
+                        break;
+                    case 'factory':
+                        aVal = (a.factoryVersion || '').toLowerCase();
+                        bVal = (b.factoryVersion || '').toLowerCase();
+                        break;
+                    case 'tokenName':
+                        aVal = (a.tokenName || '').toLowerCase();
+                        bVal = (b.tokenName || '').toLowerCase();
+                        break;
+                    case 'tokenSymbol':
+                        aVal = (a.tokenSymbol || '').toLowerCase();
+                        bVal = (b.tokenSymbol || '').toLowerCase();
+                        break;
+                    case 'initialSupply':
+                        aVal = parseFloat(a.initialSupplyFormatted || 0);
+                        bVal = parseFloat(b.initialSupplyFormatted || 0);
+                        break;
+                    case 'childLiquidity':
+                        // Handle special cases and convert to numbers for sorting
+                        aVal = getLiquidityValueForSorting(a.childLiquidity);
+                        bVal = getLiquidityValueForSorting(b.childLiquidity);
+                        break;
+                    case 'parentLiquidity':
+                        // Handle special cases and convert to numbers for sorting
+                        aVal = getLiquidityValueForSorting(a.parentLiquidity);
+                        bVal = getLiquidityValueForSorting(b.parentLiquidity);
+                        break;
+                    case 'v2PoolRatio':
+                        // Handle special cases and convert to numbers for sorting
+                        aVal = getRatioValueForSorting(a.v2PoolRatio);
+                        bVal = getRatioValueForSorting(b.v2PoolRatio);
+                        break;
+                    case 'isLeaf':
+                        aVal = a.isLeaf ? 1 : 0;
+                        bVal = b.isLeaf ? 1 : 0;
+                        break;
+                    case 'isFavorite':
+                        aVal = a.isFavorite ? 1 : 0;
+                        bVal = b.isFavorite ? 1 : 0;
+                        break;
+                    case 'parentName':
+                        aVal = (a.parentName || '').toLowerCase();
+                        bVal = (b.parentName || '').toLowerCase();
+                        break;
+                    default:
+                        return 0;
+                }
+                
+                if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
+            displayResults();
+        }
+
+        function getRatioValueForSorting(ratioValue) {
+            // Convert ratio values to numbers for proper sorting
+            if (!ratioValue || ratioValue === 'Loading...' || ratioValue === 'No Pool' || ratioValue === 'Error') {
+                return -1; // Put these at the bottom when sorting descending
+            }
+            // Remove the % sign and convert to number
+            return parseFloat(ratioValue.replace('%', '')) || 0;
+        }
+        
+        function getLiquidityValueForSorting(liquidityValue) {
+            // Convert liquidity values to numbers for proper sorting
+            if (!liquidityValue || liquidityValue === 'Loading...' || liquidityValue === 'No Pool' || liquidityValue === 'Error') {
+                return -1; // Put these at the bottom when sorting descending
+            }
+            return parseFloat(liquidityValue) || 0;
+        }
+
+        function displayResults() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+            
+            filteredTokens.forEach(token => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'result-item-compact';
+                resultDiv.innerHTML = `
+                    <div class="results-grid">
+                        <div class="field-value">${createFavoriteStar(token)}</div>
+                        <div class="field-value">${formatDateTime(token.timestamp)}</div>
+                        <div class="field-value">${createClickableAddress(token.creator)}</div>
+                        <div class="field-value" style="font-weight: 600; color: ${token.factoryVersion === 'V4' ? '#9d4edd' : '#06ffa5'};">${token.factoryVersion || 'Unknown'}</div>
+                        <div class="field-value">${createClickableAddress(token.tokenContractAddress)}</div>
+                        <div class="field-value">${createLeafIndicator(token)}</div>
+                        <div class="field-value token-name" title="${token.tokenName || 'Unknown'}">${token.tokenName || 'Unknown'}</div>
+                        <div class="field-value token-symbol" title="${token.tokenSymbol || 'Unknown'}">${token.tokenSymbol || 'Unknown'}</div>
+                        <div class="field-value supply-value">${token.initialSupplyFormatted || '0'}</div>
+                        <div class="field-value wpls-value">${formatLiquidityValue(token.childLiquidity)}</div>
+                        <div class="field-value">${createClickableAddress(token.childPoolAddress)}</div>
+                        <div class="field-value wpls-value">${formatLiquidityValue(token.parentLiquidity)}</div>
+                        <div class="field-value">${createClickableAddress(token.parentPoolAddress)}</div>
+                        <div class="field-value wpls-value">${formatLiquidityValue(token.v2PoolRatio)}</div>
+                        <div class="field-value parent-name" title="${token.parentName || 'None'}">${formatParentName(token.parentDisplayName || token.parentName || 'None')}</div>
+                        <div class="field-value">${createClickableAddress(token.parent)}</div>
+                    </div>
+                `;
+                resultsDiv.appendChild(resultDiv);
+            });
+            
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+
+        function exportToCSV() {
+            if (filteredTokens.length === 0) {
+                setStatus('No tokens to export', 'error');
+                return;
+            }
+
+            // CSV headers
+            const headers = [
+                'Favorite',
+                'Date/Time Created',
+                'Creator',
+                'Factory',
+                'Child Address',
+                'Is Leaf',
+                'Token Name',
+                'Token Symbol',
+                'Initial Supply',
+                'Child/WPLS Pool (WPLS)',
+                'Child Pool Address',
+                'Parent/WPLS Pool (WPLS)',
+                'Parent Pool Address',
+                'Child/Parent V2 Pool Ratio %',
+                'Parent Name',
+                'Parent Address'
+            ];
+
+            // Convert tokens to CSV rows
+            const rows = filteredTokens.map(token => [
+                token.isFavorite ? 'Yes' : 'No',
+                formatDateTimeForCSV(token.timestamp),
+                token.creator || '',
+                token.factoryVersion || '',
+                token.tokenContractAddress || '',
+                token.isLeaf ? 'Yes' : 'No',
+                token.tokenName || '',
+                token.tokenSymbol || '',
+                token.initialSupplyFormatted || '',
+                token.childLiquidity || '',
+                token.childPoolAddress || '',
+                token.parentLiquidity || '',
+                token.parentPoolAddress || '',
+                token.v2PoolRatio || '',
+                token.parentName || '',
+                token.parent || ''
+            ]);
+
+            // Combine headers and data
+            const csvContent = [headers, ...rows]
+                .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+                .join('\n');
+
+            // Create and download file
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `liquidity_library_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            setStatus(`Exported ${filteredTokens.length} tokens to CSV`, 'connected');
+        }
+
+        function formatDateTimeForCSV(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            return date.toISOString();
+        }
+
+        function formatLiquidityValue(value) {
+            if (!value || value === 'No Pool' || value === 'Error') {
+                return `<span class="liquidity-loading">${value || 'Loading...'}</span>`;
+            }
+            return value;
+        }
+        
+        function formatParentName(parentName) {
+            if (!parentName || parentName === 'None') return parentName;
+            
+            if (parentName.includes(' + ')) {
+                const parts = parentName.split(' + ');
+                if (parts.length === 2) {
+                    if (parentName.startsWith('PulseX LP: ')) {
+                        const lpPrefix = 'PulseX LP: ';
+                        const componentsOnly = parentName.substring(lpPrefix.length);
+                        return `${lpPrefix}<span class="component-tokens">${componentsOnly}</span>`;
+                    } else {
+                        return `<span class="component-tokens">${parts[0]} + ${parts[1]}</span>`;
+                    }
+                }
+            }
+            
+            return parentName;
+        }
+        
+        function createFavoriteStar(token) {
+            if (!token.tokenContractAddress) return '';
+            
+            const isFavorited = token.isFavorite;
+            const starClass = isFavorited ? 'favorite-star favorited' : 'favorite-star';
+            const starIcon = isFavorited ? '⭐' : '☆';
+            
+            return `<span class="${starClass}" 
+                           onclick="toggleFavorite('${token.tokenContractAddress}')" 
+                           title="${isFavorited ? 'Remove from favorites' : 'Add to favorites'}">${starIcon}</span>`;
+        }
+        
+        function updateStats() {
+            const v3Count = allTokens.filter(token => token.factoryVersion === 'V3').length;
+            const v4Count = allTokens.filter(token => token.factoryVersion === 'V4').length;
+            const mariaCount = allTokens.filter(token => 
+                token.creator && MARIA_ADDRESSES.includes(token.creator.toLowerCase())
+            ).length;
+            
+            document.getElementById('totalTokens').textContent = allTokens.length;
+            document.getElementById('v3Count').textContent = v3Count;
+            document.getElementById('v4Count').textContent = v4Count;
+            document.getElementById('mariaCount').textContent = mariaCount;
+        }
+        
+        async function refreshData() {
+            liquidityCache.clear();
+            // Clear liquidity data from all tokens
+            allTokens.forEach(token => {
+                delete token.childLiquidity;
+                delete token.parentLiquidity;
+                delete token.childLiquidityData;
+                delete token.parentLiquidityData;
+                delete token.childPoolAddress;
+                delete token.parentPoolAddress;
+                delete token.v2PoolRatio;
+            });
+            await loadTokenData();
+        }
+        
+        function createLeafIndicator(token) {
+            if (!token.isLeaf || !token.tokenContractAddress) {
+                return '';
+            }
+            return `<span class="leaf-indicator clickable" 
+                           onclick="openMainSiteWithToken('${token.tokenContractAddress}')" 
+                           title="Leaf token - Click to analyze chain on main site">🌿</span>`;
+        }
+        
+        function openMainSiteWithToken(contractAddress) {
+            const mainSiteUrl = `https://spinetracker.vercel.app/?token=${encodeURIComponent(contractAddress)}`;
+            window.open(mainSiteUrl, '_blank');
+        }
+        
+        function shortenAddress(address) {
+            if (!address || address === '0x0000000000000000000000000000000000000000') return 'None';
+            return `${address.slice(0, 6)}...${address.slice(-4)}`;
+        }
+        
+        function createClickableAddress(address, displayText = null) {
+            if (!address || address === '0x0000000000000000000000000000000000000000') return 'None';
+            const display = displayText || shortenAddress(address);
+            return `<span class="clickable-address" onclick="copyToClipboard('${address}')" title="Click to copy: ${address}">${display}</span>`;
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                console.log('Address copied to clipboard');
+            }).catch(err => {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            });
+        }
+        
+        function formatDateTime(timestamp) {
+            if (!timestamp) return 'Unknown';
+            const date = new Date(timestamp);
+            return date.toLocaleDateString('en-US', {
+                month: '2-digit',
+                day: '2-digit',
+                year: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+        }
+    </script>
+</body>
+</html>
