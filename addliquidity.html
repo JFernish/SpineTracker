@@ -403,7 +403,9 @@
                     tokenBDecimals = parseInt(decimals);
                 }
                 
-                const balanceFormatted = parseFloat(web3.utils.fromWei(balance, decimals === 18 ? 'ether' : decimals === 6 ? 'mwei' : 'wei')).toFixed(6);
+                // Convert balance using proper decimals - more precise calculation
+                const balanceInEther = parseFloat(balance) / Math.pow(10, parseInt(decimals));
+                const balanceFormatted = balanceInEther.toFixed(4);
                 infoDiv.innerHTML = `${symbol} | Balance: ${balanceFormatted}`;
                 
             } catch (error) {
@@ -484,6 +486,10 @@
                 const decimalsA = await tokenAContract.methods.decimals().call();
                 const decimalsB = await tokenBContract.methods.decimals().call();
                 
+                // Store decimals for future use
+                tokenADecimals = parseInt(decimalsA);
+                tokenBDecimals = parseInt(decimalsB);
+                
                 // Determine which reserve corresponds to which token
                 let reserveA, reserveB;
                 if (token0.toLowerCase() === tokenA.toLowerCase()) {
@@ -495,8 +501,8 @@
                 }
 
                 // Convert reserves using proper decimals
-                const reserveAFormatted = parseFloat(reserveA) / Math.pow(10, decimalsA);
-                const reserveBFormatted = parseFloat(reserveB) / Math.pow(10, decimalsB);
+                const reserveAFormatted = parseFloat(reserveA) / Math.pow(10, parseInt(decimalsA));
+                const reserveBFormatted = parseFloat(reserveB) / Math.pow(10, parseInt(decimalsB));
 
                 // Return ratio (tokenB amount per 1 tokenA)
                 const ratio = reserveBFormatted / reserveAFormatted;
