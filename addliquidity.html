@@ -645,21 +645,24 @@
                 const router = new web3.eth.Contract(ROUTER_ABI, ROUTER_ADDRESS);
                 showStatus('Adding liquidity...', 'info');
 
-                // Convert amounts using proper decimals
-                const amountADesired = web3.utils.toBN(parseFloat(amountA) * Math.pow(10, tokenADecimals));
-                const amountBDesired = web3.utils.toBN(parseFloat(amountB) * Math.pow(10, tokenBDecimals));
+                // Convert amounts to wei format properly to avoid scientific notation
+                const amountAWei = BigInt(Math.floor(parseFloat(amountA) * Math.pow(10, tokenADecimals)));
+                const amountBWei = BigInt(Math.floor(parseFloat(amountB) * Math.pow(10, tokenBDecimals)));
                 
+                console.log(`Adding liquidity: ${amountA} TokenA (${amountAWei} wei), ${amountB} TokenB (${amountBWei} wei)`);
+                
+                // Calculate minimum amounts with slippage
                 const slippageMultiplier = (100 - currentSlippage) / 100;
-                const amountAMin = amountADesired.mul(web3.utils.toBN(Math.floor(slippageMultiplier * 100))).div(web3.utils.toBN(100));
-                const amountBMin = amountBDesired.mul(web3.utils.toBN(Math.floor(slippageMultiplier * 100))).div(web3.utils.toBN(100));
+                const amountAMin = BigInt(Math.floor(Number(amountAWei) * slippageMultiplier));
+                const amountBMin = BigInt(Math.floor(Number(amountBWei) * slippageMultiplier));
                 
                 const deadline = Math.floor(Date.now() / 1000) + 120;
 
                 const tx = await router.methods.addLiquidity(
                     tokenA,
                     tokenB,
-                    amountADesired.toString(),
-                    amountBDesired.toString(),
+                    amountAWei.toString(),
+                    amountBWei.toString(),
                     amountAMin.toString(),
                     amountBMin.toString(),
                     walletAccount,
@@ -669,6 +672,7 @@
                 showStatus(`✅ Liquidity added successfully! TX: ${tx.transactionHash}`, 'success');
 
             } catch (error) {
+                console.error('Liquidity addition error:', error);
                 showStatus(`Transaction failed: ${error.message}`, 'error');
             }
         }
