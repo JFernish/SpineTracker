@@ -201,27 +201,99 @@
             background: rgba(255, 255, 255, 0.2);
             color: #ffffff;
         }
+
+        .pls-toggle {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(30px);
+        }
+
+        .token-disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .native-indicator {
+            background: rgba(6, 255, 165, 0.1);
+            border: 1px solid rgba(6, 255, 165, 0.3);
+            color: #06ffa5;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            margin-top: 5px;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🌊 PulseX V2 Add Liquidity</h1>
         
+        <div class="pls-toggle">
+            <div class="toggle-container">
+                <span>Use Native PLS:</span>
+                <div class="toggle-switch" id="plsToggle" onclick="togglePLS()">
+                    <div class="toggle-slider"></div>
+                </div>
+                <span id="toggleLabel">WPLS (ERC20)</span>
+            </div>
+        </div>
+
         <div class="preset-pairs">
             <label>Quick Select Token Pairs:</label>
-            <div class="preset-button" onclick="setTokenPair('WETH', 'USDC')">WETH/USDC</div>
-            <div class="preset-button" onclick="setTokenPair('WETH', 'USDT')">WETH/USDT</div>
+            <div class="preset-button" onclick="setTokenPair('PLS', 'PLSX')">PLS/PLSX</div>
+            <div class="preset-button" onclick="setTokenPair('PLS', 'USDC')">PLS/USDC</div>
+            <div class="preset-button" onclick="setTokenPair('PLS', 'USDT')">PLS/USDT</div>
+            <div class="preset-button" onclick="setTokenPair('WPLS', 'USDC')">WPLS/USDC</div>
+            <div class="preset-button" onclick="setTokenPair('WPLS', 'USDT')">WPLS/USDT</div>
             <div class="preset-button" onclick="setTokenPair('USDC', 'USDT')">USDC/USDT</div>
         </div>
 
         <div class="token-pair">
             <div class="input-group">
-                <label>Token A Address:</label>
-                <input type="text" id="tokenA" placeholder="0x..." onchange="if(isWalletConnected) { resetApprovalButtons(); checkApprovalStatus(); getTokenInfo('A'); }">
+                <label>Token A:</label>
+                <input type="text" id="tokenA" placeholder="0x... or select PLS above" onchange="if(isWalletConnected) { resetApprovalButtons(); checkApprovalStatus(); getTokenInfo('A'); }">
                 <div id="tokenAInfo" class="token-info"></div>
             </div>
             <div class="input-group">
-                <label>Token B Address:</label>
+                <label>Token B:</label>
                 <input type="text" id="tokenB" placeholder="0x..." onchange="if(isWalletConnected) { resetApprovalButtons(); checkApprovalStatus(); getTokenInfo('B'); }">
                 <div id="tokenBInfo" class="token-info"></div>
             </div>
@@ -259,7 +331,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
     <script>
-        // Global variables - exactly like DirectMint
+        // Global variables
         let web3 = null;
         let walletAccount = null;
         let isWalletConnected = false;
@@ -267,19 +339,23 @@
         let isCalculating = false;
         let tokenADecimals = 18;
         let tokenBDecimals = 18;
+        let useNativePLS = false;
 
         // Contract addresses
         const ROUTER_ADDRESS = "0x165C3410fC91EF562C50559f7d2289fEbed552d9";
         const FACTORY_ADDRESS = "0x29eA7545DEf87022BAdc76323F373EA1e707C523";
         
         const TOKENS = {
-            'WETH': '0xA1077a294dDE1B09bB078844df40758a5D0f9a27',
+            'PLS': 'NATIVE', // Special marker for native PLS
+            'WPLS': '0xA1077a294dDE1B09bB078844df40758a5d0f9a27',
+            'PLSX': '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab',
             'USDC': '0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07', 
             'USDT': '0x0Cb6F5a34ad42ec934882A05265A7d5F59b51A2f'
         };
 
         const ROUTER_ABI = [
-            {"constant":false,"inputs":[{"name":"tokenA","type":"address"},{"name":"tokenB","type":"address"},{"name":"amountADesired","type":"uint256"},{"name":"amountBDesired","type":"uint256"},{"name":"amountAMin","type":"uint256"},{"name":"amountBMin","type":"uint256"},{"name":"to","type":"address"},{"name":"deadline","type":"uint256"}],"name":"addLiquidity","outputs":[{"name":"amountA","type":"uint256"},{"name":"amountB","type":"uint256"},{"name":"liquidity","type":"uint256"}],"payable":false,"stateMutability":"nonpayable","type":"function"}
+            {"constant":false,"inputs":[{"name":"tokenA","type":"address"},{"name":"tokenB","type":"address"},{"name":"amountADesired","type":"uint256"},{"name":"amountBDesired","type":"uint256"},{"name":"amountAMin","type":"uint256"},{"name":"amountBMin","type":"uint256"},{"name":"to","type":"address"},{"name":"deadline","type":"uint256"}],"name":"addLiquidity","outputs":[{"name":"amountA","type":"uint256"},{"name":"amountB","type":"uint256"},{"name":"liquidity","type":"uint256"}],"payable":false,"stateMutability":"nonpayable","type":"function"},
+            {"constant":false,"inputs":[{"name":"token","type":"address"},{"name":"amountTokenDesired","type":"uint256"},{"name":"amountTokenMin","type":"uint256"},{"name":"amountETHMin","type":"uint256"},{"name":"to","type":"address"},{"name":"deadline","type":"uint256"}],"name":"addLiquidityETH","outputs":[{"name":"amountToken","type":"uint256"},{"name":"amountETH","type":"uint256"},{"name":"liquidity","type":"uint256"}],"payable":true,"stateMutability":"payable","type":"function"}
         ];
 
         const PAIR_ABI = [
@@ -300,7 +376,47 @@
             {"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"}
         ];
 
-        // Simple wallet connection - exactly like DirectMint
+        function togglePLS() {
+            useNativePLS = !useNativePLS;
+            const toggle = document.getElementById('plsToggle');
+            const label = document.getElementById('toggleLabel');
+            
+            if (useNativePLS) {
+                toggle.classList.add('active');
+                label.textContent = 'Native PLS';
+            } else {
+                toggle.classList.remove('active');
+                label.textContent = 'WPLS (ERC20)';
+            }
+            
+            // Update UI to reflect the change
+            updateTokenAForPLSToggle();
+        }
+
+        function updateTokenAForPLSToggle() {
+            const tokenAInput = document.getElementById('tokenA');
+            const currentValue = tokenAInput.value;
+            
+            // If current token A is PLS related, update it
+            if (currentValue === 'NATIVE' || currentValue === TOKENS.WPLS || currentValue === '') {
+                if (useNativePLS) {
+                    tokenAInput.value = 'NATIVE';
+                    tokenAInput.classList.add('token-disabled');
+                    tokenAInput.placeholder = 'Native PLS Selected';
+                } else {
+                    tokenAInput.value = '';
+                    tokenAInput.classList.remove('token-disabled');
+                    tokenAInput.placeholder = '0x... or select PLS above';
+                }
+                
+                if (isWalletConnected) {
+                    resetApprovalButtons();
+                    checkApprovalStatus();
+                    getTokenInfo('A');
+                }
+            }
+        }
+
         async function connectWallet() {
             console.log('🔗 Attempting to connect wallet...');
             
@@ -342,8 +458,35 @@
         }
 
         function setTokenPair(tokenASymbol, tokenBSymbol) {
-            document.getElementById('tokenA').value = TOKENS[tokenASymbol] || '';
-            document.getElementById('tokenB').value = TOKENS[tokenBSymbol] || '';
+            const tokenAInput = document.getElementById('tokenA');
+            const tokenBInput = document.getElementById('tokenB');
+            
+            // Handle native PLS selection
+            if (tokenASymbol === 'PLS') {
+                if (!useNativePLS) {
+                    // Auto-toggle to native PLS
+                    togglePLS();
+                }
+                tokenAInput.value = 'NATIVE';
+                tokenAInput.classList.add('token-disabled');
+            } else if (tokenASymbol === 'WPLS') {
+                if (useNativePLS) {
+                    // Auto-toggle to WPLS
+                    togglePLS();
+                }
+                tokenAInput.value = TOKENS[tokenASymbol] || '';
+                tokenAInput.classList.remove('token-disabled');
+            } else {
+                tokenAInput.value = TOKENS[tokenASymbol] || '';
+                tokenAInput.classList.remove('token-disabled');
+            }
+            
+            // Handle token B
+            if (tokenBSymbol === 'PLS') {
+                tokenBInput.value = 'NATIVE';
+            } else {
+                tokenBInput.value = TOKENS[tokenBSymbol] || '';
+            }
             
             // Reset approval buttons to default state immediately
             resetApprovalButtons();
@@ -376,37 +519,63 @@
             status.className = `status ${type}`;
         }
 
+        function isNativeToken(tokenValue) {
+            return tokenValue === 'NATIVE';
+        }
+
+        function getTokenAddress(tokenValue) {
+            if (isNativeToken(tokenValue)) {
+                return useNativePLS ? 'NATIVE' : TOKENS.WPLS;
+            }
+            return tokenValue;
+        }
+
         async function getTokenInfo(token) {
             if (!web3 || !walletAccount) return;
             
-            const tokenAddress = token === 'A' ? document.getElementById('tokenA').value : document.getElementById('tokenB').value;
+            const tokenValue = token === 'A' ? document.getElementById('tokenA').value : document.getElementById('tokenB').value;
             const infoDiv = token === 'A' ? document.getElementById('tokenAInfo') : document.getElementById('tokenBInfo');
             
-            if (!tokenAddress) {
+            if (!tokenValue) {
                 infoDiv.innerHTML = '';
                 return;
             }
             
             try {
-                const tokenContract = new web3.eth.Contract(ERC20_ABI, tokenAddress);
-                
-                const [symbol, decimals, balance] = await Promise.all([
-                    tokenContract.methods.symbol().call(),
-                    tokenContract.methods.decimals().call(),
-                    tokenContract.methods.balanceOf(walletAccount).call()
-                ]);
-                
-                // Store decimals for calculations
-                if (token === 'A') {
-                    tokenADecimals = parseInt(decimals);
+                if (isNativeToken(tokenValue)) {
+                    // Handle native PLS
+                    const balance = await web3.eth.getBalance(walletAccount);
+                    const balanceInEther = parseFloat(balance) / Math.pow(10, 18);
+                    infoDiv.innerHTML = `<div class="native-indicator">Native PLS</div>PLS | Balance: ${balanceInEther.toFixed(4)}`;
+                    
+                    // Store decimals for calculations
+                    if (token === 'A') {
+                        tokenADecimals = 18;
+                    } else {
+                        tokenBDecimals = 18;
+                    }
                 } else {
-                    tokenBDecimals = parseInt(decimals);
+                    // Handle ERC20 tokens
+                    const tokenContract = new web3.eth.Contract(ERC20_ABI, tokenValue);
+                    
+                    const [symbol, decimals, balance] = await Promise.all([
+                        tokenContract.methods.symbol().call(),
+                        tokenContract.methods.decimals().call(),
+                        tokenContract.methods.balanceOf(walletAccount).call()
+                    ]);
+                    
+                    // Store decimals for calculations
+                    if (token === 'A') {
+                        tokenADecimals = parseInt(decimals);
+                    } else {
+                        tokenBDecimals = parseInt(decimals);
+                    }
+                    
+                    // Convert balance using proper decimals
+                    const balanceInEther = parseFloat(balance) / Math.pow(10, parseInt(decimals));
+                    const balanceFormatted = balanceInEther.toFixed(4);
+                    infoDiv.innerHTML = `${symbol} | Balance: ${balanceFormatted}`;
                 }
-                
-                // Convert balance using proper decimals - more precise calculation
-                const balanceInEther = parseFloat(balance) / Math.pow(10, parseInt(decimals));
-                const balanceFormatted = balanceInEther.toFixed(4);
-                infoDiv.innerHTML = `${symbol} | Balance: ${balanceFormatted}`;
                 
             } catch (error) {
                 console.log('Error getting token info:', error);
@@ -421,22 +590,18 @@
         async function calculateAmountB() {
             if (!web3 || !isWalletConnected) return;
 
-            const tokenA = document.getElementById('tokenA').value;
-            const tokenB = document.getElementById('tokenB').value;
+            const tokenAValue = document.getElementById('tokenA').value;
+            const tokenBValue = document.getElementById('tokenB').value;
             const amountA = document.getElementById('amountA').value;
 
-            console.log(`calculateAmountB called - TokenA: ${tokenA}, TokenB: ${tokenB}, AmountA: ${amountA}`);
-
-            if (!tokenA || !tokenB || !amountA) {
+            if (!tokenAValue || !tokenBValue || !amountA) {
                 return;
             }
 
             try {
-                const ratio = await getPoolRatio(tokenA, tokenB);
-                console.log(`getPoolRatio returned: ${ratio}`);
+                const ratio = await getPoolRatio(tokenAValue, tokenBValue);
                 if (ratio) {
                     const calculatedAmountB = parseFloat(amountA) * ratio;
-                    console.log(`Final calculated AmountB: ${calculatedAmountB}`);
                     document.getElementById('amountB').value = calculatedAmountB.toFixed(6);
                 }
             } catch (error) {
@@ -447,16 +612,16 @@
         async function calculateAmountA() {
             if (!web3 || !isWalletConnected) return;
 
-            const tokenA = document.getElementById('tokenA').value;
-            const tokenB = document.getElementById('tokenB').value;
+            const tokenAValue = document.getElementById('tokenA').value;
+            const tokenBValue = document.getElementById('tokenB').value;
             const amountB = document.getElementById('amountB').value;
 
-            if (!tokenA || !tokenB || !amountB) {
+            if (!tokenAValue || !tokenBValue || !amountB) {
                 return;
             }
 
             try {
-                const ratio = await getPoolRatio(tokenA, tokenB);
+                const ratio = await getPoolRatio(tokenAValue, tokenBValue);
                 if (ratio) {
                     const calculatedAmountA = parseFloat(amountB) / ratio;
                     document.getElementById('amountA').value = calculatedAmountA.toFixed(6);
@@ -477,8 +642,16 @@
             calculateTimeoutB = setTimeout(calculateAmountA, 300);
         }
 
-        async function getPoolRatio(tokenA, tokenB) {
+        async function getPoolRatio(tokenAValue, tokenBValue) {
             try {
+                // Convert token values to actual addresses for pool lookup
+                let tokenA = getTokenAddress(tokenAValue);
+                let tokenB = getTokenAddress(tokenBValue);
+                
+                // For native PLS, use WPLS address for pool lookup
+                if (tokenA === 'NATIVE') tokenA = TOKENS.WPLS;
+                if (tokenB === 'NATIVE') tokenB = TOKENS.WPLS;
+
                 const factory = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
                 const pairAddress = await factory.methods.getPair(tokenA, tokenB).call();
                 
@@ -491,21 +664,9 @@
                 const reserves = await pair.methods.getReserves().call();
                 const token0 = await pair.methods.token0().call();
                 
-                // Use stored decimals if available, otherwise fetch them
+                // Use stored decimals if available
                 let decimalsA = tokenADecimals;
                 let decimalsB = tokenBDecimals;
-                
-                if (decimalsA === 18 || decimalsB === 18) {
-                    // Only fetch if we don't have proper decimals stored
-                    const tokenAContract = new web3.eth.Contract(ERC20_ABI, tokenA);
-                    const tokenBContract = new web3.eth.Contract(ERC20_ABI, tokenB);
-                    decimalsA = await tokenAContract.methods.decimals().call();
-                    decimalsB = await tokenBContract.methods.decimals().call();
-                    
-                    // Update stored decimals
-                    tokenADecimals = parseInt(decimalsA);
-                    tokenBDecimals = parseInt(decimalsB);
-                }
                 
                 // Determine which reserve corresponds to which token
                 let reserveA, reserveB;
@@ -521,12 +682,7 @@
                 const reserveAFormatted = parseFloat(reserveA) / Math.pow(10, parseInt(decimalsA));
                 const reserveBFormatted = parseFloat(reserveB) / Math.pow(10, parseInt(decimalsB));
 
-                // Debug: Show pool reserves info
-                console.log(`Pool Reserves Debug:`);
-                console.log(`Token A (${decimalsA} decimals): Raw=${reserveA}, Formatted=${reserveAFormatted}`);
-                console.log(`Token B (${decimalsB} decimals): Raw=${reserveB}, Formatted=${reserveBFormatted}`);
-
-                // Calculate simple ratio (how much tokenB per 1 tokenA)
+                // Calculate simple ratio
                 const ratio = reserveBFormatted / reserveAFormatted;
                 console.log(`Calculated ratio: ${ratio}`);
                 return ratio;
@@ -540,50 +696,67 @@
         async function checkApprovalStatus() {
             if (!web3 || !walletAccount) return;
             
-            const tokenA = document.getElementById('tokenA').value;
-            const tokenB = document.getElementById('tokenB').value;
+            const tokenAValue = document.getElementById('tokenA').value;
+            const tokenBValue = document.getElementById('tokenB').value;
             
-            if (!tokenA || !tokenB) return;
+            if (!tokenAValue || !tokenBValue) return;
             
             try {
                 console.log('🔍 Checking approval status...');
                 
-                // Check Token A approval
-                const tokenAContract = new web3.eth.Contract(ERC20_ABI, tokenA);
-                const allowanceA = await tokenAContract.methods.allowance(walletAccount, ROUTER_ADDRESS).call();
-                const decimalsA = await tokenAContract.methods.decimals().call();
-                const allowanceAFormatted = parseFloat(allowanceA) / Math.pow(10, decimalsA);
-                const isApprovedA = allowanceAFormatted > 1000000;
-                
-                // Check Token B approval
-                const tokenBContract = new web3.eth.Contract(ERC20_ABI, tokenB);
-                const allowanceB = await tokenBContract.methods.allowance(walletAccount, ROUTER_ADDRESS).call();
-                const decimalsB = await tokenBContract.methods.decimals().call();
-                const allowanceBFormatted = parseFloat(allowanceB) / Math.pow(10, decimalsB);
-                const isApprovedB = allowanceBFormatted > 1000000;
-                
-                // Update button text based on approval status
                 const btnA = document.getElementById('approveABtn');
                 const btnB = document.getElementById('approveBBtn');
                 
-                if (isApprovedA) {
-                    btnA.textContent = 'Token A Already Approved ✓';
+                // Check Token A approval
+                let isApprovedA = false;
+                if (isNativeToken(tokenAValue)) {
+                    // Native PLS doesn't need approval
+                    isApprovedA = true;
+                    btnA.textContent = 'Native PLS - No Approval Needed ✓';
                     btnA.style.background = 'rgba(6, 255, 165, 0.3)';
                     btnA.disabled = true;
                 } else {
-                    btnA.textContent = 'Approve Token A';
-                    btnA.style.background = '';
-                    btnA.disabled = false;
+                    const tokenAContract = new web3.eth.Contract(ERC20_ABI, tokenAValue);
+                    const allowanceA = await tokenAContract.methods.allowance(walletAccount, ROUTER_ADDRESS).call();
+                    const decimalsA = await tokenAContract.methods.decimals().call();
+                    const allowanceAFormatted = parseFloat(allowanceA) / Math.pow(10, decimalsA);
+                    isApprovedA = allowanceAFormatted > 1000000;
+                    
+                    if (isApprovedA) {
+                        btnA.textContent = 'Token A Already Approved ✓';
+                        btnA.style.background = 'rgba(6, 255, 165, 0.3)';
+                        btnA.disabled = true;
+                    } else {
+                        btnA.textContent = 'Approve Token A';
+                        btnA.style.background = '';
+                        btnA.disabled = false;
+                    }
                 }
                 
-                if (isApprovedB) {
-                    btnB.textContent = 'Token B Already Approved ✓';
+                // Check Token B approval
+                let isApprovedB = false;
+                if (isNativeToken(tokenBValue)) {
+                    // Native PLS doesn't need approval
+                    isApprovedB = true;
+                    btnB.textContent = 'Native PLS - No Approval Needed ✓';
                     btnB.style.background = 'rgba(6, 255, 165, 0.3)';
                     btnB.disabled = true;
                 } else {
-                    btnB.textContent = 'Approve Token B';
-                    btnB.style.background = '';
-                    btnB.disabled = false;
+                    const tokenBContract = new web3.eth.Contract(ERC20_ABI, tokenBValue);
+                    const allowanceB = await tokenBContract.methods.allowance(walletAccount, ROUTER_ADDRESS).call();
+                    const decimalsB = await tokenBContract.methods.decimals().call();
+                    const allowanceBFormatted = parseFloat(allowanceB) / Math.pow(10, decimalsB);
+                    isApprovedB = allowanceBFormatted > 1000000;
+                    
+                    if (isApprovedB) {
+                        btnB.textContent = 'Token B Already Approved ✓';
+                        btnB.style.background = 'rgba(6, 255, 165, 0.3)';
+                        btnB.disabled = true;
+                    } else {
+                        btnB.textContent = 'Approve Token B';
+                        btnB.style.background = '';
+                        btnB.disabled = false;
+                    }
                 }
                 
                 console.log(`✅ Approval status - A: ${isApprovedA}, B: ${isApprovedB}`);
@@ -599,15 +772,20 @@
                 return;
             }
 
-            const tokenAddress = token === 'A' ? document.getElementById('tokenA').value : document.getElementById('tokenB').value;
+            const tokenValue = token === 'A' ? document.getElementById('tokenA').value : document.getElementById('tokenB').value;
             
-            if (!tokenAddress) {
+            if (!tokenValue) {
                 showStatus(`Please enter Token ${token} address`, 'error');
                 return;
             }
 
+            if (isNativeToken(tokenValue)) {
+                showStatus(`Native PLS doesn't require approval`, 'info');
+                return;
+            }
+
             try {
-                const tokenContract = new web3.eth.Contract(ERC20_ABI, tokenAddress);
+                const tokenContract = new web3.eth.Contract(ERC20_ABI, tokenValue);
                 showStatus(`Approving Token ${token}...`, 'info');
                 
                 const maxUint = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
@@ -631,13 +809,22 @@
                 return;
             }
 
-            const tokenA = document.getElementById('tokenA').value;
-            const tokenB = document.getElementById('tokenB').value;
+            const tokenAValue = document.getElementById('tokenA').value;
+            const tokenBValue = document.getElementById('tokenB').value;
             const amountA = document.getElementById('amountA').value;
             const amountB = document.getElementById('amountB').value;
 
-            if (!tokenA || !tokenB || !amountA || !amountB) {
+            if (!tokenAValue || !tokenBValue || !amountA || !amountB) {
                 showStatus('Please fill in all fields', 'error');
+                return;
+            }
+
+            // Check if either token is native PLS
+            const isTokenANative = isNativeToken(tokenAValue);
+            const isTokenBNative = isNativeToken(tokenBValue);
+
+            if (isTokenANative && isTokenBNative) {
+                showStatus('Cannot add liquidity between two native PLS tokens', 'error');
                 return;
             }
 
@@ -645,31 +832,61 @@
                 const router = new web3.eth.Contract(ROUTER_ABI, ROUTER_ADDRESS);
                 showStatus('Adding liquidity...', 'info');
 
-                // Convert amounts to wei format properly to avoid scientific notation
-                const amountAWei = BigInt(Math.floor(parseFloat(amountA) * Math.pow(10, tokenADecimals)));
-                const amountBWei = BigInt(Math.floor(parseFloat(amountB) * Math.pow(10, tokenBDecimals)));
-                
-                console.log(`Adding liquidity: ${amountA} TokenA (${amountAWei} wei), ${amountB} TokenB (${amountBWei} wei)`);
-                
-                // Calculate minimum amounts with slippage
-                const slippageMultiplier = (100 - currentSlippage) / 100;
-                const amountAMin = BigInt(Math.floor(Number(amountAWei) * slippageMultiplier));
-                const amountBMin = BigInt(Math.floor(Number(amountBWei) * slippageMultiplier));
-                
                 const deadline = Math.floor(Date.now() / 1000) + 120;
+                const slippageMultiplier = (100 - currentSlippage) / 100;
 
-                const tx = await router.methods.addLiquidity(
-                    tokenA,
-                    tokenB,
-                    amountAWei.toString(),
-                    amountBWei.toString(),
-                    amountAMin.toString(),
-                    amountBMin.toString(),
-                    walletAccount,
-                    deadline
-                ).send({ from: walletAccount });
+                if (isTokenANative || isTokenBNative) {
+                    // Use addLiquidityETH for native PLS
+                    const nativeAmount = isTokenANative ? amountA : amountB;
+                    const tokenAmount = isTokenANative ? amountB : amountA;
+                    const tokenAddress = isTokenANative ? tokenBValue : tokenAValue;
+                    const tokenDecimals = isTokenANative ? tokenBDecimals : tokenADecimals;
 
-                showStatus(`✅ Liquidity added successfully! TX: ${tx.transactionHash}`, 'success');
+                    const tokenAmountWei = BigInt(Math.floor(parseFloat(tokenAmount) * Math.pow(10, tokenDecimals)));
+                    const nativeAmountWei = BigInt(Math.floor(parseFloat(nativeAmount) * Math.pow(10, 18)));
+                    
+                    const tokenAmountMin = BigInt(Math.floor(Number(tokenAmountWei) * slippageMultiplier));
+                    const nativeAmountMin = BigInt(Math.floor(Number(nativeAmountWei) * slippageMultiplier));
+
+                    console.log(`Adding native PLS liquidity: ${nativeAmount} PLS, ${tokenAmount} Token`);
+
+                    const tx = await router.methods.addLiquidityETH(
+                        tokenAddress,
+                        tokenAmountWei.toString(),
+                        tokenAmountMin.toString(),
+                        nativeAmountMin.toString(),
+                        walletAccount,
+                        deadline
+                    ).send({ 
+                        from: walletAccount,
+                        value: nativeAmountWei.toString()
+                    });
+
+                    showStatus(`✅ Liquidity added successfully! TX: ${tx.transactionHash}`, 'success');
+
+                } else {
+                    // Use regular addLiquidity for ERC20 tokens
+                    const amountAWei = BigInt(Math.floor(parseFloat(amountA) * Math.pow(10, tokenADecimals)));
+                    const amountBWei = BigInt(Math.floor(parseFloat(amountB) * Math.pow(10, tokenBDecimals)));
+                    
+                    const amountAMin = BigInt(Math.floor(Number(amountAWei) * slippageMultiplier));
+                    const amountBMin = BigInt(Math.floor(Number(amountBWei) * slippageMultiplier));
+
+                    console.log(`Adding ERC20 liquidity: ${amountA} TokenA, ${amountB} TokenB`);
+
+                    const tx = await router.methods.addLiquidity(
+                        tokenAValue,
+                        tokenBValue,
+                        amountAWei.toString(),
+                        amountBWei.toString(),
+                        amountAMin.toString(),
+                        amountBMin.toString(),
+                        walletAccount,
+                        deadline
+                    ).send({ from: walletAccount });
+
+                    showStatus(`✅ Liquidity added successfully! TX: ${tx.transactionHash}`, 'success');
+                }
 
             } catch (error) {
                 console.error('Liquidity addition error:', error);
