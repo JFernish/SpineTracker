@@ -1114,10 +1114,9 @@
                 }
                 
                 // Calculate parity percent
-                if (token.childPrice && token.parentPrice && token.multiplier && 
-                    token.parentPrice > 0 && !isNaN(parseFloat(token.multiplier))) {
-                    const expectedPrice = token.parentPrice * parseFloat(token.multiplier);
-                    token.parityPercent = (token.childPrice / expectedPrice) * 100;
+                if (token.childPrice && token.parentPrice && 
+                    token.childPrice > 0 && token.parentPrice > 0) {
+                    token.parityPercent = (token.parentPrice / token.childPrice) * 100;
                 } else {
                     token.parityPercent = null;
                 }
@@ -1500,7 +1499,7 @@
 
         function formatParityPercent(parityPercent) {
             if (parityPercent === null || parityPercent === undefined || parityPercent < 0) {
-                return `<span class="data-loading">Loading...</span>`;
+                return `<span class="data-loading">N/A</span>`;
             }
             
             const percentage = parityPercent.toFixed(1) + '%';
