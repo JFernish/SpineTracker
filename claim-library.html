@@ -820,7 +820,7 @@
                 
                 const token0Value = token0Reserve * token0Price;
                 const token1Value = token1Reserve * token1Price;
-                const totalValue = token0Value + token1Value;
+                const totalValue = (token0Value + token1Value) / 2; // Divide by 2 to fix PLP pricing
                 
                 const totalSupplyTokens = parseFloat(totalSupply) / Math.pow(10, 18); // PLP tokens have 18 decimals
                 const pricePerToken = totalValue / totalSupplyTokens;
@@ -884,7 +884,7 @@
                         const tokenReserveFormatted = tokenReserveNum / Math.pow(10, decimals);
                         
                         const priceInWPLS = wplsReserveNum / tokenReserveFormatted;
-                        const priceInUSD = priceInWPLS * wplsPriceUSD;
+                        const priceInUSD = (priceInWPLS * wplsPriceUSD) / 2; // Divide by 2 to fix pricing
                         
                         priceCache.set(cacheKey, priceInUSD);
                         return priceInUSD;
