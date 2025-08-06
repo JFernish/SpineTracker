@@ -1497,6 +1497,16 @@
             }
             return value;
         }
+
+        function formatParityPercent(parityPercent) {
+            if (parityPercent === null || parityPercent === undefined || parityPercent < 0) {
+                return `<span class="data-loading">Loading...</span>`;
+            }
+            
+            const percentage = parityPercent.toFixed(1) + '%';
+            const colorClass = parityPercent >= 100 ? 'parity-value-good' : 'parity-value-bad';
+            return `<span class="${colorClass}">${percentage}</span>`;
+        }
         
         function formatParentName(parentName) {
             if (!parentName || parentName === 'None') return parentName;
