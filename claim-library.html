@@ -782,6 +782,89 @@
             }
         }
 
+        async function getTokenPrice(tokenAddress) {
+            if (!web3 || !tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000') {
+                return 0;
+            }
+
+            const cacheKey = `${tokenAddress.toLowerCase()}-price`;
+            if (priceCache.has(cacheKey)) {
+                return priceCache.get(cacheKey);
+            }
+
+            try {
+                // First check if it's a PLP
+                if (await isPLP(tokenAddress)) {
+                    const plpPrice = await getPLPPrice(tokenAddress);
+                    return plpPrice;
+                }
+
+                // Try to get price from token/WPLS pool
+                const factory = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
+                const pairAddress = await factory.methods.getPair(tokenAddress, WPLS_ADDRESS).call();
+                
+                if (pairAddress !== '0x0000000000000000000000000000000000000000') {
+                    const pair = new web3.eth.Contract(PAIR_ABI, pairAddress);
+                    const [reserves, token0] = await Promise.all([
+                        pair.methods.getReserves().call(),
+                        pair.methods.token0().call()
+                    ]);
+                    
+                    let tokenReserve, wplsReserve;
+                    if (token0.toLowerCase() === tokenAddress.toLowerCase()) {
+                        tokenReserve = reserves[0];
+                        wplsReserve = reserves[1];
+                    } else {
+                        tokenReserve = reserves[1];
+                        wplsReserve = reserves[0];
+                    }
+
+                    const tokenReserveNum = parseFloat(tokenReserve);
+                    const wplsReserveNum = parseFloat(wplsReserve) / Math.pow(10, 18);
+                    
+                    if (tokenReserveNum > 0) {
+                        const wplsPriceUSD = await getWPLSPrice();
+                        
+                        // Get token decimals to properly calculate price
+                        const tokenContract = new web3.eth.Contract(TOKEN_ABI, tokenAddress);
+                        const decimals = await tokenContract.methods.decimals().call();
+                        const tokenReserveFormatted = tokenReserveNum / Math.pow(10, decimals);
+                        
+                        const priceInWPLS = wplsReserveNum / tokenReserveFormatted;
+                        const priceInUSD = (priceInWPLS * wplsPriceUSD) / 2; // Divide by 2 to fix pricing
+                        
+                        priceCache.set(cacheKey, priceInUSD);
+                        return priceInUSD;
+                    }
+                }
+
+                // Fallback to DexScreener
+                try {
+                    const response = await fetch(`https://api.dexscreener.com/latest/dex/pairs/pulsechain/${tokenAddress}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.pairs && data.pairs.length > 0) {
+                            const price = parseFloat(data.pairs[0].priceUsd) || 0;
+                            priceCache.set(cacheKey, price);
+                            return price;
+                        }
+                    }
+                } catch (dexError) {
+                    console.log(`DexScreener fallback failed for ${tokenAddress}:`, dexError.message);
+                }
+
+                const result = 0;
+                priceCache.set(cacheKey, result);
+                return result;
+
+            } catch (error) {
+                console.log(`Error getting price for ${tokenAddress}:`, error.message);
+                const result = 0;
+                priceCache.set(cacheKey, result);
+                return result;
+            }
+        }
+
         async function isPLP(address) {
             if (!web3 || !address || address === '0x0000000000000000000000000000000000000000') {
                 return false;
@@ -1131,14 +1214,16 @@
                 processed++;
                 
                 // Update progress and display every few tokens
-                if (processed % 3 === 0 || processed === filteredTokens.length) {
+                if (processed % 2 === 0 || processed === filteredTokens.length) {
                     setStatus(`Getting claim data... ${processed}/${filteredTokens.length}`, 'loading');
                     displayResults();
                 }
                 
-                // Small delay to prevent overwhelming the RPC/APIs
-                if (processed % 10 === 0) {
-                    await new Promise(resolve => setTimeout(resolve, 200));
+                // Add delays to prevent rate limiting
+                if (processed % 5 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Longer delay every 5 tokens
+                } else if (processed % 2 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 200)); // Short delay every 2 tokens
                 }
             }
             
