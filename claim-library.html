@@ -257,7 +257,7 @@
         }
         .results-grid-header {
             display: grid;
-            grid-template-columns: 0.3fr 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr 0.9fr 1fr 0.8fr;
+            grid-template-columns: 0.3fr 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr 1fr 0.8fr;
             gap: 12px;
             align-items: center;
         }
@@ -299,7 +299,7 @@
         }
         .results-grid {
             display: grid;
-            grid-template-columns: 0.3fr 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr 0.9fr 1fr 0.8fr;
+            grid-template-columns: 0.3fr 1fr 1fr 0.6fr 1fr 0.4fr 1.3fr 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr 1fr 0.8fr;
             gap: 12px;
             align-items: center;
         }
@@ -368,6 +368,24 @@
         .total-value {
             font-weight: 600;
             color: #ff9500;
+            font-family: 'Segoe UI', sans-serif;
+            text-align: right;
+        }
+        .child-price-value {
+            font-weight: 600;
+            color: #3a86ff;
+            font-family: 'Segoe UI', sans-serif;
+            text-align: right;
+        }
+        .parity-value-good {
+            font-weight: 600;
+            color: #06ffa5;
+            font-family: 'Segoe UI', sans-serif;
+            text-align: right;
+        }
+        .parity-value-bad {
+            font-weight: 600;
+            color: #ff6b6b;
             font-family: 'Segoe UI', sans-serif;
             text-align: right;
         }
@@ -557,8 +575,9 @@
                     <div class="sortable-header" onclick="sortData('burnedTokens')">Burned Parent Tokens</div>
                     <div class="sortable-header" onclick="sortData('parentPrice')">Parent Price</div>
                     <div class="sortable-header" onclick="sortData('burnedValue')">Burned Value</div>
-                    <div class="sortable-header" onclick="sortData('childLiquidity')">Child/WPLS Pool (WPLS)</div>
-                    <div>Child Pool Address</div>
+                    <div class="sortable-header" onclick="sortData('parityPercent')">Parity Percent</div>
+                    <div class="sortable-header" onclick="sortData('childPrice')">Child Price</div>
+                    <div class="sortable-header" onclick="sortData('parentName')">Parent Name</div>
                     <div class="sortable-header" onclick="sortData('parentName')">Parent Name</div>
                     <div>Parent Address</div>
                 </div>
@@ -1089,7 +1108,21 @@
                     token.burnedValue = 0;
                 }
                 
-                // Load child liquidity
+                // Load child price
+                if (token.tokenContractAddress && !token.childPrice) {
+                    token.childPrice = await getTokenPrice(token.tokenContractAddress);
+                }
+                
+                // Calculate parity percent
+                if (token.childPrice && token.parentPrice && token.multiplier && 
+                    token.parentPrice > 0 && !isNaN(parseFloat(token.multiplier))) {
+                    const expectedPrice = token.parentPrice * parseFloat(token.multiplier);
+                    token.parityPercent = (token.childPrice / expectedPrice) * 100;
+                } else {
+                    token.parityPercent = null;
+                }
+                
+                // Load child liquidity (keeping this for reference but not displaying)
                 if (token.tokenContractAddress && !token.childLiquidityData) {
                     token.childLiquidityData = await getLiquidityData(token.tokenContractAddress);
                     token.childLiquidity = token.childLiquidityData.wpls;
@@ -1312,9 +1345,13 @@
                         aVal = a.burnedValue || -1;
                         bVal = b.burnedValue || -1;
                         break;
-                    case 'childLiquidity':
-                        aVal = getNumericValueForSorting(a.childLiquidity);
-                        bVal = getNumericValueForSorting(b.childLiquidity);
+                    case 'parityPercent':
+                        aVal = a.parityPercent || -1;
+                        bVal = b.parityPercent || -1;
+                        break;
+                    case 'childPrice':
+                        aVal = a.childPrice || -1;
+                        bVal = b.childPrice || -1;
                         break;
                     case 'isLeaf':
                         aVal = a.isLeaf ? 1 : 0;
@@ -1369,8 +1406,8 @@
                         <div class="field-value burned-value">${formatDataValue(token.burnedTokens)}</div>
                         <div class="field-value price-value">${formatPriceValue(token.parentPrice)}</div>
                         <div class="field-value total-value">${formatValueDisplay(token.burnedValue)}</div>
-                        <div class="field-value burned-value">${formatDataValue(token.childLiquidity)}</div>
-                        <div class="field-value">${createClickableAddress(token.childPoolAddress)}</div>
+                        <div class="field-value">${formatParityPercent(token.parityPercent)}</div>
+                        <div class="field-value child-price-value">${formatPriceValue(token.childPrice)}</div>
                         <div class="field-value parent-name" title="${token.parentName || 'None'}">${formatParentName(token.parentDisplayName || token.parentName || 'None')}</div>
                         <div class="field-value">${createClickableAddress(token.parent)}</div>
                     </div>
@@ -1402,8 +1439,8 @@
                 'Burned Parent Tokens',
                 'Parent Price',
                 'Burned Value',
-                'Child/WPLS Pool (WPLS)',
-                'Child Pool Address',
+                'Parity Percent',
+                'Child Price',
                 'Parent Name',
                 'Parent Address'
             ];
@@ -1423,8 +1460,8 @@
                 token.burnedTokens || '',
                 token.parentPrice || '',
                 token.burnedValue || '',
-                token.childLiquidity || '',
-                token.childPoolAddress || '',
+                token.parityPercent || '',
+                token.childPrice || '',
                 token.parentName || '',
                 token.parent || ''
             ]);
@@ -1516,6 +1553,8 @@
                 delete token.burnedTokensData;
                 delete token.parentPrice;
                 delete token.burnedValue;
+                delete token.childPrice;
+                delete token.parityPercent;
                 delete token.childLiquidity;
                 delete token.childLiquidityData;
                 delete token.childPoolAddress;
