@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mint ETH Token</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+         
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+       
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(20, 20, 40, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(157, 78, 221, 0.1);
+        }
+       
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #ffffff;
+            font-size: 2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #9d4edd, #6a4c93, #3a86ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .security-warning {
+            background: rgba(255, 87, 87, 0.15);
+            border: 2px solid rgba(255, 87, 87, 0.4);
+            color: #ff9999;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            text-align: left;
+        }
+       
+        .security-warning h3 {
+            color: #ff6b6b;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+       
+        .security-warning ul {
+            margin: 10px 0 10px 20px;
+        }
+       
+        .security-warning li {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+       
+        .security-warning.transaction-warning {
+            background: rgba(255, 193, 7, 0.15);
+            border-color: rgba(255, 193, 7, 0.4);
+            color: #ffd54f;
+        }
+       
+        .security-warning.transaction-warning h3 {
+            color: #ffc107;
+        }
+       
+        .token-info {
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 2px solid rgba(102, 126, 234, 0.2);
+        }
+       
+        .info-row {
+            display: flex;
+            justify-content: flex-start;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #c0c0c0;
+            width: 120px;
+            flex-shrink: 0;
+        }
+       
+        .info-value {
+            font-family: 'Courier New', monospace;
+            color: #ffffff;
+            font-size: 0.9rem;
+            flex: 1;
+        }
+       
+        .balance-section {
+            background: rgba(6, 255, 165, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            border: 1px solid rgba(6, 255, 165, 0.2);
+        }
+       
+        .balance-title {
+            font-weight: 600;
+            color: #06ffa5;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+            text-align: center;
+        }
+       
+        .balance-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+       
+        .balance-label {
+            font-weight: 500;
+            color: #c0c0c0;
+            font-size: 0.85rem;
+        }
+       
+        .balance-value {
+            font-family: 'Courier New', monospace;
+            color: #06ffa5;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+       
+        .balance-loading {
+            color: #888;
+            font-style: italic;
+        }
+       
+        .wallet-section {
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            text-align: center;
+        }
+       
+        .wallet-btn {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(58, 134, 255, 0.3);
+            margin: 10px;
+        }
+       
+        .wallet-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(58, 134, 255, 0.4);
+        }
+       
+        .wallet-connected {
+            background: rgba(6, 255, 165, 0.2);
+            color: #06ffa5;
+            border: 1px solid rgba(6, 255, 165, 0.3);
+            padding: 12px 20px;
+            border-radius: 15px;
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+       
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+       
+        .step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+            font-size: 1.1rem;
+        }
+       
+        .step.active {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+            color: white;
+            box-shadow: 0 4px 15px rgba(58, 134, 255, 0.3);
+        }
+       
+        .step.completed {
+            background: linear-gradient(45deg, #06ffa5, #00cc88);
+            color: white;
+            box-shadow: 0 4px 15px rgba(6, 255, 165, 0.3);
+        }
+       
+        .step.inactive {
+            background: rgba(255, 255, 255, 0.1);
+            color: #888;
+        }
+       
+        .step-line {
+            width: 60px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 0 15px;
+            transition: all 0.3s ease;
+        }
+       
+        .step-line.active {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+        }
+       
+        .step-text {
+            text-align: center;
+            color: #c0c0c0;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+       
+        .form-section {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+       
+        .form-group {
+            margin-bottom: 20px;
+        }
+       
+        .form-group label {
+            display: block;
+            color: #ffffff;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+       
+        .input-with-button {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+       
+        .form-group input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input[type="number"]::-webkit-outer-spin-button,
+        .form-group input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .form-group input[type="number"] {
+            -moz-appearance: textfield;
+        }
+       
+        .form-group input:focus {
+            outline: none;
+            border-color: #3a86ff;
+            box-shadow: 0 0 15px rgba(58, 134, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+        }
+       
+        .max-btn {
+            padding: 15px 20px;
+            border: 2px solid rgba(6, 255, 165, 0.3);
+            border-radius: 12px;
+            background: rgba(6, 255, 165, 0.1);
+            color: #06ffa5;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+       
+        .max-btn:hover {
+            background: rgba(6, 255, 165, 0.2);
+            border-color: rgba(6, 255, 165, 0.5);
+        }
+       
+        .max-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+       
+        .mint-note {
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 8px;
+            font-style: italic;
+        }
+       
+        .action-btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 15px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+       
+        .action-btn.primary {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+            color: white;
+            box-shadow: 0 6px 20px rgba(58, 134, 255, 0.4);
+        }
+       
+        .action-btn.secondary {
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            color: white;
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+        }
+       
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(58, 134, 255, 0.5);
+        }
+       
+        .action-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+       
+        .back-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: #c0c0c0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+       
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+        }
+       
+        .status-message {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+       
+        .status-success {
+            background: rgba(6, 255, 165, 0.1);
+            border: 1px solid rgba(6, 255, 165, 0.3);
+            color: #06ffa5;
+        }
+       
+        .status-error {
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            color: #f44336;
+        }
+       
+        .status-warning {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+        }
+
+        .multiplier-error {
+            background: rgba(244, 67, 54, 0.1);
+            border: 2px solid rgba(244, 67, 54, 0.3);
+            color: #f44336;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .multiplier-error h3 {
+            color: #f44336;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .grayed-out {
+            opacity: 0.4;
+            pointer-events: none;
+            position: relative;
+        }
+
+        .grayed-out::after {
+            content: "Coming Soon";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: #888;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Mint ETH Token</h1>
+            <p>Two-step process: Approve Parent → Mint Direct Child</p>
+            <p style="margin-top: 10px; font-size: 0.9rem;" class="grayed-out">
+                <button onclick="openMultiHopMint()">🎯 Switch to Multi-Hop Minting</button>
+            </p>
+        </div>
+       
+        <div class="security-warning" id="walletSecurityWarning">
+            <h3>🛡️ Wallet Connection Security Warning</h3>
+            <ul>
+                <li><strong>Only connect your wallet to trusted websites</strong> - verify the URL is correct</li>
+                <li><strong>Never share your seed phrase or private keys</strong> with anyone</li>
+                <li><strong>Double-check website authenticity</strong> - scammers create fake versions of legitimate sites</li>
+                <li><strong>Use a separate wallet</strong> for experimental DeFi interactions if possible</li>
+                <li><strong>This site is for entertainment/educational purposes only</strong> - always DYOR</li>
+            </ul>
+        </div>
+
+        <div class="multiplier-error" id="multiplierError" style="display: none;">
+            <h3>❌ Multiplier Not Available</h3>
+            <p>Please return to the main page and refresh the token data to load multiplier information.</p>
+            <button onclick="goBackToMainPage()" style="background: linear-gradient(45deg, #f44336, #e91e63); color: white; border: none; padding: 12px 24px; border-radius: 20px; cursor: pointer; font-weight: 600; margin-top: 10px;">
+                ← Return to Main Page
+            </button>
+        </div>
+       
+        <div class="token-info" id="tokenInfo">
+            <div class="info-row">
+                <span class="info-label">Child Token:</span>
+                <span class="info-value" id="childTokenName">Sample Token</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Child Address:</span>
+                <span class="info-value" id="childTokenAddress">0x...</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Parent Token:</span>
+                <span class="info-value" id="parentTokenName">Parent Token</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Parent Address:</span>
+                <span class="info-value" id="parentTokenAddress">0x...</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Multiplier:</span>
+                <span class="info-value" id="multiplierValue">2x</span>
+                <button onclick="refreshMultiplier()" id="refreshMultiplierBtn" style="background: rgba(255, 193, 7, 0.2); border: 1px solid rgba(255, 193, 7, 0.3); color: #ffc107; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; margin-left: 10px;">
+                    🔄 Refresh
+                </button>
+            </div>
+           
+            <div id="balanceSection" class="balance-section" style="display: none;">
+                <div class="balance-title">💰 Current Wallet Balances</div>
+                <div class="balance-row">
+                    <span class="balance-label" id="parentTokenBalance">Parent (<span id="parentSymbol">...</span>):</span>
+                    <span class="balance-value balance-loading" id="parentBalance">Loading...</span>
+                </div>
+                <div class="balance-row">
+                    <span class="balance-label" id="childTokenBalance">Child (<span id="childSymbol">...</span>):</span>
+                    <span class="balance-value balance-loading" id="childBalance">Loading...</span>
+                </div>
+                <button onclick="refreshBalances()" id="refreshBalanceBtn" style="background: rgba(6, 255, 165, 0.2); border: 1px solid rgba(6, 255, 165, 0.3); color: #06ffa5; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; margin-top: 8px; width: 100%;">
+                    🔄 Refresh Balances
+                </button>
+            </div>
+        </div>
+       
+        <div class="wallet-section" id="walletSection">
+            <div id="walletNotConnected">
+                <p style="color: #c0c0c0; margin-bottom: 15px;">Connect your wallet to mint ETH tokens</p>
+                <button class="wallet-btn" id="connectWalletBtn" onclick="connectWallet()">
+                    🔗 Connect Wallet
+                </button>
+            </div>
+            <div id="walletConnected" style="display: none;">
+                <div class="wallet-connected">
+                    ✅ Connected: <span id="walletAddress">0x...</span>
+                </div>
+                <button class="wallet-btn" id="disconnectWalletBtn" onclick="disconnectWallet()" style="background: linear-gradient(45deg, #f44336, #e91e63);">
+                    Disconnect
+                </button>
+            </div>
+        </div>
+       
+        <div id="mintForm" style="display: none;">
+            <div class="step-indicator">
+                <div class="step active" id="step1">1</div>
+                <div class="step-line" id="stepLine"></div>
+                <div class="step inactive" id="step2">2</div>
+            </div>
+           
+            <div class="step-text" id="stepText">
+                Step 1 of 2: Approve Parent Token (Infinite)
+            </div>
+           
+            <div id="statusMessage" class="status-message" style="display: none;"></div>
+           
+            <div class="form-section">
+                <div class="form-group">
+                    <label>Mint Amount</label>
+                    <div class="input-with-button">
+                        <input type="number" id="mintAmountInput" placeholder="Enter amount (e.g., 1000)" min="0" step="any">
+                        <button class="max-btn" id="maxBtn" onclick="setMaxAmount()" disabled>
+                            MAX
+                        </button>
+                    </div>
+                    <div class="mint-note">Amount will be multiplied by 10^18 when sent to contract</div>
+                    <div class="mint-note" style="color: #ffc107; margin-top: 8px;" id="costCalculation">
+                        💡 Enter amount to see parent token cost
+                    </div>
+                </div>
+               
+                <button class="action-btn secondary" id="actionBtn" onclick="handleMintAction()">
+                    Approve Infinite Parent Token
+                </button>
+               
+                <button class="back-btn" onclick="goBackToMainPage()">
+                    ← Back to Token Tracker
+                </button>
+            </div>
+           
+            <div class="grayed-out" style="background: rgba(157, 78, 221, 0.1); border-radius: 15px; padding: 20px; margin-bottom: 25px; border: 2px solid rgba(157, 78, 221, 0.2); text-align: center;">
+                <h3 style="color: #ffffff; margin-bottom: 15px; font-size: 1.1rem;">🎯 Multi-Hop Minting Available</h3>
+                <p style="margin-bottom: 15px; color: #e0e0e0; line-height: 1.5;">
+                    Multi-hop minting allows you to mint directly from any parent token in a spine to any child token in a single transaction, skipping intermediate steps. One click, multiple hops.
+                </p>
+                <button onclick="openMultiHopMint()" style="background: linear-gradient(45deg, #9d4edd, #3a86ff); color: white; text-decoration: none; padding: 12px 24px; border-radius: 20px; font-weight: 600; border: none; cursor: pointer;">
+                    🎯 Switch to Multi-Hop Minting
+                </button>
+            </div>
+           
+            <div class="security-warning transaction-warning">
+                <h3>⚠️ Transaction Security Check</h3>
+                <ul>
+                    <li><strong>ALWAYS verify contract addresses</strong> in your wallet before approving</li>
+                    <li><strong>Check that you're minting from the correct child token address:</strong><br>
+                        <code id="childAddressCheck">0x...</code>
+                    </li>
+                    <li><strong>Check that you're approving the correct parent token address:</strong><br>
+                        <code id="parentAddressCheck">0x...</code>
+                    </li>
+                    <li><strong>Never approve unknown contracts</strong> - if addresses don't match, REJECT the transaction</li>
+                    <li><strong>Start with small amounts</strong> to test the process first</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
+    <script>
+        function openMultiHopMint() {
+            alert('🚧 Multi-hop minting is coming soon for the ETH version!');
+        }
+
+        function goBackToMainPage() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = 'https://spinetracker.vercel.app/ETH.html';
+            }
+        }
+
+        function refreshMultiplier() {
+            alert('Connect wallet to refresh multiplier');
+        }
+
+        function refreshBalances() {
+            alert('Connect wallet to refresh balances');
+        }
+
+        function connectWallet() {
+            alert('Web3 wallet connection functionality would be implemented here');
+        }
+
+        function disconnectWallet() {
+            alert('Disconnect wallet functionality');
+        }
+
+        function setMaxAmount() {
+            alert('Calculate maximum amount functionality');
+        }
+
+        function handleMintAction() {
+            alert('Mint action functionality would be implemented here');
+        }
+
+        console.log('🚀 ETH Mint Page loaded successfully!');
+    </script>
+</body>
+</html>
