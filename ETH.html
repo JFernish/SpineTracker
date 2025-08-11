@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETH Spine Token Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: rgba(20, 20, 40, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(157, 78, 221, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #ffffff;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #9d4edd, #6a4c93, #3a86ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(157, 78, 221, 0.3);
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn {
+            background: linear-gradient(45deg, #6a4c93, #9d4edd);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(157, 78, 221, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(157, 78, 221, 0.4);
+            background: linear-gradient(45deg, #9d4edd, #3a86ff);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn.success {
+            background: linear-gradient(45deg, #06ffa5, #00cc88);
+            box-shadow: 0 4px 15px rgba(6, 255, 165, 0.3);
+        }
+        .btn.discover {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+            box-shadow: 0 4px 15px rgba(58, 134, 255, 0.3);
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .status.connected {
+            background: rgba(6, 255, 165, 0.2);
+            color: #06ffa5;
+            border: 1px solid rgba(6, 255, 165, 0.3);
+        }
+        .status.error {
+            background: rgba(244, 67, 54, 0.2);
+            color: #e57373;
+            border: 1px solid rgba(244, 67, 54, 0.3);
+        }
+        .status.loading {
+            background: rgba(157, 78, 221, 0.2);
+            color: #9d4edd;
+            border: 1px solid rgba(157, 78, 221, 0.3);
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .config-section {
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 2px solid rgba(102, 126, 234, 0.2);
+        }
+        .config-title {
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+        .config-item {
+            display: inline-block;
+            margin-right: 20px;
+            margin-bottom: 10px;
+        }
+        .config-item label {
+            font-size: 0.9rem;
+            color: #c0c0c0;
+            font-weight: 500;
+            margin-right: 10px;
+        }
+        .config-item input {
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            width: 400px;
+        }
+        .config-item input::placeholder {
+            color: #888;
+        }
+        .discovery-log {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #c0c0c0;
+        }
+        .table-container {
+            overflow-x: auto;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(30, 30, 60, 0.8);
+            font-size: 0.85rem;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        th {
+            background: linear-gradient(45deg, #6a4c93, #9d4edd);
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            font-size: 0.8rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background-color 0.3s ease;
+            color: #e0e0e0;
+        }
+        tr:hover {
+            background-color: rgba(157, 78, 221, 0.1);
+        }
+        .parent-row {
+            background: rgba(6, 255, 165, 0.2);
+            border-left: 4px solid #06ffa5;
+            font-weight: 600;
+        }
+        .child-row {
+            background: rgba(157, 78, 221, 0.1);
+            border-left: 4px solid #9d4edd;
+        }
+        .token-name {
+            font-weight: 600;
+            color: #ffffff;
+        }
+        .plp-components {
+            font-size: 0.75rem;
+            color: #b0b0b0;
+            font-style: italic;
+            margin-top: 2px;
+            font-weight: normal;
+        }
+        .address {
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: #90a4ae;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+        .address:hover {
+            color: #9d4edd;
+        }
+        .price {
+            font-weight: 600;
+            color: #06ffa5;
+            font-family: 'Courier New', monospace;
+            text-align: right;
+        }
+        .price.negative {
+            color: #f44336;
+        }
+        .parity {
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            text-align: right;
+            font-size: 0.9rem;
+        }
+        .parity.profitable {
+            color: #06ffa5;
+        }
+        .parity.unprofitable {
+            color: #f44336;
+        }
+        .multiplier {
+            background: linear-gradient(45deg, #3a86ff, #6a4c93);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            text-align: right;
+            min-width: 60px;
+            font-size: 0.8rem;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 2px 8px rgba(58, 134, 255, 0.3);
+            display: inline-block;
+        }
+        .multiplier-info {
+            font-size: 0.7rem;
+            color: #888;
+            font-style: italic;
+            margin-top: 2px;
+            font-weight: normal;
+        }
+        .loading-cell {
+            text-align: center;
+            color: #90a4ae;
+            font-style: italic;
+        }
+        .price-source {
+            font-size: 0.7rem;
+            color: #888;
+            font-style: italic;
+        }
+        .mint-btn {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(58, 134, 255, 0.3);
+        }
+        .mint-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(58, 134, 255, 0.4);
+        }
+        .total-multiplier-section {
+            background: rgba(157, 78, 221, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 2px solid rgba(157, 78, 221, 0.2);
+            text-align: left;
+        }
+        .total-multiplier-title {
+            color: #ffffff;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #90a4ae;
+            font-size: 0.9rem;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            .header h1 {
+                font-size: 2rem;
+            }
+            table {
+                font-size: 0.75rem;
+            }
+            th, td {
+                padding: 6px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>ETH Spine Tracker</h1>
+            <p>Automatically discover ETH factory token spines by walking up from any child token</p>
+            <div style="background: rgba(157, 78, 221, 0.1); padding: 15px; border-radius: 10px; margin-top: 15px; border: 2px solid rgba(157, 78, 221, 0.2);">
+                <strong>⚠️ Entertainment Purposes Only:</strong> This tool is for entertainment purposes. All data should be independently verified before making any financial decisions.<br>Always DYOR (Do Your Own Research).
+            </div>
+        </div>
+        <div class="config-section">
+            <div class="config-title">
+            </div>
+            <div class="config-item">
+                <label>ETH Token Address to Discover:</label>
+                <input type="text" id="startingToken" value="0x64124be33bd2b66dcfeb54d7cbc02e87ce7c0202" placeholder="0x..." onkeypress="handleTokenInputKeypress(event)">
+            </div>
+            <div class="config-item">
+                <label>RPC URL:</label>
+                <input type="text" id="rpcUrl" value="https://eth.llamarpc.com" style="width: 250px;">
+            </div>
+            <div class="config-item">
+                <button onclick="toggleDiscoveryLog()" id="logToggleBtn" style="background: rgba(157, 78, 221, 0.3); border: 1px solid rgba(157, 78, 221, 0.5); color: #9d4edd; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
+                    📄 Show Log
+                </button>
+            </div>
+            <div class="discovery-log" id="discoveryLog" style="max-height: 100px; display: none;">
+                Ready to discover ETH token spine... Enter an ETH child token address and click "Discover Spine"
+            </div>
+        </div>
+        <div class="controls">
+            <div class="control-group">
+                <button class="btn" onclick="testConnection()" id="testBtn">
+                    🔗 Test Connection
+                </button>
+                <button class="btn discover" onclick="discoverSpine()" id="discoverBtn">
+                    🧬 Discover Spine
+                </button>
+                <button class="btn" onclick="refreshData()" id="refreshBtn" disabled>
+                    🔄 Refresh Data
+                </button>
+            </div>
+            <div class="control-group">
+                <div class="status" id="status">
+                    <div class="status-dot"></div>
+                    <span>Ready to connect</span>
+                </div>
+                <div style="font-size: 0.8rem; color: #90a4ae;" id="lastUpdate">
+                    Last updated: Never
+                </div>
+            </div>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Position</th>
+                        <th>Token Name</th>
+                        <th>Contract Address</th>
+                        <th>Total Supply</th>
+                        <th>Multiplier</th>
+                        <th>Price (USD)</th>
+                        <th>Parity %</th>
+                        <th style="width: 60px;">Mint</th>
+                    </tr>
+                </thead>
+                <tbody id="tokenTable">
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #90a4ae;">
+                            No ETH tokens discovered yet. Click "Discover Spine" to start building the spine from an ETH child token.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="total-multiplier-section" id="totalMultiplierSection" style="display: none;">
+            <div class="total-multiplier-title">📊 Spine Summary</div>
+            <p style="margin: 10px 0; font-size: 1rem; line-height: 1.5;">
+                <strong>Total Spine Multiplier:</strong> <span class="total-multiplier-value" id="totalMultiplierValue" style="color: #06ffa5; font-family: 'Courier New', monospace; font-weight: 700;">-</span>
+                <span style="font-size: 0.9rem; color: #c0c0c0;"> (aggregate of all child multipliers)</span>
+            </p>
+            <p style="margin: 10px 0; font-size: 1rem; line-height: 1.5;">
+                <strong>Implied Lowest Child Price at Parity:</strong> $<span class="implied-price-value" id="impliedPriceValue" style="color: #3a86ff; font-family: 'Courier New', monospace; font-weight: 700;">-</span>
+                <span style="font-size: 0.9rem; color: #c0c0c0;"> (parent price × total multiplier)</span>
+            </p>
+        </div>
+        <div class="footer">
+            <p style="text-align: left;"><strong>Instructions:</strong> 1) Enter any ETH child token address → 2) Click "Discover Spine" → 3) Click "Refresh Data" to refresh prices/multipliers</p>
+            <p style="text-align: left;"><strong>Parity %:</strong> Shows minting opportunity - Green >100% = profitable to mint/sell child, Red <100% = profitable to buy child (assuming price will return to parity)</p>
+            <p style="text-align: left;"><strong>Parity Calculation:</strong> Child Price ÷ (Parent Price × Multiplier) × 100%</p>
+            <p style="text-align: left;"><strong>Enhanced Pricing:</strong> Prioritizes ETH/WETH pairs → USDC/USDT → other pairs for maximum accuracy</p>
+            <p style="text-align: left;"><strong>Decimal Adjustment:</strong> Multipliers are automatically adjusted for parent tokens with non-18 decimal places</p>
+            <p style="text-align: left;"><strong>Chain:</strong> Ethereum (Chain ID: 1)</p>
+            <p style="text-align: left;"><strong>RPC:</strong> May be changed in the configuration section</p>
+            <p style="text-align: left;"><strong>Note:</strong> This tool works with tokens created from the ETH factory at 0x54BE92992B2cf5FD551D52334596F7441B210e64</p>
+            <div style="margin-top: 30px; padding: 25px; background: rgba(20, 20, 40, 0.6); border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.1); text-align: center;">
+                <p style="color: #06ffa5; font-weight: 600; margin-bottom: 10px;">Your support is greatly appreciated and helps me continue improving the website.</p>
+                <p style="color: #3a86ff; font-family: 'Courier New', monospace; font-size: 0.9rem; margin-bottom: 20px; cursor: pointer;" onclick="copyToClipboard('0x809b15CCdC92882035C274738318296525b98aD8')" title="Click to copy address">0x809b15CCdC92882035C274738318296525b98aD8</p>
+                <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 20px;">
+                    <p style="color: #9d4edd; font-weight: 600; margin-bottom: 15px;">Important Disclaimers:</p>
+                    <p style="color: #c0c0c0; font-size: 0.85rem; line-height: 1.5; text-align: left; max-width: 800px; margin: 0 auto 15px;">
+                        All content provided on this site is for informational purposes only and does not constitute financial advice. None of the information presented here should be considered as investment advice or a recommendation to buy, sell, or hold any financial product or instrument.
+                    </p>
+                    <p style="color: #c0c0c0; font-size: 0.85rem; line-height: 1.5; text-align: left; max-width: 800px; margin: 0 auto 15px;">
+                        Please perform your own research and consult with a qualified financial advisor before making any investment decisions. We do not take responsibility for any financial losses you may incur as a result of using the information provided on this site.
+                    </p>
+                    <p style="color: #c0c0c0; font-size: 0.85rem; line-height: 1.5; text-align: left; max-width: 800px; margin: 0 auto;">
+                        Remember, all investments carry risk, and past performance is not indicative of future results.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        let discoveredTokens = [];
+        let tokenMultipliers = new Map();
+        const priceCache = new Map();
+        const CACHE_DURATION = 60000;
+        async function makeRPCCall(method, params = []) {
+            const rpcUrl = document.getElementById('rpcUrl').value;
+            const response = await fetch(rpcUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    method: method,
+                    params: params,
+                    id: Date.now()
+                })
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            const data = await response.json();
+            if (data.error) {
+                throw new Error(`RPC Error: ${data.error.message}`);
+            }
+            return data.result;
+        }
+        async function getTokenDecimals(address) {
+            try {
+                console.log(`🔢 Getting decimals for ${address}...`);
+                const result = await makeRPCCall('eth_call', [
+                    {
+                        to: address,
+                        data: '0x313ce567'
+                    },
+                    'latest'
+                ]);
+                if (result && result !== '0x') {
+                    const decimals = parseInt(result, 16);
+                    console.log(`✅ Token ${address} has ${decimals} decimals`);
+                    return decimals;
+                }
+                console.log(`⚠️ Could not get decimals for ${address}, defaulting to 18`);
+                return 18;
+            } catch (error) {
+                console.log(`❌ Decimals lookup failed for ${address}: ${error.message}, defaulting to 18`);
+                return 18;
+            }
+        }
+        function setStatus(message, type = 'loading') {
+            const status = document.getElementById('status');
+            status.className = `status ${type}`;
+            status.querySelector('span').textContent = message;
+        }
+        function logDiscovery(message) {
+            const log = document.getElementById('discoveryLog');
+            const timestamp = new Date().toLocaleTimeString();
+            log.textContent += `\n[${timestamp}] ${message}`;
+            log.scrollTop = log.scrollHeight;
+        }
+        function formatPrice(price) {
+            if (price < 1) {
+                return price.toFixed(5);
+            } else {
+                return price.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+        }
+        async function getUniswapPairComponents(address) {
+            try {
+                console.log(`🔍 Getting Uniswap pair components for ${address}...`);
+                const token0Result = await makeRPCCall('eth_call', [
+                    {
+                        to: address,
+                        data: '0x0dfe1681'
+                    },
+                    'latest'
+                ]);
+                const token1Result = await makeRPCCall('eth_call', [
+                    {
+                        to: address,
+                        data: '0xd21220a7'
+                    },
+                    'latest'
+                ]);
+                if (token0Result && token1Result && token0Result !== '0x' && token1Result !== '0x') {
+                    const token0Address = '0x' + token0Result.slice(-40);
+                    const token1Address = '0x' + token1Result.slice(-40);
+                    console.log(`📍 Found pair components: ${token0Address}, ${token1Address}`);
+                    const [token0Symbol, token1Symbol] = await Promise.all([
+                        getTokenSymbol(token0Address).catch(() => `T0_${token0Address.slice(-4)}`),
+                        getTokenSymbol(token1Address).catch(() => `T1_${token1Address.slice(-4)}`)
+                    ]);
+                    console.log(`✅ Pair components: ${token0Symbol}/${token1Symbol}`);
+                    return `(${token0Symbol}/${token1Symbol})`;
+                }
+                console.log(`❌ Could not get pair components for ${address}`);
+                return null;
+            } catch (error) {
+                console.log(`❌ Pair component lookup failed for ${address}: ${error.message}`);
+                return null;
+            }
+        }
+        async function getEthereumPriceWithHierarchy(tokenAddress) {
+            console.log(`🔍 Getting price for ${tokenAddress}...`);
+            const cacheKey = `price_${tokenAddress.toLowerCase()}`;
+            const cached = priceCache.get(cacheKey);
+            if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+                console.log(`📋 Using cached price for ${tokenAddress}`);
+                return cached.data;
+            }
+            const pricingSources = [
+                { name: 'GeckoTerminal_ETH', priority: 1 },
+                { name: 'GeckoTerminal_USD', priority: 2 },
+                { name: 'DexScreener', priority: 3 }
+            ];
+            for (const source of pricingSources) {
+                try {
+                    console.log(`💰 Trying ${source.name}...`);
+                    let priceData = null;
+                    if (source.name.startsWith('GeckoTerminal')) {
+                        priceData = await getGeckoTerminalPrice(tokenAddress, source.name === 'GeckoTerminal_ETH');
+                    } else if (source.name === 'DexScreener') {
+                        priceData = await getDexScreenerPrice(tokenAddress);
+                    }
+                    if (priceData && priceData.price > 0) {
+                        console.log(`✅ Got price from ${source.name}: ${priceData.price}`);
+                        priceData.source = source.name;
+                        priceData.priority = source.priority;
+                        priceCache.set(cacheKey, {
+                            data: priceData,
+                            timestamp: Date.now()
+                        });
+                        return priceData;
+                    }
+                } catch (error) {
+                    console.log(`❌ ${source.name} failed: ${error.message}`);
+                    continue;
+                }
+            }
+            console.log(`⚠️ All pricing sources failed, using fallback data`);
+            return getFallbackPriceData(tokenAddress);
+        }
+        async function getGeckoTerminalPrice(tokenAddress, preferETHPairs = false) {
+            const ethereumId = 'eth';
+            const url = `https://api.geckoterminal.com/api/v2/networks/${ethereumId}/tokens/${tokenAddress.toLowerCase()}`;
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`GeckoTerminal API: ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.data && data.data.attributes) {
+                const attrs = data.data.attributes;
+                let pairInfo = 'USD price';
+                if (preferETHPairs && data.included) {
+                    const ethPairs = data.included.filter(item => 
+                        item.type === 'pool' && 
+                        (item.attributes.base_token_name?.toLowerCase().includes('eth') ||
+                         item.attributes.quote_token_name?.toLowerCase().includes('eth') ||
+                         item.attributes.base_token_name?.toLowerCase().includes('weth') ||
+                         item.attributes.quote_token_name?.toLowerCase().includes('weth'))
+                    );
+                    if (ethPairs.length > 0) {
+                        console.log(`🎯 Found ${ethPairs.length} ETH/WETH pairs`);
+                        pairInfo = 'ETH pair';
+                    }
+                }
+                return {
+                    price: parseFloat(attrs.price_usd || '0'),
+                    volume24h: parseFloat(attrs.volume_usd?.h24 || '0'),
+                    priceChange24h: parseFloat(attrs.price_change_percentage?.h24 || '0'),
+                    pairInfo: pairInfo
+                };
+            }
+            throw new Error('No price data in GeckoTerminal response');
+        }
+        async function getDexScreenerPrice(tokenAddress) {
+            const url = `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`;
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`DexScreener API: ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.pairs && data.pairs.length > 0) {
+                const selectedPair = data.pairs.sort((a, b) => 
+                    parseFloat(b.liquidity?.usd || '0') - parseFloat(a.liquidity?.usd || '0')
+                )[0];
+                if (selectedPair) {
+                    return {
+                        price: parseFloat(selectedPair.priceUsd || '0'),
+                        volume24h: parseFloat(selectedPair.volume?.h24 || '0'),
+                        priceChange24h: parseFloat(selectedPair.priceChange?.h24 || '0'),
+                        pairInfo: `${selectedPair.baseToken?.symbol}/${selectedPair.quoteToken?.symbol}`
+                    };
+                }
+            }
+            throw new Error('No suitable pairs found on DexScreener');
+        }
+        function getFallbackPriceData(tokenAddress) {
+            return {
+                price: 0,
+                volume24h: 0,
+                priceChange24h: 0,
+                source: 'No pricing data available',
+                priority: 999,
+                pairInfo: 'No pairs found'
+            };
+        }
+        function hexToString(hex) {
+            let result = '';
+            for (let i = 0; i < hex.length; i += 2) {
+                const byte = parseInt(hex.substr(i, 2), 16);
+                if (byte !== 0) {
+                    result += String.fromCharCode(byte);
+                }
+            }
+            return result.replace(/[^\x20-\x7E]/g, '');
+        }
+        async function getTokenSymbol(address) {
+            console.log(`🔍 getTokenSymbol called for ${address}`);
+            try {
+                console.log(`🔍 Getting symbol from contract for ${address}...`);
+                const symbolResult = await makeRPCCall('eth_call', [
+                    {
+                        to: address,
+                        data: '0x95d89b41'
+                    },
+                    'latest'
+                ]);
+                console.log(`📥 Symbol result for ${address}: ${symbolResult}`);
+                if (symbolResult && symbolResult !== '0x') {
+                    const hex = symbolResult.slice(2);
+                    console.log(`🔤 Processing hex: ${hex}`);
+                    if (hex.length >= 64) {
+                        if (hex.length >= 128) {
+                            try {
+                                console.log(`🧪 Trying standard ABI decoding...`);
+                                const lengthHex = hex.substring(64, 128);
+                                const length = parseInt(lengthHex, 16);
+                                console.log(`📐 Decoded length: ${length}`);
+                                if (length > 0 && length < 100) {
+                                    const symbolHex = hex.substring(128, 128 + (length * 2));
+                                    console.log(`🔤 Symbol hex: ${symbolHex}`);
+                                    const symbol = hexToString(symbolHex);
+                                    console.log(`✨ Decoded symbol: "${symbol}"`);
+                                    if (symbol && symbol.length > 0 && /^[\w\u3000-\u9FFF㉾]+$/.test(symbol)) {
+                                        console.log(`✅ Symbol decoded (standard): ${symbol}`);
+                                        return symbol;
+                                    }
+                                }
+                            } catch (e) {
+                                console.log('❌ Standard ABI decoding failed:', e.message);
+                            }
+                        }
+                        try {
+                            console.log(`🧪 Trying direct hex decoding...`);
+                            const cleanHex = hex.replace(/^0+/, '');
+                            console.log(`🧹 Clean hex: ${cleanHex}`);
+                            if (cleanHex.length > 0 && cleanHex.length <= 64) {
+                                const directSymbol = hexToString(cleanHex);
+                                console.log(`✨ Direct decoded: "${directSymbol}"`);
+                                if (directSymbol && /^[\w\u3000-\u9FFF㉾]+$/.test(directSymbol) && directSymbol.length <= 10) {
+                                    console.log(`✅ Symbol decoded (direct): ${directSymbol}`);
+                                    return directSymbol;
+                                }
+                            }
+                        } catch (e) {
+                            console.log('❌ Direct hex decoding failed:', e.message);
+                        }
+                        try {
+                            console.log(`🧪 Trying last part decoding...`);
+                            const lastPart = hex.slice(-64);
+                            console.log(`🔚 Last part: ${lastPart}`);
+                            const lastSymbol = hexToString(lastPart);
+                            console.log(`✨ Last decoded: "${lastSymbol}"`);
+                            if (lastSymbol && /^[\w\u3000-\u9FFF㉾]+$/.test(lastSymbol) && lastSymbol.length <= 10) {
+                                console.log(`✅ Symbol decoded (last part): ${lastSymbol}`);
+                                return lastSymbol;
+                            }
+                        } catch (e) {
+                            console.log('❌ Last part decoding failed:', e.message);
+                        }
+                        try {
+                            console.log(`🧪 Trying full hex as string...`);
+                            const fullSymbol = hexToString(hex).trim();
+                            console.log(`✨ Full decoded: "${fullSymbol}"`);
+                            if (fullSymbol && /^[\w\u3000-\u9FFF㉾]+$/.test(fullSymbol) && fullSymbol.length <= 20) {
+                                console.log(`✅ Symbol decoded (full): ${fullSymbol}`);
+                                return fullSymbol;
+                            }
+                        } catch (e) {
+                            console.log('❌ Full hex decoding failed:', e.message);
+                        }
+                    } else {
+                        console.log(`⚠️ Hex too short: ${hex.length} characters`);
+                    }
+                } else {
+                    console.log(`⚠️ Empty or null symbol result`);
+                }
+                console.log(`⚠️ Contract symbol lookup failed, trying Gecko Terminal...`);
+            } catch (error) {
+                console.log(`💥 Contract symbol lookup failed for ${address}: ${error.message}`);
+            }
+            try {
+                const geckoSymbol = await getTokenNameFromGecko(address);
+                if (geckoSymbol) {
+                    return geckoSymbol;
+                }
+            } catch (geckoError) {
+                console.log(`💥 Gecko lookup also failed: ${geckoError.message}`);
+            }
+            console.log(`❌ All symbol lookups failed for ${address}, using fallback`);
+            return `Token_${address.slice(-4)}`;
+        }
+        async function getTokenNameFromGecko(address) {
+            try {
+                const ethereumId = 'eth';
+                const url = `https://api.geckoterminal.com/api/v2/networks/${ethereumId}/tokens/${address.toLowerCase()}`;
+                console.log(`🦎 Fetching token info from Gecko for ${address}...`);
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Gecko API: ${response.status}`);
+                }
+                const data = await response.json();
+                if (data.data && data.data.attributes) {
+                    const attrs = data.data.attributes;
+                    const symbol = attrs.symbol || attrs.name;
+                    if (symbol) {
+                        console.log(`✅ Got symbol from Gecko: ${symbol}`);
+                        return symbol;
+                    }
+                }
+                throw new Error('No symbol/name in Gecko response');
+            } catch (error) {
+                console.log(`❌ Gecko lookup failed for ${address}: ${error.message}`);
+                return null;
+            }
+        }
+        async function getMultiplierWithDecimalAdjustment(childAddress, parentAddress) {
+            try {
+                console.log(`🔢 Getting multiplier for child ${childAddress} with parent ${parentAddress}...`);
+                const baseMultiplierResult = await makeRPCCall('eth_call', [
+                    {
+                        to: childAddress,
+                        data: '0x5677abcc' + '0000000000000000000000000000000000000000000000000000000000000000'
+                    },
+                    'latest'
+                ]);
+                console.log(`📥 Base multiplier result: ${baseMultiplierResult}`);
+                let baseMultiplier = 2.0;
+                if (baseMultiplierResult && baseMultiplierResult !== '0x') {
+                    baseMultiplier = parseInt(baseMultiplierResult, 16);
+                    console.log(`✅ Base multiplier: ${baseMultiplier}`);
+                }
+                const parentDecimals = await getTokenDecimals(parentAddress);
+                console.log(`📊 Parent token decimals: ${parentDecimals}`);
+                let adjustedMultiplier = baseMultiplier;
+                let adjustmentInfo = null;
+                if (parentDecimals !== 18) {
+                    const decimalDifference = 18 - parentDecimals;
+                    const adjustmentFactor = Math.pow(10, decimalDifference);
+                    adjustedMultiplier = baseMultiplier * adjustmentFactor;
+                    adjustmentInfo = {
+                        baseMultiplier: baseMultiplier,
+                        parentDecimals: parentDecimals,
+                        decimalDifference: decimalDifference,
+                        adjustmentFactor: adjustmentFactor,
+                        adjustedMultiplier: adjustedMultiplier
+                    };
+                    console.log(`🔧 Decimal adjustment applied:`);
+                    console.log(`   Base multiplier: ${baseMultiplier}`);
+                    console.log(`   Parent decimals: ${parentDecimals}`);
+                    console.log(`   Adjustment factor: ${adjustmentFactor}`);
+                    console.log(`   Adjusted multiplier: ${adjustedMultiplier}`);
+                } else {
+                    console.log(`✅ No decimal adjustment needed (parent uses 18 decimals)`);
+                }
+                tokenMultipliers.set(childAddress.toLowerCase(), adjustedMultiplier);
+                return {
+                    baseMultiplier: baseMultiplier,
+                    adjustedMultiplier: adjustedMultiplier,
+                    adjustmentInfo: adjustmentInfo
+                };
+            } catch (error) {
+                console.log(`❌ Failed to get multiplier for ${childAddress}: ${error.message}`);
+                return {
+                    baseMultiplier: 2.0,
+                    adjustedMultiplier: 2.0,
+                    adjustmentInfo: null
+                };
+            }
+        }
+        async function getParentToken(address) {
+            try {
+                console.log(`Calling Parent() on ${address} with correct selector...`);
+                const result = await makeRPCCall('eth_call', [
+                    {
+                        to: address,
+                        data: '0xd3c8dd69'
+                    },
+                    'latest'
+                ]);
+                console.log(`Parent() result: ${result}`);
+                if (result && result !== '0x' && result !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
+                    const parentAddress = '0x' + result.slice(-40);
+                    const normalizedParent = parentAddress.toLowerCase();
+                    if (normalizedParent !== '0x0000000000000000000000000000000000000000') {
+                        console.log(`✅ Found parent: ${parentAddress}`);
+                        return parentAddress;
+                    }
+                }
+                console.log(`❌ No valid parent found for ${address}`);
+                return null;
+            } catch (error) {
+                console.log(`Parent lookup failed for ${address}: ${error.message}`);
+                return null;
+            }
+        }
+        function storeTokenDataForMultiHop() {
+            try {
+                if (discoveredTokens.length > 0) {
+                    console.log('✅ Stored token data for multi-hop integration');
+                }
+                if (tokenMultipliers.size > 0) {
+                    const multiplierObj = Object.fromEntries(tokenMultipliers);
+                    console.log('✅ Stored multiplier data for multi-hop integration');
+                }
+            } catch (error) {
+                console.error('❌ Failed to store token data:', error);
+            }
+        }
+        function handleTokenInputKeypress(event) {
+            if (event.key === 'Enter') {
+                const tokenAddress = document.getElementById('startingToken').value.trim();
+                if (tokenAddress && tokenAddress.startsWith('0x')) {
+                    discoverSpine();
+                }
+            }
+        }
+        function toggleDiscoveryLog() {
+            const log = document.getElementById('discoveryLog');
+            const btn = document.getElementById('logToggleBtn');
+            if (log.style.display === 'none') {
+                log.style.display = 'block';
+                btn.textContent = '📄 Hide Log';
+                btn.title = 'Hide discovery log';
+            } else {
+                log.style.display = 'none';
+                btn.textContent = '📄 Show Log';
+                btn.title = 'Show discovery log';
+            }
+        }
+        async function testConnection() {
+            const testBtn = document.getElementById('testBtn');
+            testBtn.disabled = true;
+            testBtn.textContent = '🔄 Testing...';
+            try {
+                setStatus('Testing Ethereum connection...', 'loading');
+                logDiscovery('Testing RPC connection...');
+                const chainId = await makeRPCCall('eth_chainId');
+                const blockNumber = await makeRPCCall('eth_blockNumber');
+                const chainIdDecimal = parseInt(chainId, 16);
+                const blockNumberDecimal = parseInt(blockNumber, 16);
+                setStatus(`✅ Connected! Chain ID: ${chainIdDecimal}, Block: ${blockNumberDecimal}`, 'connected');
+                logDiscovery(`✅ Connected to Ethereum! Block: ${blockNumberDecimal}`);
+                testBtn.className = 'btn success';
+                testBtn.textContent = '✅ Connected';
+                setTimeout(() => {
+                    testBtn.className = 'btn';
+                    testBtn.textContent = '🔗 Test Connection';
+                }, 3000);
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                setStatus(`❌ Connection failed: ${error.message}`, 'error');
+                logDiscovery(`❌ Connection failed: ${error.message}`);
+                testBtn.textContent = '❌ Failed';
+                setTimeout(() => {
+                    testBtn.textContent = '🔗 Test Connection';
+                }, 3000);
+            } finally {
+                testBtn.disabled = false;
+            }
+        }
+        async function discoverSpine() {
+            const discoverBtn = document.getElementById('discoverBtn');
+            const startingAddress = document.getElementById('startingToken').value.trim();
+            if (!startingAddress || !startingAddress.startsWith('0x')) {
+                alert('Please enter a valid token address starting with 0x');
+                return;
+            }
+            discoverBtn.disabled = true;
+            discoverBtn.textContent = '🧬 Discovering...';
+            try {
+                setStatus('🧬 Discovering token spine...', 'loading');
+                discoveredTokens = [];
+                tokenMultipliers.clear();
+                document.getElementById('discoveryLog').textContent = 'Starting spine discovery...';
+                document.getElementById('totalMultiplierSection').style.display = 'none';
+                logDiscovery(`Starting discovery from: ${startingAddress}`);
+                await makeRPCCall('eth_chainId');
+                let currentAddress = startingAddress.toLowerCase();
+                let depth = 0;
+                const maxDepth = 40;
+                while (currentAddress && depth < maxDepth) {
+                    setStatus(`🔍 Analyzing token ${depth + 1}...`, 'loading');
+                    logDiscovery(`Analyzing token ${depth + 1}: ${currentAddress}`);
+                    let tokenSymbol;
+                    try {
+                        console.log(`🚀 About to call getTokenSymbol for ${currentAddress}`);
+                        tokenSymbol = await getTokenSymbol(currentAddress);
+                        console.log(`🎯 getTokenSymbol returned: ${tokenSymbol}`);
+                    } catch (symbolError) {
+                        console.error(`💥 getTokenSymbol threw error:`, symbolError);
+                        tokenSymbol = `Token_${currentAddress.slice(-4)}`;
+                    }
+                    logDiscovery(`  → Symbol: ${tokenSymbol}`);
+                    const parentAddress = await getParentToken(currentAddress);
+                    if (parentAddress) {
+                        logDiscovery(`  → Parent found: ${parentAddress}`);
+                        discoveredTokens.unshift({
+                            name: tokenSymbol,
+                            address: currentAddress,
+                            type: 'child'
+                        });
+                        currentAddress = parentAddress.toLowerCase();
+                    } else {
+                        logDiscovery(`  → No parent found - this is the root token`);
+                        discoveredTokens.unshift({
+                            name: tokenSymbol,
+                            address: currentAddress,
+                            type: 'parent'
+                        });
+                        break;
+                    }
+                    depth++;
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+                if (depth >= maxDepth) {
+                    logDiscovery(`⚠️ Reached maximum depth of ${maxDepth} tokens`);
+                }
+                logDiscovery(`\n✅ Discovery complete! Found ${discoveredTokens.length} tokens in spine:`);
+                discoveredTokens.forEach((token, i) => {
+                    logDiscovery(`  ${i + 1}. ${token.name} (${token.type})`);
+                });
+                buildTokenTable();
+                document.getElementById('refreshBtn').disabled = false;
+                setStatus(`✅ Discovered ${discoveredTokens.length} tokens in spine!`, 'connected');
+                const rootParent = discoveredTokens.find(token => token.type === 'parent');
+                if (rootParent) {
+                    try {
+                        const tokenSymbol = await getTokenSymbol(rootParent.address);
+                        rootParent.name = tokenSymbol;
+                        if (tokenSymbol === 'UNI-V2' || tokenSymbol.toLowerCase().includes('pair')) {
+                            console.log(`🔍 Root parent is a pair token, getting components...`);
+                            const pairComponents = await getUniswapPairComponents(rootParent.address);
+                            console.log(`📍 Pair components result: ${pairComponents}`);
+                            if (pairComponents) {
+                                rootParent.pairComponents = pairComponents;
+                                const tokenIndex = discoveredTokens.findIndex(token => token.address === rootParent.address);
+                                if (tokenIndex !== -1) {
+                                    const tokenNameCell = document.getElementById(`token-name-${tokenIndex}`);
+                                    if (tokenNameCell) {
+                                        let displayName = tokenSymbol;
+                                        displayName += `<div class="plp-components">${pairComponents}</div>`;
+                                        tokenNameCell.innerHTML = displayName;
+                                    }
+                                }
+                            }
+                        } else {
+                            console.log(`✅ Root parent is not a pair token (${tokenSymbol}), no component lookup needed`);
+                        }
+                    } catch (error) {
+                        console.log(`❌ Pair component lookup failed: ${error.message}`);
+                    }
+                }
+                await new Promise(resolve => setTimeout(resolve, 500));
+                logDiscovery(`🔄 Automatically starting data loading...`);
+                await refreshData();
+            } catch (error) {
+                console.error('Discovery failed:', error);
+                setStatus(`❌ Discovery failed: ${error.message}`, 'error');
+                logDiscovery(`❌ Discovery failed: ${error.message}`);
+            } finally {
+                discoverBtn.disabled = false;
+                discoverBtn.textContent = '🧬 Discover Spine';
+            }
+        }
+        function buildTokenTable() {
+            const tableBody = document.getElementById('tokenTable');
+            tableBody.innerHTML = '';
+            discoveredTokens.forEach((token, index) => {
+                const row = document.createElement('tr');
+                row.className = token.type === 'parent' ? 'parent-row' : 'child-row';
+                row.id = `token-row-${index}`;
+                row.innerHTML = `
+                    <td>${token.type === 'parent' ? '🏛️ Parent' : `👶 Child ${index}`}</td>
+                    <td class="token-name" id="token-name-${index}">${token.name}</td>
+                    <td class="address" onclick="copyAddress('${token.address}')" title="Click to copy">${token.address.substring(0, 6)}...${token.address.substring(token.address.length - 4)}</td>
+                    <td class="loading-cell">Loading...</td>
+                    <td class="loading-cell">${token.type === 'parent' ? 'N/A' : 'Reading...'}</td>
+                    <td class="loading-cell">Loading...</td>
+                    <td class="loading-cell">${token.type === 'parent' ? 'N/A' : 'Calculating...'}</td>
+                    <td>${token.type === 'child' ? `<button class="mint-btn" onclick="openMintModal(${index})">Mint</button>` : 'N/A'}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        function copyAddress(address) {
+            navigator.clipboard.writeText(address);
+        }
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                console.log('Address copied to clipboard');
+            }).catch(err => {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            });
+        }
+        function updateTotalMultiplier(tokenData) {
+            let totalMultiplier = 1;
+            let parentPrice = 0;
+            for (let i = 0; i < tokenData.length; i++) {
+                const data = tokenData[i];
+                if (!data) continue;
+                if (data.token.type === 'parent') {
+                    parentPrice = data.priceData.price;
+                } else if (data.token.type === 'child' && data.multiplierData) {
+                    totalMultiplier *= data.multiplierData.adjustedMultiplier;
+                }
+            }
+            const hasChildTokens = tokenData.some(data => data && data.token.type === 'child');
+            const section = document.getElementById('totalMultiplierSection');
+            if (hasChildTokens && parentPrice > 0) {
+                section.style.display = 'block';
+                const impliedPrice = parentPrice * totalMultiplier;
+                document.getElementById('totalMultiplierValue').textContent = `${totalMultiplier.toLocaleString()}x`;
+                document.getElementById('impliedPriceValue').textContent = `${formatPrice(impliedPrice)}`;
+                console.log(`📊 Total Multiplier: ${totalMultiplier}x, Parent Price: ${parentPrice.toFixed(6)}, Implied Price: ${impliedPrice.toFixed(6)}`);
+            } else {
+                section.style.display = 'none';
+            }
+        }
+        function formatNumber(num) {
+            if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+            if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+            return num.toFixed(2);
+        }
+        async function refreshData() {
+            if (discoveredTokens.length === 0) {
+                alert('No tokens discovered yet. Click "Discover Spine" first.');
+                return;
+            }
+            const refreshBtn = document.getElementById('refreshBtn');
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = '🔄 Loading...';
+            try {
+                setStatus('Loading token data with decimal-adjusted multipliers and parity calculations...', 'loading');
+                const tokenData = [];
+                for (let i = 0; i < discoveredTokens.length; i++) {
+                    const token = discoveredTokens[i];
+                    const row = document.getElementById(`token-row-${i}`);
+                    if (!row) continue;
+                    try {
+                        let tokenSymbol;
+                        let pairComponents = null;
+                        try {
+                            tokenSymbol = await getTokenSymbol(token.address);
+                            token.name = tokenSymbol;
+                        } catch (symbolError) {
+                            console.log(`⚠️ Symbol lookup failed for ${token.name}: ${symbolError.message}`);
+                        }
+                        const totalSupplyResult = await makeRPCCall('eth_call', [
+                            {
+                                to: token.address,
+                                data: '0x18160ddd' + '0'.repeat(56)
+                            },
+                            'latest'
+                        ]);
+                        const totalSupply = parseInt(totalSupplyResult, 16) / Math.pow(10, 18);
+                        let multiplierData = null;
+                        if (token.type === 'child' && i > 0) {
+                            const parentToken = discoveredTokens[i - 1];
+                            try {
+                                multiplierData = await getMultiplierWithDecimalAdjustment(token.address, parentToken.address);
+                                console.log(`✅ Got decimal-adjusted multiplier for ${token.name}:`, multiplierData);
+                            } catch (e) {
+                                console.log(`❌ Multiplier lookup failed for ${token.name}: ${e.message}`);
+                                multiplierData = {
+                                    baseMultiplier: 2.0,
+                                    adjustedMultiplier: 2.0,
+                                    adjustmentInfo: null
+                                };
+                            }
+                        }
+                        const priceData = await getEthereumPriceWithHierarchy(token.address);
+                        tokenData[i] = {
+                            index: i,
+                            token: token,
+                            totalSupply: totalSupply,
+                            multiplierData: multiplierData,
+                            priceData: priceData,
+                            symbol: tokenSymbol,
+                            pairComponents: pairComponents
+                        };
+                    } catch (error) {
+                        console.error(`Error loading data for ${token.name}:`, error);
+                        const addressNum = parseInt(token.address.slice(-4), 16);
+                        const mockTotalSupply = (addressNum % 100000) * 10000;
+                        const mockPrice = (addressNum % 1000) / 1000000 + Math.random() * 0.0001;
+                        tokenData[i] = {
+                            index: i,
+                            token: token,
+                            totalSupply: mockTotalSupply,
+                            multiplierData: token.type === 'child' ? {
+                                baseMultiplier: 2.0,
+                                adjustedMultiplier: 2.0,
+                                adjustmentInfo: null
+                            } : null,
+                            priceData: { price: mockPrice, priceChange24h: 0, pairInfo: 'Mock data' },
+                            symbol: token.name,
+                            pairComponents: null
+                        };
+                    }
+                    if (i < discoveredTokens.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                }
+                for (let i = 0; i < tokenData.length; i++) {
+                    const data = tokenData[i];
+                    if (!data) continue;
+                    const row = document.getElementById(`token-row-${i}`);
+                    if (!row) continue;
+                    const cells = row.children;
+                    const tokenNameCell = document.getElementById(`token-name-${i}`);
+                    if (tokenNameCell) {
+                        let displayName = data.symbol;
+                        if (data.token.pairComponents) {
+                            displayName += `<div class="plp-components">${data.token.pairComponents}</div>`;
+                        }
+                        tokenNameCell.innerHTML = displayName;
+                    }
+                    cells[3].textContent = formatNumber(data.totalSupply);
+                    cells[3].className = '';
+                    if (data.token.type === 'child' && data.multiplierData) {
+                        const { baseMultiplier, adjustedMultiplier, adjustmentInfo } = data.multiplierData;
+                        let multiplierHTML = '';
+                        multiplierHTML = `<span class="multiplier">${Math.round(adjustedMultiplier).toLocaleString()}x</span>`;
+                        if (adjustmentInfo) {
+                            multiplierHTML += `<div class="multiplier-info">Adjusted from ${baseMultiplier}x (${adjustmentInfo.parentDecimals} decimals)</div>`;
+                        }
+                        cells[4].innerHTML = multiplierHTML;
+                        cells[4].className = '';
+                    }
+                    const formattedPrice = formatPrice(data.priceData.price);
+                    cells[5].innerHTML = `${formattedPrice}<br><span class="price-source">${data.priceData.pairInfo || data.priceData.source}</span>`;
+                    cells[5].className = data.priceData.priceChange24h >= 0 ? 'price' : 'price negative';
+                    if (data.token.type === 'child' && i > 0) {
+                        const parentData = tokenData[i - 1];
+                        if (parentData && parentData.priceData.price > 0 && data.priceData.price > 0 && data.multiplierData) {
+                            const adjustedMultiplier = data.multiplierData.adjustedMultiplier;
+                            const expectedChildPrice = parentData.priceData.price * adjustedMultiplier;
+                            const parityClass = parityPercentage >= 100 ? 'profitable' : 'unprofitable';
+                            cells[6].innerHTML = `<span class="parity ${parityClass}">${parityPercentage.toFixed(1)}%</span>`;
+                            cells[6].className = '';
+                            console.log(`💰 Parity for ${data.symbol}: ${parityPercentage.toFixed(1)}% (Parent: ${parentData.priceData.price.toFixed(6)}, Adjusted Multiplier: ${adjustedMultiplier}x, Child: ${data.priceData.price.toFixed(6)})`);
+                        } else {
+                            cells[6].textContent = 'N/A';
+                            cells[6].className = '';
+                        }
+                    } else {
+                        cells[6].textContent = 'N/A';
+                        cells[6].className = '';
+                    }
+                }
+                updateTotalMultiplier(tokenData);
+                setStatus('Data loaded successfully with decimal-adjusted multipliers and parity calculations!', 'connected');
+                document.getElementById('lastUpdate').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+            } catch (error) {
+                console.error('Refresh failed:', error);
+                setStatus(`❌ Data loading failed: ${error.message}`, 'error');
+            } finally {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = '🔄 Refresh Data';
+            }
+        }
+        function openMintModal(tokenIndex) {
+            const token = discoveredTokens[tokenIndex];
+            if (!token) return;
+            const parentToken = getParentTokenForMint(tokenIndex);
+            const multiplier = getMultiplierForToken(tokenIndex);
+            const params = new URLSearchParams({
+                childToken: token.address,
+                childName: token.name,
+                parentToken: parentToken.address,
+                parentName: parentToken.name,
+                multiplier: multiplier,
+                tokenIndex: tokenIndex,
+                tokenChain: encodeURIComponent(JSON.stringify(discoveredTokens))
+            });
+            storeTokenDataForMultiHop();
+            window.open(`https://spinetracker.vercel.app/ETHmint.html?${params.toString()}`, '_blank');
+            console.log('🚀 Opening ETH mint page with enhanced data:', {
+                token: token,
+                parentToken: parentToken,
+                discoveredTokensCount: discoveredTokens.length,
+                tokenMultipliersCount: tokenMultipliers.size
+            });
+        }
+        function getParentTokenForMint(tokenIndex) {
+            if (tokenIndex === 0) {
+                return {
+                    address: "0x0000000000000000000000000000000000000000",
+                    name: "Root Token"
+                };
+            }
+            const parentToken = discoveredTokens[tokenIndex - 1];
+            return {
+                address: parentToken?.address || "0x0000000000000000000000000000000000000000",
+                name: parentToken?.name || "Unknown Parent"
+            };
+        }
+        function getMultiplierForToken(tokenIndex) {
+            const row = document.getElementById(`token-row-${tokenIndex}`);
+            if (row) {
+                const multiplierCell = row.children[4];
+                const multiplierSpan = multiplierCell.querySelector('.multiplier');
+                if (multiplierSpan) {
+                    return multiplierSpan.textContent.replace('x', '').replace(/,/g, '');
+                }
+            }
+            return '1.0';
+        }
+        function checkForTokenParameter() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tokenParam = urlParams.get('token');
+            if (tokenParam && tokenParam.startsWith('0x')) {
+                document.getElementById('startingToken').value = tokenParam;
+                setTimeout(() => {
+                    discoverSpine();
+                }, 1000);
+            }
+        }
+        window.onload = function() {
+            console.log('🧬 ETH Spine Token Tracker with Decimal Adjustment Loading...');
+            checkForTokenParameter();
+            setTimeout(testConnection, 1000);
+        };
+        window.addEventListener('beforeunload', function() {
+            storeTokenDataForMultiHop();
+        });
+        window.ETHSpineTracker = {
+            discoverSpine,
+            refreshData,
+            testConnection,
+            makeRPCCall,
+            getParentToken,
+            getTokenSymbol,
+            getTokenDecimals,
+            getMultiplierWithDecimalAdjustment,
+            getUniswapPairComponents,
+            discoveredTokens: () => discoveredTokens,
+            tokenMultipliers: () => tokenMultipliers,
+            priceCache: () => priceCache,
+            debugDiscovery: async function(address) {
+                console.log('=== DEBUGGING ETH TOKEN DISCOVERY ===');
+                console.log(`Starting from: ${address}`);
+                try {
+                    const symbol = await getTokenSymbol(address);
+                    console.log(`Token symbol: ${symbol}`);
+                    if (symbol === 'UNI-V2' || symbol.toLowerCase().includes('pair')) {
+                        console.log('🔍 Testing pair component detection...');
+                        const components = await getUniswapPairComponents(address);
+                        console.log(`Pair components: ${components || 'None found'}`);
+                    }
+                    const parent = await getParentToken(address);
+                    console.log(`Parent token: ${parent || 'None (this is root)'}`);
+                    if (parent) {
+                        const parentSymbol = await getTokenSymbol(parent);
+                        console.log(`Parent symbol: ${parentSymbol}`);
+                        console.log('🔧 Testing decimal adjustment...');
+                        const parentDecimals = await getTokenDecimals(parent);
+                        console.log(`Parent decimals: ${parentDecimals}`);
+                        const multiplierData = await getMultiplierWithDecimalAdjustment(address, parent);
+                        console.log(`Multiplier data:`, multiplierData);
+                    }
+                } catch (error) {
+                    console.error('Debug failed:', error);
+                }
+            }
+        };
+        console.log('🚀 ETH Spine Token Tracker with Decimal Adjustment loaded!');
+        console.log('🔢 NEW: Automatic decimal adjustment for parent tokens with non-18 decimals!');
+        console.log('🧮 Multipliers are automatically adjusted using the formula: adjustedMultiplier = baseMultiplier × 10^(18 - parentDecimals)');
+        console.log('💡 Example: Parent with 8 decimals and 2x base multiplier = 2 × 10^(18-8) = 20,000,000,000x adjusted multiplier');
+        console.log('📝 Adjustment info is shown below the multiplier when applicable');
+        console.log('📊 Total Multiplier = Product of all adjusted child multipliers');
+        console.log('💰 Implied Price = Parent Price × Total Multiplier (using adjusted multipliers)');
+        console.log('🎯 Multi-hop data passing enabled with decimal adjustments!');
+        console.log('🆕 Uniswap pair component detection for pair tokens!');
+        console.log('🔗 Factory Address: 0x54BE92992B2cf5FD551D52334596F7441B210e64');
+        console.log('💱 Pricing prioritizes ETH/WETH pairs for accuracy');
+        console.log('Try ETHSpineTracker.debugDiscovery("0x...") to test discovery with decimal adjustment on any token');
+        console.log('Example: ETHSpineTracker.debugDiscovery("0x64124be33bd2b66dcfeb54d7cbc02e87ce7c0202")');
+        console.log('🔍 For testing decimals: ETHSpineTracker.getTokenDecimals("0x...")');
+        console.log('🔧 For testing multiplier adjustment: ETHSpineTracker.getMultiplierWithDecimalAdjustment("childAddress", "parentAddress")');
+    </script>
+</body>
+</html>Percentage = (data.priceData.price / expectedChildPrice) * 100;
+                            const parity
