@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🌊 PulseX V2 Add Liquidity</title>
+    <title>🌊 PulseX V1/V2 Add Liquidity</title>
     <style>
         * {
             margin: 0;
@@ -38,6 +38,54 @@
             background: linear-gradient(45deg, #9d4edd, #6a4c93, #3a86ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+        }
+        
+        .version-toggle {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .version-selector {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .version-btn {
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #c0c0c0;
+            transition: all 0.3s ease;
+            flex: 1;
+            text-align: center;
+        }
+
+        .version-btn.active {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+            color: white;
+            box-shadow: 0 4px 15px rgba(58, 134, 255, 0.3);
+            border-color: transparent;
+        }
+
+        .version-btn:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+        }
+
+        .version-info {
+            margin-top: 10px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #888;
         }
         
         .input-group {
@@ -264,7 +312,17 @@
 </head>
 <body>
     <div class="container">
-        <h1>🌊 PulseX V2 Add Liquidity</h1>
+        <h1 id="pageTitle">🌊 PulseX V2 Add Liquidity</h1>
+        
+        <div class="version-toggle">
+            <div class="version-selector">
+                <div class="version-btn" onclick="setVersion('v1')">V1 (Legacy)</div>
+                <div class="version-btn active" onclick="setVersion('v2')">V2 (Current)</div>
+            </div>
+            <div class="version-info" id="versionInfo">
+                Using V2 contracts - Latest version with improved features
+            </div>
+        </div>
         
         <div class="pls-toggle">
             <div class="toggle-container">
@@ -340,10 +398,19 @@
         let tokenADecimals = 18;
         let tokenBDecimals = 18;
         let useNativePLS = false;
+        let currentVersion = 'v2';
 
-        // Contract addresses
-        const ROUTER_ADDRESS = "0x165C3410fC91EF562C50559f7d2289fEbed552d9";
-        const FACTORY_ADDRESS = "0x29eA7545DEf87022BAdc76323F373EA1e707C523";
+        // Contract addresses for both versions
+        const CONTRACTS = {
+            v1: {
+                ROUTER_ADDRESS: "0x07895912f3AB0E33aB3a4CEFbdf7a3e121eb9942", // PulseX V1 Router
+                FACTORY_ADDRESS: "0x1715a3E4A142d8b698131108995174F37aEBA10D" // PulseX V1 Factory
+            },
+            v2: {
+                ROUTER_ADDRESS: "0x165C3410fC91EF562C50559f7d2289fEbed552d9", // PulseX V2 Router  
+                FACTORY_ADDRESS: "0x29eA7545DEf87022BAdc76323F373EA1e707C523" // PulseX V2 Factory
+            }
+        };
         
         const TOKENS = {
             'PLS': 'NATIVE', // Special marker for native PLS
@@ -375,6 +442,37 @@
             {"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"},
             {"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"}
         ];
+
+        function setVersion(version) {
+            currentVersion = version;
+            
+            // Update UI
+            document.querySelectorAll('.version-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const title = document.getElementById('pageTitle');
+            const info = document.getElementById('versionInfo');
+            
+            if (version === 'v1') {
+                title.innerHTML = '🌊 PulseX V1 Add Liquidity';
+                info.textContent = 'Using V1 contracts - Legacy version for existing V1 pools';
+            } else {
+                title.innerHTML = '🌊 PulseX V2 Add Liquidity';
+                info.textContent = 'Using V2 contracts - Latest version with improved features';
+            }
+            
+            // Reset approval status when switching versions
+            if (isWalletConnected) {
+                resetApprovalButtons();
+                checkApprovalStatus();
+            }
+            
+            showStatus(`Switched to PulseX ${version.toUpperCase()}`, 'info');
+        }
+
+        function getCurrentContracts() {
+            return CONTRACTS[currentVersion];
+        }
 
         function togglePLS() {
             useNativePLS = !useNativePLS;
@@ -652,7 +750,8 @@
                 if (tokenA === 'NATIVE') tokenA = TOKENS.WPLS;
                 if (tokenB === 'NATIVE') tokenB = TOKENS.WPLS;
 
-                const factory = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
+                const contracts = getCurrentContracts();
+                const factory = new web3.eth.Contract(FACTORY_ABI, contracts.FACTORY_ADDRESS);
                 const pairAddress = await factory.methods.getPair(tokenA, tokenB).call();
                 
                 if (pairAddress === '0x0000000000000000000000000000000000000000') {
@@ -706,6 +805,7 @@
                 
                 const btnA = document.getElementById('approveABtn');
                 const btnB = document.getElementById('approveBBtn');
+                const contracts = getCurrentContracts();
                 
                 // Check Token A approval
                 let isApprovedA = false;
@@ -717,7 +817,7 @@
                     btnA.disabled = true;
                 } else {
                     const tokenAContract = new web3.eth.Contract(ERC20_ABI, tokenAValue);
-                    const allowanceA = await tokenAContract.methods.allowance(walletAccount, ROUTER_ADDRESS).call();
+                    const allowanceA = await tokenAContract.methods.allowance(walletAccount, contracts.ROUTER_ADDRESS).call();
                     const decimalsA = await tokenAContract.methods.decimals().call();
                     const allowanceAFormatted = parseFloat(allowanceA) / Math.pow(10, decimalsA);
                     isApprovedA = allowanceAFormatted > 1000000;
@@ -743,7 +843,7 @@
                     btnB.disabled = true;
                 } else {
                     const tokenBContract = new web3.eth.Contract(ERC20_ABI, tokenBValue);
-                    const allowanceB = await tokenBContract.methods.allowance(walletAccount, ROUTER_ADDRESS).call();
+                    const allowanceB = await tokenBContract.methods.allowance(walletAccount, contracts.ROUTER_ADDRESS).call();
                     const decimalsB = await tokenBContract.methods.decimals().call();
                     const allowanceBFormatted = parseFloat(allowanceB) / Math.pow(10, decimalsB);
                     isApprovedB = allowanceBFormatted > 1000000;
@@ -785,11 +885,12 @@
             }
 
             try {
+                const contracts = getCurrentContracts();
                 const tokenContract = new web3.eth.Contract(ERC20_ABI, tokenValue);
                 showStatus(`Approving Token ${token}...`, 'info');
                 
                 const maxUint = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
-                const tx = await tokenContract.methods.approve(ROUTER_ADDRESS, maxUint).send({ from: walletAccount });
+                const tx = await tokenContract.methods.approve(contracts.ROUTER_ADDRESS, maxUint).send({ from: walletAccount });
                 
                 showStatus(`Token ${token} approved successfully!`, 'success');
                 
@@ -829,8 +930,9 @@
             }
 
             try {
-                const router = new web3.eth.Contract(ROUTER_ABI, ROUTER_ADDRESS);
-                showStatus('Adding liquidity...', 'info');
+                const contracts = getCurrentContracts();
+                const router = new web3.eth.Contract(ROUTER_ABI, contracts.ROUTER_ADDRESS);
+                showStatus(`Adding liquidity to PulseX ${currentVersion.toUpperCase()}...`, 'info');
 
                 const deadline = Math.floor(Date.now() / 1000) + 120;
                 const slippageMultiplier = (100 - currentSlippage) / 100;
