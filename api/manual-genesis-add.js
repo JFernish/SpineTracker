@@ -3,38 +3,45 @@ import { kv } from '../lib/redis.js';
 // COMPLETE HARD-CODED DATA - Ready to preview and add to database
 const GENESIS_TOKENS_DATA = [
     {
-        // V4 Genesis Token - ALL DATA PROVIDED:
-        address: '0xac57300da6e17e9e83e71b9f6f75d08dc3836532', // V4 token address
-        txHash: '0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56', // V4 creation tx
-        initialSupplyHuman: '1', // V4 initial supply (human readable)
-        
-        // AUTO-FILLED (don't change):
+        address: '0xac57300da6e17e9e83e71b9f6f75d08dc3836532',
+        txHash: '0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56',
+        initialSupplyHuman: '1',
         factory: 'V4',
         factoryAddress: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7',
         creator: '0xBF182955401aF3f2f7e244cb31184E93E74a2501'
     },
     {
-        // V3 Genesis Token - ALL DATA PROVIDED:
-        address: '0xaa1505c928fd85e10a550cfde9e8f464c3574d8a', // V3 token address
-        txHash: '0x876e74a838fa7c602aa6604957e026cfc028415e93b8a8d69e1273c5d412b30a', // V3 creation tx
-        initialSupplyHuman: '0.000000000000000001', // V3 initial supply (human readable)
-        
-        // AUTO-FILLED (don't change):
+        address: '0xaa1505c928fd85e10a550cfde9e8f464c3574d8a',
+        txHash: '0x876e74a838fa7c602aa6604957e026cfc028415e93b8a8d69e1273c5d412b30a',
+        initialSupplyHuman: '0.000000000000000001',
         factory: 'V3',
         factoryAddress: '0x0c4F73328dFCECfbecf235C9F78A4494a7EC5ddC',
         creator: '0xBF182955401aF3f2f7e244cb31184E93E74a2501'
     }
 ];
 
+let provider = null;
+
+async function getProvider() {
+    if (!provider) {
+        const { ethers } = await import('ethers');
+        provider = new ethers.JsonRpcProvider('https://rpc-pulsechain.g4mm4.io');
+    }
+    return provider;
+}
+
 export default async function handler(req, res) {
     if (req.method !== 'POST' && req.method !== 'GET') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { action, confirmed } = req.body || {};
     const startTime = Date.now();
     
     try {
+        console.log('🔍 Starting genesis token handler...');
+        
+        const { action, confirmed } = req.body || {};
+        
         if (action === 'preview' || req.method === 'GET') {
             console.log('🔍 PREVIEW: Manual genesis token data...');
             const previewResults = await previewManualData();
@@ -197,6 +204,36 @@ async function previewManualData() {
     }
 }
 
+async function getTransactionDetails(txHash, provider) {
+    try {
+        console.log(`   🔗 Fetching transaction details for ${txHash}`);
+        
+        const [transaction, receipt] = await Promise.all([
+            provider.getTransaction(txHash),
+            provider.getTransactionReceipt(txHash)
+        ]);
+        
+        if (!transaction || !receipt) {
+            throw new Error('Transaction or receipt not found');
+        }
+        
+        const block = await provider.getBlock(receipt.blockNumber);
+        if (!block) {
+            throw new Error('Block not found');
+        }
+        
+        return {
+            blockNumber: receipt.blockNumber,
+            timestamp: new Date(block.timestamp * 1000).toISOString(),
+            gasUsed: receipt.gasUsed.toString()
+        };
+        
+    } catch (error) {
+        console.error(`Error fetching transaction details:`, error);
+        return null;
+    }
+}
+
 async function getTokenInfoFromContract(tokenAddress, provider) {
     try {
         console.log(`   🔗 Getting complete token info from contract ${tokenAddress}`);
@@ -212,7 +249,6 @@ async function getTokenInfoFromContract(tokenAddress, provider) {
         
         const tokenContract = new ethers.Contract(tokenAddress, TOKEN_ABI, provider);
         
-        // Get basic token info from the NEW TOKEN CONTRACT
         const [name, symbol, decimals] = await Promise.all([
             tokenContract.name().catch(() => 'Unknown Token'),
             tokenContract.symbol().catch(() => 'UNKNOWN'),
@@ -221,7 +257,6 @@ async function getTokenInfoFromContract(tokenAddress, provider) {
         
         console.log(`   📋 Token info: ${symbol} (${name}), decimals: ${decimals}`);
         
-        // Call Parent() on the NEW TOKEN CONTRACT to get parent address
         let parentAddress = '0x0000000000000000000000000000000000000000';
         try {
             parentAddress = await tokenContract.Parent().catch(async () => {
@@ -232,7 +267,6 @@ async function getTokenInfoFromContract(tokenAddress, provider) {
             console.log(`   ℹ️ No parent found for ${tokenAddress}`);
         }
         
-        // If parent exists, call name() on the PARENT CONTRACT to get parent name
         let parentName = 'None';
         let parentDisplayName = 'None';
         
@@ -268,7 +302,6 @@ function convertToWei(humanAmount, decimals) {
     try {
         if (!humanAmount || humanAmount === '0') return '0';
         
-        // Simple conversion without ethers import issues
         const multiplier = Math.pow(10, decimals);
         const weiAmount = (parseFloat(humanAmount) * multiplier).toString();
         return weiAmount;
@@ -278,55 +311,7 @@ function convertToWei(humanAmount, decimals) {
     }
 }
 
-function formatSupply(supplyWei) {
-    try {
-        if (supplyWei === '0' || !supplyWei) return '0';
-        const supply = Number(supplyWei) / (10 ** 18);
-        if (supply === 0) return '0';
-        const result = supply.toPrecision(3);
-        return parseFloat(result).toString();
-    } catch (error) {
-        return '0';
-    }
-}
-    try {
-        console.log(`   🔗 Fetching transaction details for ${txHash}`);
-        
-        // Get transaction and receipt
-        const [transaction, receipt] = await Promise.all([
-            provider.getTransaction(txHash),
-            provider.getTransactionReceipt(txHash)
-        ]);
-        
-        if (!transaction || !receipt) {
-            throw new Error('Transaction or receipt not found');
-        }
-        
-        // Get block for timestamp
-        const block = await provider.getBlock(receipt.blockNumber);
-        if (!block) {
-            throw new Error('Block not found');
-        }
-        
-        return {
-            blockNumber: receipt.blockNumber,
-            timestamp: new Date(block.timestamp * 1000).toISOString(),
-            gasUsed: receipt.gasUsed.toString()
-        };
-        
-    } catch (error) {
-        console.error(`Error fetching transaction details:`, error);
-        return null;
-    }
-}
-
-async function getProvider() {
-    if (!provider) {
-        const { ethers } = await import('ethers');
-        provider = new ethers.JsonRpcProvider('https://rpc-pulsechain.g4mm4.io');
-    }
-    return provider;
-}
+function createTokenRecord(tokenData) {
     return {
         txHash: tokenData.txHash,
         creator: tokenData.creator,
@@ -335,8 +320,6 @@ async function getProvider() {
         timestamp: tokenData.timestamp,
         blockNumber: tokenData.blockNumber,
         gasUsed: tokenData.gasUsed,
-        
-        // Token data
         tokenContractAddress: tokenData.address.toLowerCase(),
         tokenName: tokenData.tokenName,
         tokenSymbol: tokenData.tokenSymbol,
@@ -344,9 +327,7 @@ async function getProvider() {
         initialSupplyFormatted: tokenData.initialSupplyFormatted,
         parent: tokenData.parentAddress,
         parentName: tokenData.parentName,
-        parentDisplayName: tokenData.parentName,
-        
-        // Metadata
+        parentDisplayName: tokenData.parentDisplayName,
         status: 'complete',
         addedAt: new Date().toISOString(),
         discoveredBy: 'manual-genesis-add',
@@ -372,7 +353,6 @@ async function addManualGenesisTokens() {
             try {
                 console.log(`   📝 Processing ${tokenData.factory} genesis token...`);
                 
-                // Check if already exists
                 const allTokens = await kv.get('all_tokens') || [];
                 let existsInDb = false;
                 
@@ -391,14 +371,12 @@ async function addManualGenesisTokens() {
                     continue;
                 }
                 
-                // All data is hard-coded, so process directly
                 if (!tokenData.txHash || tokenData.initialSupplyHuman === undefined) {
                     results.errors++;
                     results.details.push(`${tokenData.factory}: Configuration error - data should be hard-coded`);
                     continue;
                 }
                 
-                // Get transaction details and token info from blockchain  
                 const provider = await getProvider();
                 const [txDetails, tokenInfo] = await Promise.all([
                     getTransactionDetails(tokenData.txHash, provider),
@@ -417,10 +395,8 @@ async function addManualGenesisTokens() {
                     continue;
                 }
                 
-                // Convert human supply to wei and create complete token data
                 const initialSupplyWei = convertToWei(tokenData.initialSupplyHuman, tokenInfo.decimals);
                 
-                // Create token record with ALL fields populated (matching your populate.js)
                 const completeTokenData = {
                     ...tokenData,
                     tokenName: tokenInfo.name,
@@ -438,17 +414,14 @@ async function addManualGenesisTokens() {
                 
                 const tokenRecord = createTokenRecord(completeTokenData);
                 
-                // Store token data
                 await kv.set(`token:${tokenData.txHash}`, tokenRecord);
                 
-                // Update all tokens list
                 const updatedAllTokens = await kv.get('all_tokens') || [];
                 if (!updatedAllTokens.includes(tokenData.txHash)) {
                     updatedAllTokens.push(tokenData.txHash);
                     await kv.set('all_tokens', updatedAllTokens);
                 }
                 
-                // Update indexes
                 if (tokenRecord.creator) {
                     const creatorKey = `creator:${tokenRecord.creator.toLowerCase()}`;
                     const creatorTokens = await kv.get(creatorKey) || [];
@@ -468,8 +441,8 @@ async function addManualGenesisTokens() {
                 }
                 
                 results.addedTokens++;
-                results.details.push(`${tokenData.factory}: Added ${tokenData.tokenSymbol} (${tokenData.address})`);
-                console.log(`   ✅ Successfully added ${tokenData.tokenSymbol} genesis token`);
+                results.details.push(`${tokenData.factory}: Added ${tokenInfo.symbol} (${tokenData.address})`);
+                console.log(`   ✅ Successfully added ${tokenInfo.symbol} genesis token`);
                 
             } catch (error) {
                 console.error(`   ❌ Failed to add ${tokenData.address}:`, error.message);
@@ -499,7 +472,7 @@ function generatePreviewHTML(results) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>📝 Manual Genesis Token Entry</title>
+    <title>🎯 Genesis Token Data Preview</title>
     <style>
         body { 
             font-family: 'Segoe UI', sans-serif; 
@@ -525,14 +498,6 @@ function generatePreviewHTML(results) {
             border-radius: 10px;
             margin-bottom: 20px;
         }
-        .warning {
-            background: rgba(255, 193, 7, 0.1);
-            border: 1px solid rgba(255, 193, 7, 0.3);
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            color: #ffc107;
-        }
         .token-card {
             background: rgba(255, 255, 255, 0.1);
             border-radius: 10px;
@@ -543,14 +508,6 @@ function generatePreviewHTML(results) {
         .token-card.exists {
             border-left-color: #27ae60;
             background: rgba(39, 174, 96, 0.1);
-        }
-        .token-card.missing {
-            border-left-color: #f39c12;
-            background: rgba(243, 156, 18, 0.1);
-        }
-        .token-card.error {
-            border-left-color: #e74c3c;
-            background: rgba(231, 76, 60, 0.1);
         }
         .factory-badge {
             padding: 4px 8px;
@@ -573,11 +530,6 @@ function generatePreviewHTML(results) {
             margin: 10px 10px 10px 0;
             transition: all 0.3s ease;
         }
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
-        }
-        .btn.success { background: linear-gradient(135deg, #27ae60, #229954); }
         .btn.danger { background: linear-gradient(135deg, #e74c3c, #c0392b); }
         code { 
             background: rgba(255, 255, 255, 0.1); 
@@ -585,19 +537,13 @@ function generatePreviewHTML(results) {
             border-radius: 4px; 
             font-family: monospace;
         }
-        details {
-            margin-top: 10px;
-        }
+        details { margin-top: 10px; }
         summary {
             padding: 8px;
             background: rgba(6, 255, 165, 0.1);
             border: 1px solid rgba(6, 255, 165, 0.3);
             border-radius: 5px;
             cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        summary:hover {
-            background: rgba(6, 255, 165, 0.2);
         }
         pre {
             background: rgba(0, 0, 0, 0.5);
@@ -606,17 +552,8 @@ function generatePreviewHTML(results) {
             padding: 15px;
             overflow-x: auto;
             font-size: 0.85em;
-            line-height: 1.4;
         }
-        .missing-fields {
-            color: #f39c12;
-            font-weight: bold;
-        }
-        #loading {
-            display: none;
-            color: #06ffa5;
-            font-weight: bold;
-        }
+        #loading { display: none; color: #06ffa5; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -637,43 +574,6 @@ function generatePreviewHTML(results) {
         </ul>
         <p><strong>Ready to Add:</strong> ${totalToAdd} | <strong>Already Exist:</strong> ${totalExists} | <strong>Errors:</strong> ${totalErrors}</p>
     </div>
-
-    ${totalMissing > 0 ? `
-        <div class="warning">
-            <h3>⚠️ MISSING DATA</h3>
-            <p>Some tokens are missing required data. Please fill in the missing values in the source code and redeploy.</p>
-        </div>
-    ` : ''}
-
-    ${results.missingData.map(token => `
-        <div class="token-card missing">
-            <h3>
-                <span class="factory-badge ${token.factory.toLowerCase()}">${token.factory}</span>
-                📝 Missing Data
-            </h3>
-            <p><strong>Address:</strong> <code>${token.address}</code></p>
-            <p><strong>Missing Fields:</strong> <span class="missing-fields">${token.missingFields.join(', ')}</span></p>
-            <details>
-                <summary>📋 Required Data Template</summary>
-                <pre>
-// ALL DATA IS NOW HARD-CODED:
-
-V4 Genesis Token:
-- Address: 0xac57300da6e17e9e83e71b9f6f75d08dc3836532
-- TX Hash: 0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56
-- Initial Supply: 1 (human readable)
-
-V3 Genesis Token:
-- Address: 0xaa1505c928fd85e10a550cfde9e8f464c3574d8a  
-- TX Hash: 0x876e74a838fa7c602aa6604957e026cfc028415e93b8a8d69e1273c5d412b30a
-- Initial Supply: 0.000000000000000001 (human readable)
-
-Everything else is automatically fetched from blockchain:
-- Token names, symbols, decimals, parent info, block data
-                </pre>
-            </details>
-        </div>
-    `).join('')}
 
     ${results.tokensToAdd.map(token => `
         <div class="token-card">
@@ -711,7 +611,7 @@ Everything else is automatically fetched from blockchain:
     ${totalToAdd > 0 ? `
         <div style="text-align: center; margin: 30px 0;">
             <button class="btn danger" onclick="confirmAdd()">
-                📝 Add ${totalToAdd} Genesis Token${totalToAdd > 1 ? 's' : ''} to Database
+                🎯 Add ${totalToAdd} Genesis Token${totalToAdd > 1 ? 's' : ''} to Database
             </button>
             <div id="loading">⏳ Adding genesis tokens...</div>
         </div>
@@ -724,7 +624,7 @@ Everything else is automatically fetched from blockchain:
 
     <script>
         async function confirmAdd() {
-            if (!confirm('Are you sure you want to add the genesis tokens to the database?\\n\\nThis will add the manually entered token data.')) {
+            if (!confirm('Are you sure you want to add the genesis tokens to the database?')) {
                 return;
             }
             
@@ -744,7 +644,7 @@ Everything else is automatically fetched from blockchain:
                 const result = await response.json();
                 
                 if (result.success) {
-                    alert(\`Successfully added \${result.addedTokens} genesis tokens!\\n\\nDetails:\\n\${result.details.join('\\n')}\`);
+                    alert('Successfully added ' + result.addedTokens + ' genesis tokens!');
                     window.location.href = '/token-library.html';
                 } else {
                     alert('Error: ' + result.error);
