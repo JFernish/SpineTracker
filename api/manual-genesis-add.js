@@ -268,10 +268,10 @@ function convertToWei(humanAmount, decimals) {
     try {
         if (!humanAmount || humanAmount === '0') return '0';
         
-        // Convert human readable to wei
-        const { ethers } = require('ethers');
-        const weiAmount = ethers.parseUnits(humanAmount.toString(), decimals);
-        return weiAmount.toString();
+        // Simple conversion without ethers import issues
+        const multiplier = Math.pow(10, decimals);
+        const weiAmount = (parseFloat(humanAmount) * multiplier).toString();
+        return weiAmount;
     } catch (error) {
         console.error('Error converting to wei:', error);
         return '0';
