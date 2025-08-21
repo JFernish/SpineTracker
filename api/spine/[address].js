@@ -95,24 +95,32 @@ export default async function handler(req, res) {
 
     console.log(`Building spine for address: ${address}`);
 
-    // Build a lookup map for faster searches
+    // Build a lookup map for faster searches with normalized addresses
     const allTokenHashes = await kv.get('all_tokens') || [];
     const tokenMap = new Map();
+    
+    console.log(`Loading ${allTokenHashes.length} tokens into map...`);
     
     for (const hash of allTokenHashes) {
       const tokenData = await kv.get(`token:${hash}`);
       if (tokenData && tokenData.tokenContractAddress) {
-        tokenMap.set(tokenData.tokenContractAddress.toLowerCase(), tokenData);
+        // Normalize address to lowercase for consistent lookups
+        const normalizedAddress = tokenData.tokenContractAddress.toLowerCase();
+        tokenMap.set(normalizedAddress, tokenData);
       }
     }
+    
+    console.log(`TokenMap built with ${tokenMap.size} entries`);
 
     // Walk up the spine
     const spine = [];
-    let currentAddress = address.toLowerCase();
+    let currentAddress = address.toLowerCase(); // Normalize starting address
     let depth = 0;
     const maxDepth = 40;
 
     while (currentAddress && depth < maxDepth) {
+      console.log(`Looking for token at depth ${depth}: ${currentAddress}`);
+      
       const tokenData = tokenMap.get(currentAddress);
       
       if (!tokenData) {
@@ -120,8 +128,18 @@ export default async function handler(req, res) {
         break;
       }
       
+      console.log(`Found token: ${tokenData.symbol || tokenData.name || 'Unknown'}`);
       spine.unshift(tokenData);
-      currentAddress = tokenData.parent ? tokenData.parent.toLowerCase() : null;
+      
+      // Normalize parent address before next lookup
+      if (tokenData.parent) {
+        currentAddress = tokenData.parent.toLowerCase();
+        console.log(`Moving to parent: ${currentAddress}`);
+      } else {
+        console.log(`No parent found, ending spine traversal`);
+        currentAddress = null;
+      }
+      
       depth++;
     }
 
