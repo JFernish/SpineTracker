@@ -586,13 +586,48 @@ throw new Error(`Database API: ${response.status}`);
 const data = await response.json();
 if (data.success && data.spine && data.spine.length > 0) {
 logDiscovery(`✅ Database found spine with ${data.spine.length} tokens in ${data.queryTime}ms`);
-return {success: true, spine: data.spine};
+if (data.fallbackNeeded) {
+logDiscovery(`🔄 Database requires RPC fallback from ${data.fallbackAddress}`);
+return {success: true, spine: data.spine, fallbackNeeded: true, fallbackAddress: data.fallbackAddress};
+}
+return {success: true, spine: data.spine, fallbackNeeded: false};
 }
 throw new Error('No spine data returned');
 } catch (error) {
 logDiscovery(`❌ Database discovery failed: ${error.message}`);
 return {success: false, error: error.message};
 }
+}
+async function continueSpineWithRPC(partialSpine, fallbackAddress) {
+logDiscovery(`🔄 Continuing spine discovery via RPC from ${fallbackAddress}...`);
+let currentAddress = fallbackAddress.toLowerCase();
+let depth = 0;
+const maxDepth = 40;
+while (currentAddress && depth < maxDepth) {
+setStatus(`🔍 RPC analyzing token ${partialSpine.length + depth + 1}...`, 'loading');
+logDiscovery(`RPC analyzing token ${partialSpine.length + depth + 1}: ${currentAddress}`);
+let tokenSymbol;
+try {
+tokenSymbol = await getTokenSymbol(currentAddress);
+} catch (symbolError) {
+tokenSymbol = `Token_${currentAddress.slice(-4)}`;
+}
+logDiscovery(`  → Symbol: ${tokenSymbol}`);
+const parentAddress = await getParentToken(currentAddress);
+if (parentAddress) {
+logDiscovery(`  → Parent found: ${parentAddress}`);
+partialSpine.unshift({name: tokenSymbol, address: currentAddress, type: 'child'});
+currentAddress = parentAddress.toLowerCase();
+} else {
+logDiscovery(`  → No parent found - this is the root token`);
+partialSpine.unshift({name: tokenSymbol, address: currentAddress, type: 'parent'});
+break;
+}
+depth++;
+await new Promise(resolve => setTimeout(resolve, 200));
+}
+logDiscovery(`✅ RPC discovery complete! Added ${depth + 1} additional tokens`);
+return partialSpine;
 }
 function convertDatabaseSpineToTokens(dbSpine) {
 const tokens = [];
@@ -628,6 +663,10 @@ const dbResult = await tryDatabaseDiscovery(startingAddress);
 if (dbResult.success) {
 logDiscovery(`🎯 Using database discovery results`);
 discoveredTokens = convertDatabaseSpineToTokens(dbResult.spine);
+if (dbResult.fallbackNeeded) {
+logDiscovery(`🔄 Database found ${discoveredTokens.length} tokens, continuing with RPC from ${dbResult.fallbackAddress}...`);
+discoveredTokens = await continueSpineWithRPC(discoveredTokens, dbResult.fallbackAddress);
+}
 logDiscovery(`✅ Discovery complete! Found ${discoveredTokens.length} tokens in spine:`);
 discoveredTokens.forEach((token, i) => {
 logDiscovery(`  ${i + 1}. ${token.name} (${token.type})`);
