@@ -599,7 +599,7 @@ const tokens = [];
 for (let i = 0; i < dbSpine.length; i++) {
 const dbToken = dbSpine[i];
 const isParent = i === 0;
-const tokenName = dbToken.symbol || dbToken.name || `Token_${dbToken.tokenContractAddress.slice(-4)}`;
+const tokenName = dbToken.tokenSymbol || dbToken.tokenName || `Token_${dbToken.tokenContractAddress.slice(-4)}`;
 tokens.push({
 name: tokenName,
 address: dbToken.tokenContractAddress,
