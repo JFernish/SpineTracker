@@ -101,16 +101,39 @@ export default async function handler(req, res) {
     
     console.log(`Loading ${allTokenHashes.length} tokens into map...`);
     
+    let loadedCount = 0;
+    let skippedCount = 0;
+    
     for (const hash of allTokenHashes) {
       const tokenData = await kv.get(`token:${hash}`);
       if (tokenData && tokenData.tokenContractAddress) {
-        // Normalize address to lowercase for consistent lookups
         const normalizedAddress = tokenData.tokenContractAddress.toLowerCase();
         tokenMap.set(normalizedAddress, tokenData);
+        loadedCount++;
+        
+        // Check for our missing tokens
+        if (normalizedAddress === '0x628f327a4645145a0d27e155f5ffd5fd9e30aff5') {
+          console.log(`FOUND missing token in map: ${tokenData.tokenSymbol || tokenData.tokenName}`);
+        }
+      } else {
+        skippedCount++;
+        // Log what's being skipped
+        if (!tokenData) {
+          console.log(`Skipped hash ${hash}: no token data returned from kv.get`);
+        } else {
+          console.log(`Skipped hash ${hash}: missing tokenContractAddress field. Available fields: ${Object.keys(tokenData).join(', ')}`);
+        }
       }
     }
     
-    console.log(`TokenMap built with ${tokenMap.size} entries`);
+    console.log(`TokenMap built: loaded ${loadedCount}, skipped ${skippedCount}`);
+    
+    // Also check if our problem token is in the map after building
+    const problemToken = tokenMap.get('0x628f327a4645145a0d27e155f5ffd5fd9e30aff5');
+    console.log(`Problem token 0x628f... in map: ${problemToken ? 'YES' : 'NO'}`);
+    if (problemToken) {
+      console.log(`Problem token data: ${problemToken.tokenSymbol || problemToken.tokenName}, parent: ${problemToken.parent}`);
+    }
 
     // Walk up the spine - start with child, find its parent, repeat
     const spine = [];
