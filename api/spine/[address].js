@@ -95,81 +95,44 @@ export default async function handler(req, res) {
 
     console.log(`Building spine for address: ${address}`);
 
-    // Build a lookup map for faster searches with normalized addresses
+    // Build a lookup map for faster searches
     const allTokenHashes = await kv.get('all_tokens') || [];
     const tokenMap = new Map();
-    
-    console.log(`Loading ${allTokenHashes.length} tokens into map...`);
-    
-    let loadedCount = 0;
-    let skippedCount = 0;
     
     for (const hash of allTokenHashes) {
       const tokenData = await kv.get(`token:${hash}`);
       if (tokenData && tokenData.tokenContractAddress) {
-        const normalizedAddress = tokenData.tokenContractAddress.toLowerCase();
-        tokenMap.set(normalizedAddress, tokenData);
-        loadedCount++;
-        
-        // Check for our missing tokens
-        if (normalizedAddress === '0x628f327a4645145a0d27e155f5ffd5fd9e30aff5') {
-          console.log(`FOUND missing token in map: ${tokenData.tokenSymbol || tokenData.tokenName}`);
-        }
-      } else {
-        skippedCount++;
-        // Log what's being skipped
-        if (!tokenData) {
-          console.log(`Skipped hash ${hash}: no token data returned from kv.get`);
-        } else {
-          console.log(`Skipped hash ${hash}: missing tokenContractAddress field. Available fields: ${Object.keys(tokenData).join(', ')}`);
-        }
+        tokenMap.set(tokenData.tokenContractAddress.toLowerCase(), tokenData);
       }
     }
-    
-    console.log(`TokenMap built: loaded ${loadedCount}, skipped ${skippedCount}`);
-    
-    // Also check if our problem token is in the map after building
-    const problemToken = tokenMap.get('0x628f327a4645145a0d27e155f5ffd5fd9e30aff5');
-    console.log(`Problem token 0x628f... in map: ${problemToken ? 'YES' : 'NO'}`);
-    if (problemToken) {
-      console.log(`Problem token data: ${problemToken.tokenSymbol || problemToken.tokenName}, parent: ${problemToken.parent}`);
-    }
 
-    // Walk up the spine - start with child, find its parent, repeat
+    // Walk up the spine
     const spine = [];
     let currentAddress = address.toLowerCase();
     let depth = 0;
     const maxDepth = 40;
 
     while (currentAddress && depth < maxDepth) {
-      console.log(`Looking for token at depth ${depth}: ${currentAddress}`);
+      const tokenData = tokenMap.get(currentAddress);
       
-      // Find the current token in our database
-      const currentToken = tokenMap.get(currentAddress);
-      
-      if (!currentToken) {
+      if (!tokenData) {
         console.log(`Token not found in database: ${currentAddress}`);
+        // If we have tokens in spine already, this missing token is the root parent
+        if (spine.length > 0) {
+          console.log(`Adding root parent: ${currentAddress}`);
+          spine.unshift({
+            tokenContractAddress: currentAddress,
+            tokenSymbol: `Token_${currentAddress.slice(-4)}`,
+            tokenName: `Token_${currentAddress.slice(-4)}`,
+            parent: null
+          });
+        }
         break;
       }
       
-      console.log(`Found token: ${currentToken.symbol || currentToken.name || 'Unknown'}`);
-      
-      // Add current token to spine (at beginning since we're walking up)
-      spine.unshift(currentToken);
-      
-      // Check if this token has a parent
-      if (currentToken.parent && currentToken.parent.trim() && currentToken.parent !== '0x0000000000000000000000000000000000000000') {
-        currentAddress = currentToken.parent.toLowerCase();
-        console.log(`Moving to parent: ${currentAddress}`);
-        depth++;
-      } else {
-        console.log(`No parent found, this is the root token`);
-        break;
-      }
-    }
-
-    if (depth >= maxDepth) {
-      console.log(`Reached maximum depth of ${maxDepth}`);
+      spine.unshift(tokenData);
+      currentAddress = tokenData.parent ? tokenData.parent.toLowerCase() : null;
+      depth++;
     }
 
     const queryTime = Date.now() - startTime;
