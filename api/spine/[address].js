@@ -2,7 +2,7 @@ import { kv } from '../../lib/redis.js';
 
 // Rate limiting storage (resets on each deployment)
 const requestCounts = new Map();
-const RATE_LIMIT = 60; // requests per minute per IP
+const RATE_LIMIT = 120; // requests per minute per IP (doubled)
 const RATE_WINDOW = 60 * 1000; // 1 minute in milliseconds
 
 export default async function handler(req, res) {
@@ -120,6 +120,18 @@ export default async function handler(req, res) {
       
       if (!tokenData) {
         console.log(`Token not found in database: ${currentAddress}`);
+        // If we've found 15+ tokens, return partial spine for RPC fallback
+        if (spine.length >= 15) {
+          console.log(`Found ${spine.length} tokens via database, returning for RPC fallback on: ${currentAddress}`);
+          return res.status(200).json({ 
+            spine: spine,
+            queryTime: Date.now() - startTime,
+            success: true,
+            length: spine.length,
+            fallbackNeeded: true,
+            fallbackAddress: currentAddress
+          });
+        }
         // If we have tokens in spine already, this missing token is the root parent
         if (spine.length > 0) {
           console.log(`Adding root parent: ${currentAddress}`);
@@ -135,7 +147,27 @@ export default async function handler(req, res) {
       
       console.log(`Found token: ${tokenData.tokenSymbol || tokenData.tokenName || 'Unknown'}`);
       spine.unshift(tokenData);
-      currentAddress = tokenData.parent ? tokenData.parent.toLowerCase() : null;
+      
+      // Check if this token has no parent (natural root)
+      if (!tokenData.parent || tokenData.parent === '0x0000000000000000000000000000000000000000') {
+        console.log(`Found natural root token, spine complete`);
+        break;
+      }
+      
+      // If we've found 15+ tokens and still have a parent, return for RPC fallback
+      if (spine.length >= 15) {
+        console.log(`Found ${spine.length} tokens via database, returning for RPC fallback on parent: ${tokenData.parent}`);
+        return res.status(200).json({ 
+          spine: spine,
+          queryTime: Date.now() - startTime,
+          success: true,
+          length: spine.length,
+          fallbackNeeded: true,
+          fallbackAddress: tokenData.parent
+        });
+      }
+      
+      currentAddress = tokenData.parent.toLowerCase();
       depth++;
     }
 
