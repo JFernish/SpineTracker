@@ -112,35 +112,41 @@ export default async function handler(req, res) {
     
     console.log(`TokenMap built with ${tokenMap.size} entries`);
 
-    // Walk up the spine
+    // Walk up the spine - start with child, find its parent, repeat
     const spine = [];
-    let currentAddress = address.toLowerCase(); // Normalize starting address
+    let currentAddress = address.toLowerCase();
     let depth = 0;
     const maxDepth = 40;
 
     while (currentAddress && depth < maxDepth) {
       console.log(`Looking for token at depth ${depth}: ${currentAddress}`);
       
-      const tokenData = tokenMap.get(currentAddress);
+      // Find the current token in our database
+      const currentToken = tokenMap.get(currentAddress);
       
-      if (!tokenData) {
+      if (!currentToken) {
         console.log(`Token not found in database: ${currentAddress}`);
         break;
       }
       
-      console.log(`Found token: ${tokenData.symbol || tokenData.name || 'Unknown'}`);
-      spine.unshift(tokenData);
+      console.log(`Found token: ${currentToken.symbol || currentToken.name || 'Unknown'}`);
       
-      // Normalize parent address before next lookup
-      if (tokenData.parent) {
-        currentAddress = tokenData.parent.toLowerCase();
+      // Add current token to spine (at beginning since we're walking up)
+      spine.unshift(currentToken);
+      
+      // Check if this token has a parent
+      if (currentToken.parent && currentToken.parent.trim() && currentToken.parent !== '0x0000000000000000000000000000000000000000') {
+        currentAddress = currentToken.parent.toLowerCase();
         console.log(`Moving to parent: ${currentAddress}`);
+        depth++;
       } else {
-        console.log(`No parent found, ending spine traversal`);
-        currentAddress = null;
+        console.log(`No parent found, this is the root token`);
+        break;
       }
-      
-      depth++;
+    }
+
+    if (depth >= maxDepth) {
+      console.log(`Reached maximum depth of ${maxDepth}`);
     }
 
     const queryTime = Date.now() - startTime;
