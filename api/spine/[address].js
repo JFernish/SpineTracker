@@ -95,25 +95,28 @@ export default async function handler(req, res) {
 
     console.log(`Building spine for address: ${address}`);
 
-    // Build a lookup map for faster searches
+    // Get token hashes for direct lookups only
     const allTokenHashes = await kv.get('all_tokens') || [];
-    const tokenMap = new Map();
-    
-    for (const hash of allTokenHashes) {
-      const tokenData = await kv.get(`token:${hash}`);
-      if (tokenData && tokenData.tokenContractAddress) {
-        tokenMap.set(tokenData.tokenContractAddress.toLowerCase(), tokenData);
-      }
-    }
 
-    // Walk up the spine
+    // Walk up the spine using direct lookups
     const spine = [];
     let currentAddress = address.toLowerCase();
     let depth = 0;
     const maxDepth = 40;
 
     while (currentAddress && depth < maxDepth) {
-      const tokenData = tokenMap.get(currentAddress);
+      console.log(`Looking for token at depth ${depth}: ${currentAddress}`);
+      
+      // Find current token by searching hashes directly
+      let tokenData = null;
+      for (const hash of allTokenHashes) {
+        const data = await kv.get(`token:${hash}`);
+        if (data && data.tokenContractAddress && 
+            data.tokenContractAddress.toLowerCase() === currentAddress) {
+          tokenData = data;
+          break;
+        }
+      }
       
       if (!tokenData) {
         console.log(`Token not found in database: ${currentAddress}`);
@@ -130,6 +133,7 @@ export default async function handler(req, res) {
         break;
       }
       
+      console.log(`Found token: ${tokenData.tokenSymbol || tokenData.tokenName || 'Unknown'}`);
       spine.unshift(tokenData);
       currentAddress = tokenData.parent ? tokenData.parent.toLowerCase() : null;
       depth++;
