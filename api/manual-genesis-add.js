@@ -3,19 +3,19 @@ import { kv } from '../lib/redis.js';
 // COMPLETE HARD-CODED DATA - Ready to preview and add to database
 const GENESIS_TOKENS_DATA = [
     {
-        address: '0xac57300da6e17e9e83e71b9f6f75d08dc3836532',
+        address: '0x3BC7AB48aD7b6BFdCaC1281C8b49861823452460',
         txHash: '0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56',
-        initialSupplyHuman: '1',
+        initialSupplyHuman: '1111111111',
         factory: 'V4',
         factoryAddress: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7',
         creator: '0xBF182955401aF3f2f7e244cb31184E93E74a2501'
     },
     {
-        address: '0xaa1505c928fd85e10a550cfde9e8f464c3574d8a',
-        txHash: '0x876e74a838fa7c602aa6604957e026cfc028415e93b8a8d69e1273c5d412b30a',
-        initialSupplyHuman: '0.000000000000000001',
-        factory: 'V3',
-        factoryAddress: '0x0c4F73328dFCECfbecf235C9F78A4494a7EC5ddC',
+        address: '0x628F327a4645145A0D27E155f5fFD5Fd9E30AFf5',
+        txHash: '0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56',
+        initialSupplyHuman: '1111111111',
+        factory: 'V4',
+        factoryAddress: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7',
         creator: '0xBF182955401aF3f2f7e244cb31184E93E74a2501'
     }
 ];
@@ -99,7 +99,7 @@ async function previewManualData() {
         
         for (const tokenData of GENESIS_TOKENS_DATA) {
             try {
-                console.log(`   📡 Checking ${tokenData.factory} genesis token: ${tokenData.address}`);
+                console.log(`   🔡 Checking ${tokenData.factory} genesis token: ${tokenData.address}`);
                 
                 // Check if already exists in database
                 const allTokens = await kv.get('all_tokens') || [];
@@ -255,7 +255,7 @@ async function getTokenInfoFromContract(tokenAddress, provider) {
             tokenContract.decimals().catch(() => 18)
         ]);
         
-        console.log(`   📋 Token info: ${symbol} (${name}), decimals: ${decimals}`);
+        console.log(`   🔋 Token info: ${symbol} (${name}), decimals: ${decimals}`);
         
         let parentAddress = '0x0000000000000000000000000000000000000000';
         try {
@@ -275,7 +275,7 @@ async function getTokenInfoFromContract(tokenAddress, provider) {
                 const parentContract = new ethers.Contract(parentAddress, TOKEN_ABI, provider);
                 parentName = await parentContract.name().catch(() => 'Unknown Parent');
                 parentDisplayName = parentName;
-                console.log(`   📋 Parent token name: ${parentName}`);
+                console.log(`   🔋 Parent token name: ${parentName}`);
             } catch (error) {
                 console.log(`   ⚠️ Could not get parent name for ${parentAddress}`);
                 parentName = 'Unknown Parent';
@@ -351,7 +351,7 @@ async function addManualGenesisTokens() {
         
         for (const tokenData of GENESIS_TOKENS_DATA) {
             try {
-                console.log(`   📝 Processing ${tokenData.factory} genesis token...`);
+                console.log(`   🔍 Processing ${tokenData.factory} genesis token...`);
                 
                 const allTokens = await kv.get('all_tokens') || [];
                 let existsInDb = false;
@@ -559,18 +559,18 @@ function generatePreviewHTML(results) {
 <body>
     <div class="header">
         <h1>🎯 Genesis Token Data Preview</h1>
-        <p>Complete data for V3 and V4 genesis tokens - ready to add to database</p>
+        <p>Complete data for Skill and Larp V4 genesis tokens - ready to add to database</p>
     </div>
 
     <div class="summary">
         <h2>📊 Hard-Coded Genesis Data</h2>
         <ul>
-            <li><strong>V4 Token:</strong> 0xac57300da6e17e9e83e71b9f6f75d08dc3836532</li>
-            <li><strong>V4 TX Hash:</strong> 0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56</li>
-            <li><strong>V4 Initial Supply:</strong> 1 (human readable)</li>
-            <li><strong>V3 Token:</strong> 0xaa1505c928fd85e10a550cfde9e8f464c3574d8a</li>
-            <li><strong>V3 TX Hash:</strong> 0x876e74a838fa7c602aa6604957e026cfc028415e93b8a8d69e1273c5d412b30a</li>
-            <li><strong>V3 Initial Supply:</strong> 0.000000000000000001 (human readable)</li>
+            <li><strong>Skill Token:</strong> 0x3BC7AB48aD7b6BFdCaC1281C8b49861823452460</li>
+            <li><strong>Skill TX Hash:</strong> 0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56</li>
+            <li><strong>Skill Initial Supply:</strong> 1,111,111,111 (human readable)</li>
+            <li><strong>Larp Token:</strong> 0x628F327a4645145A0D27E155f5fFD5Fd9E30AFf5</li>
+            <li><strong>Larp TX Hash:</strong> 0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56</li>
+            <li><strong>Larp Initial Supply:</strong> 1,111,111,111 (human readable)</li>
         </ul>
         <p><strong>Ready to Add:</strong> ${totalToAdd} | <strong>Already Exist:</strong> ${totalExists} | <strong>Errors:</strong> ${totalErrors}</p>
     </div>
