@@ -3,20 +3,22 @@ import { kv } from '../lib/redis.js';
 // COMPLETE HARD-CODED DATA - Ready to preview and add to database
 const GENESIS_TOKENS_DATA = [
     {
-        address: '0xac57300da6e17e9e83e71b9f6f75d08dc3836532',
-        txHash: '0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56',
-        initialSupplyHuman: '1',
-        factory: 'V4',
-        factoryAddress: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7',
-        creator: '0xBF182955401aF3f2f7e244cb31184E93E74a2501'
-    },
-    {
         address: '0x3BC7AB48aD7b6BFdCaC1281C8b49861823452460',
         txHash: '0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56-1',
         initialSupplyHuman: '1111111111',
         factory: 'V4',
         factoryAddress: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7',
-        creator: '0xBF182955401aF3f2f7e244cb31184E93E74a2501'
+        creator: '0xBF182955401aF3f2f7e244cb31184E93E74a2501',
+        // Hard-coded data to skip RPC calls
+        tokenName: 'Skill',
+        tokenSymbol: 'SKILL',
+        decimals: 18,
+        blockNumber: 22755643,
+        timestamp: '2024-05-10T19:04:18.000Z',
+        gasUsed: '500000',
+        parentAddress: '0xac57300da6e17e9e83e71b9f6f75d08dc3836532',
+        parentName: 'NotsDotQ',
+        parentDisplayName: 'NotsDotQ'
     },
     {
         address: '0x628F327a4645145A0D27E155f5fFD5Fd9E30AFf5',
@@ -24,7 +26,17 @@ const GENESIS_TOKENS_DATA = [
         initialSupplyHuman: '1111111111',
         factory: 'V4',
         factoryAddress: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7',
-        creator: '0xBF182955401aF3f2f7e244cb31184E93E74a2501'
+        creator: '0xBF182955401aF3f2f7e244cb31184E93E74a2501',
+        // Hard-coded data to skip RPC calls
+        tokenName: 'Larp',
+        tokenSymbol: 'LARP',
+        decimals: 18,
+        blockNumber: 22755643,
+        timestamp: '2024-05-10T19:04:19.000Z',
+        gasUsed: '500000',
+        parentAddress: '0x3BC7AB48aD7b6BFdCaC1281C8b49861823452460',
+        parentName: 'Skill',
+        parentDisplayName: 'Skill'
     }
 ];
 
@@ -143,7 +155,32 @@ async function previewManualData() {
                     continue;
                 }
                 
-                // Get transaction details and token info from blockchain
+                // Check if data is pre-populated (skip RPC calls)
+                if (tokenData.tokenName && tokenData.tokenSymbol && tokenData.blockNumber) {
+                    console.log(`   ✅ Using pre-populated data for ${tokenData.address}`);
+                    
+                    // Convert human readable supply to wei
+                    const initialSupplyWei = convertToWei(tokenData.initialSupplyHuman, tokenData.decimals);
+                    
+                    // Create the complete token data with pre-populated fields
+                    const completeTokenData = {
+                        ...tokenData,
+                        initialSupply: initialSupplyWei,
+                        initialSupplyFormatted: tokenData.initialSupplyHuman
+                    };
+                    
+                    const tokenRecord = createTokenRecord(completeTokenData);
+                    
+                    results.tokensToAdd.push({
+                        ...completeTokenData,
+                        tokenRecord,
+                        status: 'Ready to add (pre-populated data)'
+                    });
+                    
+                    continue;
+                }
+                
+                // Get transaction details and token info from blockchain (original RPC logic)
                 const [txDetails, tokenInfo] = await Promise.all([
                     getTransactionDetails(tokenData.txHash, provider),
                     getTokenInfoFromContract(tokenData.address, provider)
@@ -567,21 +604,20 @@ function generatePreviewHTML(results) {
 <body>
     <div class="header">
         <h1>🎯 Genesis Token Data Preview</h1>
-        <p>Complete data for NotdotsQ, Skill and Larp V4 genesis tokens - ready to add to database</p>
+        <p>Complete data for Skill and Larp V4 genesis tokens - ready to add to database</p>
     </div>
 
     <div class="summary">
         <h2>📊 Hard-Coded Genesis Data</h2>
         <ul>
-            <li><strong>NotdotsQ Token:</strong> 0xac57300da6e17e9e83e71b9f6f75d08dc3836532</li>
-            <li><strong>NotdotsQ TX Hash:</strong> 0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56</li>
-            <li><strong>NotdotsQ Initial Supply:</strong> 1 (human readable)</li>
             <li><strong>Skill Token:</strong> 0x3BC7AB48aD7b6BFdCaC1281C8b49861823452460</li>
             <li><strong>Skill TX Hash:</strong> 0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56-1</li>
             <li><strong>Skill Initial Supply:</strong> 1,111,111,111 (human readable)</li>
+            <li><strong>Skill Parent:</strong> NotsdotQ (0xac57...6532)</li>
             <li><strong>Larp Token:</strong> 0x628F327a4645145A0D27E155f5fFD5Fd9E30AFf5</li>
             <li><strong>Larp TX Hash:</strong> 0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56-2</li>
             <li><strong>Larp Initial Supply:</strong> 1,111,111,111 (human readable)</li>
+            <li><strong>Larp Parent:</strong> Skill (0x3BC7...2460)</li>
         </ul>
         <p><strong>Ready to Add:</strong> ${totalToAdd} | <strong>Already Exist:</strong> ${totalExists} | <strong>Errors:</strong> ${totalErrors}</p>
     </div>
