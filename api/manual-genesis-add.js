@@ -567,17 +567,20 @@ function generatePreviewHTML(results) {
 <body>
     <div class="header">
         <h1>🎯 Genesis Token Data Preview</h1>
-        <p>Complete data for Skill and Larp V4 genesis tokens - ready to add to database</p>
+        <p>Complete data for NotdotsQ, Skill and Larp V4 genesis tokens - ready to add to database</p>
     </div>
 
     <div class="summary">
         <h2>📊 Hard-Coded Genesis Data</h2>
         <ul>
+            <li><strong>NotdotsQ Token:</strong> 0xac57300da6e17e9e83e71b9f6f75d08dc3836532</li>
+            <li><strong>NotdotsQ TX Hash:</strong> 0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56</li>
+            <li><strong>NotdotsQ Initial Supply:</strong> 1 (human readable)</li>
             <li><strong>Skill Token:</strong> 0x3BC7AB48aD7b6BFdCaC1281C8b49861823452460</li>
-            <li><strong>Skill TX Hash:</strong> 0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56</li>
+            <li><strong>Skill TX Hash:</strong> 0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56-1</li>
             <li><strong>Skill Initial Supply:</strong> 1,111,111,111 (human readable)</li>
             <li><strong>Larp Token:</strong> 0x628F327a4645145A0D27E155f5fFD5Fd9E30AFf5</li>
-            <li><strong>Larp TX Hash:</strong> 0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56</li>
+            <li><strong>Larp TX Hash:</strong> 0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56-2</li>
             <li><strong>Larp Initial Supply:</strong> 1,111,111,111 (human readable)</li>
         </ul>
         <p><strong>Ready to Add:</strong> ${totalToAdd} | <strong>Already Exist:</strong> ${totalExists} | <strong>Errors:</strong> ${totalErrors}</p>
