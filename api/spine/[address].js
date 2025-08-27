@@ -120,8 +120,8 @@ export default async function handler(req, res) {
       
       if (!tokenData) {
         console.log(`Token not found in database: ${currentAddress}`);
-        // If we've found 15+ tokens, return partial spine for RPC fallback
-        if (spine.length >= 15) {
+        // If we've found 40+ tokens, return partial spine for RPC fallback
+        if (spine.length >= 40) {
           console.log(`Found ${spine.length} tokens via database, returning for RPC fallback on: ${currentAddress}`);
           return res.status(200).json({ 
             spine: spine,
@@ -154,8 +154,8 @@ export default async function handler(req, res) {
         break;
       }
       
-      // If we've found 15+ tokens and still have a parent, return for RPC fallback
-      if (spine.length >= 15) {
+      // If we've found 40+ tokens and still have a parent, return for RPC fallback
+      if (spine.length >= 40) {
         console.log(`Found ${spine.length} tokens via database, returning for RPC fallback on parent: ${tokenData.parent}`);
         return res.status(200).json({ 
           spine: spine,
