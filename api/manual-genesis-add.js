@@ -3,8 +3,16 @@ import { kv } from '../lib/redis.js';
 // COMPLETE HARD-CODED DATA - Ready to preview and add to database
 const GENESIS_TOKENS_DATA = [
     {
-        address: '0x3BC7AB48aD7b6BFdCaC1281C8b49861823452460',
+        address: '0xac57300da6e17e9e83e71b9f6f75d08dc3836532',
         txHash: '0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56',
+        initialSupplyHuman: '1',
+        factory: 'V4',
+        factoryAddress: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7',
+        creator: '0xBF182955401aF3f2f7e244cb31184E93E74a2501'
+    },
+    {
+        address: '0x3BC7AB48aD7b6BFdCaC1281C8b49861823452460',
+        txHash: '0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56-1',
         initialSupplyHuman: '1111111111',
         factory: 'V4',
         factoryAddress: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7',
@@ -12,7 +20,7 @@ const GENESIS_TOKENS_DATA = [
     },
     {
         address: '0x628F327a4645145A0D27E155f5fFD5Fd9E30AFf5',
-        txHash: '0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56',
+        txHash: '0x1b5c3a71262c46e316f094695a00e54294342c30c9643ede035af3bdfa013b56-2',
         initialSupplyHuman: '1111111111',
         factory: 'V4',
         factoryAddress: '0x394c3D5990cEfC7Be36B82FDB07a7251ACe61cc7',
