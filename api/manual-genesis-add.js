@@ -422,6 +422,57 @@ async function addManualGenesisTokens() {
                     continue;
                 }
                 
+                // Check if data is pre-populated (skip RPC calls for confirmation too)
+                if (tokenData.tokenName && tokenData.tokenSymbol && tokenData.blockNumber) {
+                    console.log(`   ✅ Using pre-populated data for ${tokenData.address} (confirmation)`);
+                    
+                    // Convert human readable supply to wei
+                    const initialSupplyWei = convertToWei(tokenData.initialSupplyHuman, tokenData.decimals);
+                    
+                    // Create the complete token data with pre-populated fields
+                    const completeTokenData = {
+                        ...tokenData,
+                        initialSupply: initialSupplyWei,
+                        initialSupplyFormatted: tokenData.initialSupplyHuman
+                    };
+                    
+                    const tokenRecord = createTokenRecord(completeTokenData);
+                    
+                    // Store in database
+                    await kv.set(`token:${tokenData.txHash}`, tokenRecord);
+                    
+                    const updatedAllTokens = await kv.get('all_tokens') || [];
+                    if (!updatedAllTokens.includes(tokenData.txHash)) {
+                        updatedAllTokens.push(tokenData.txHash);
+                        await kv.set('all_tokens', updatedAllTokens);
+                    }
+                    
+                    if (tokenRecord.creator) {
+                        const creatorKey = `creator:${tokenRecord.creator.toLowerCase()}`;
+                        const creatorTokens = await kv.get(creatorKey) || [];
+                        if (!creatorTokens.includes(tokenData.txHash)) {
+                            creatorTokens.push(tokenData.txHash);
+                            await kv.set(creatorKey, creatorTokens);
+                        }
+                    }
+                    
+                    if (tokenRecord.factoryVersion) {
+                        const factoryKey = `factory:${tokenRecord.factoryVersion.toLowerCase()}`;
+                        const factoryTokens = await kv.get(factoryKey) || [];
+                        if (!factoryTokens.includes(tokenData.txHash)) {
+                            factoryTokens.push(tokenData.txHash);
+                            await kv.set(factoryKey, factoryTokens);
+                        }
+                    }
+                    
+                    results.addedTokens++;
+                    results.details.push(`${tokenData.factory}: Added ${tokenData.tokenSymbol} (${tokenData.address})`);
+                    console.log(`   ✅ Successfully added ${tokenData.tokenSymbol} genesis token`);
+                    
+                    continue;
+                }
+                
+                // Original RPC logic for tokens without pre-populated data
                 const provider = await getProvider();
                 const [txDetails, tokenInfo] = await Promise.all([
                     getTransactionDetails(tokenData.txHash, provider),
