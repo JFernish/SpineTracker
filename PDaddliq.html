@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌊 PoofDex Add Liquidity</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+           
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+       
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(20, 20, 40, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(157, 78, 221, 0.1);
+        }
+       
+        h1 {
+            text-align: center;
+            color: #ffffff;
+            font-size: 2rem;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, #9d4edd, #6a4c93, #3a86ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .fee-notice {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(157, 78, 221, 0.1);
+            border-radius: 12px;
+            border: 2px solid rgba(157, 78, 221, 0.3);
+            text-align: center;
+        }
+
+        .fee-notice-title {
+            font-size: 0.9rem;
+            color: #9d4edd;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .fee-notice-text {
+            font-size: 0.85rem;
+            color: #c0c0c0;
+            line-height: 1.5;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            color: #ffffff;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3a86ff;
+            box-shadow: 0 0 15px rgba(58, 134, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        input::placeholder {
+            color: #888888;
+        }
+        
+        .token-pair {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .token-info {
+            font-size: 0.85rem;
+            color: #06ffa5;
+            margin-top: 5px;
+            font-weight: 500;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 15px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+            color: white;
+            box-shadow: 0 6px 20px rgba(58, 134, 255, 0.4);
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(58, 134, 255, 0.5);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            background: #333333;
+            color: #666666;
+            box-shadow: none;
+        }
+        
+        .status {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 500;
+            border: 1px solid;
+        }
+        
+        .status.success {
+            background: rgba(6, 255, 165, 0.1);
+            border-color: rgba(6, 255, 165, 0.3);
+            color: #06ffa5;
+        }
+        
+        .status.error {
+            background: rgba(244, 67, 54, 0.1);
+            border-color: rgba(244, 67, 54, 0.3);
+            color: #f44336;
+        }
+        
+        .status.info {
+            background: rgba(58, 134, 255, 0.1);
+            border-color: rgba(58, 134, 255, 0.3);
+            color: #3a86ff;
+        }
+        
+        .preset-pairs {
+            margin-bottom: 25px;
+        }
+        
+        .preset-button {
+            display: inline-block;
+            padding: 10px 18px;
+            margin: 5px;
+            background: rgba(102, 126, 234, 0.1);
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            color: #667eea;
+        }
+        
+        .preset-button:hover {
+            background: rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .slippage-section {
+            margin-bottom: 20px;
+        }
+        
+        .slippage-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .slippage-btn {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #c0c0c0;
+            transition: all 0.3s ease;
+        }
+        
+        .slippage-btn.active {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+            color: white;
+            box-shadow: 0 4px 15px rgba(58, 134, 255, 0.3);
+        }
+        
+        .slippage-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+        }
+
+        .pls-toggle {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: linear-gradient(45deg, #3a86ff, #06ffa5);
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(30px);
+        }
+
+        .token-disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .native-indicator {
+            background: rgba(6, 255, 165, 0.1);
+            border: 1px solid rgba(6, 255, 165, 0.3);
+            color: #06ffa5;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            margin-top: 5px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌊 PoofDex Add Liquidity</h1>
+        
+        <div class="version-toggle">
+            <div class="version-selector">
+                <div class="version-btn" onclick="setVersion('v1')">V1 (Legacy)</div>
+                <div class="version-btn active" onclick="setVersion('v2')">V2 (Current)</div>
+            </div>
+            <div class="version-info" id="versionInfo">
+                Using V2 contracts - Latest version with improved features
+            </div>
+        </div>
+        
+        <div class="pls-toggle">
+            <div class="toggle-container">
+                <span>Use Native PLS:</span>
+                <div class="toggle-switch" id="plsToggle" onclick="togglePLS()">
+                    <div class="toggle-slider"></div>
+                </div>
+                <span id="toggleLabel">WPLS (ERC20)</span>
+            </div>
+        </div>
+
+        <div class="preset-pairs">
+            <label>Quick Select Token Pairs:</label>
+            <div class="preset-button" onclick="setTokenPair('PLS', 'PLSX')">PLS/PLSX</div>
+            <div class="preset-button" onclick="setTokenPair('PLS', 'USDC')">PLS/USDC</div>
+            <div class="preset-button" onclick="setTokenPair('PLS', 'USDT')">PLS/USDT</div>
+            <div class="preset-button" onclick="setTokenPair('WPLS', 'USDC')">WPLS/USDC</div>
+            <div class="preset-button" onclick="setTokenPair('WPLS', 'USDT')">WPLS/USDT</div>
+            <div class="preset-button" onclick="setTokenPair('USDC', 'USDT')">USDC/USDT</div>
+        </div>
+
+        <div class="token-pair">
+            <div class="input-group">
+                <label>Token A:</label>
+                <input type="text" id="tokenA" placeholder="0x... or select PLS above" onchange="if(isWalletConnected) { resetApprovalButtons(); checkApprovalStatus(); getTokenInfo('A'); }">
+                <div id="tokenAInfo" class="token-info"></div>
+            </div>
+            <div class="input-group">
+                <label>Token B:</label>
+                <input type="text" id="tokenB" placeholder="0x..." onchange="if(isWalletConnected) { resetApprovalButtons(); checkApprovalStatus(); getTokenInfo('B'); }">
+                <div id="tokenBInfo" class="token-info"></div>
+            </div>
+        </div>
+
+        <div class="token-pair">
+            <div class="input-group">
+                <label>Token A Amount:</label>
+                <input type="number" id="amountA" placeholder="1000" step="0.000001" oninput="debouncedCalculateAmountB()">
+            </div>
+            <div class="input-group">
+                <label>Token B Amount:</label>
+                <input type="number" id="amountB" placeholder="1000" step="0.000001" oninput="debouncedCalculateAmountA()">
+            </div>
+        </div>
+
+        <div class="slippage-section">
+            <label>Slippage Tolerance:</label>
+            <div class="slippage-buttons">
+                <div class="slippage-btn" onclick="setSlippage(0.5)">0.5%</div>
+                <div class="slippage-btn" onclick="setSlippage(1.0)">1.0%</div>
+                <div class="slippage-btn" onclick="setSlippage(2.0)">2.0%</div>
+                <div class="slippage-btn active" onclick="setSlippage(5.0)">5.0%</div>
+            </div>
+            <input type="number" id="customSlippage" placeholder="Custom %" step="0.1" style="margin-top: 10px;">
+        </div>
+
+        <button id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+        <button id="approveABtn" onclick="approveToken('A')" style="display:none;">Approve Token A</button>
+        <button id="approveBBtn" onclick="approveToken('B')" style="display:none;">Approve Token B</button>
+        <button id="addLiquidityBtn" onclick="addLiquidity()" style="display:none;">Add Liquidity</button>
+
+        <div id="status"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
+    <script>
+        // Global variables
+        let web3 = null;
+        let walletAccount = null;
+        let isWalletConnected = false;
+        let currentSlippage = 5.0;
+        let isCalculating = false;
+        let tokenADecimals = 18;
+        let tokenBDecimals = 18;
+        let useNativePLS = false;
+        let currentVersion = 'v2';
+
+        // Contract addresses for both versions
+        const CONTRACTS = {
+            v1: {
+                ROUTER_ADDRESS: "0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02", // PulseX V1 Router
+                FACTORY_ADDRESS: "0x1715a3E4A142d8b698131108995174F37aEBA10D" // PulseX V1 Factory
+            },
+            v2: {
+                ROUTER_ADDRESS: "0x165C3410fC91EF562C50559f7d2289fEbed552d9", // PulseX V2 Router  
+                FACTORY_ADDRESS: "0x29eA7545DEf87022BAdc76323F373EA1e707C523" // PulseX V2 Factory
+            }
+        };
+        
+        const TOKENS = {
+            'PLS': 'NATIVE', // Special marker for native PLS
+            'WPLS': '0xA1077a294dDE1B09bB078844df40758a5D0f9a27',
+            'PLSX': '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab',
+            'USDC': '0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07', 
+            'USDT': '0x0Cb6F5a34ad42ec934882A05265A7d5F59b51A2f'
+        };
+
+        const ROUTER_ABI = [
+            {"constant":false,"inputs":[{"name":"tokenA","type":"address"},{"name":"tokenB","type":"address"},{"name":"amountADesired","type":"uint256"},{"name":"amountBDesired","type":"uint256"},{"name":"amountAMin","type":"uint256"},{"name":"amountBMin","type":"uint256"},{"name":"to","type":"address"},{"name":"deadline","type":"uint256"}],"name":"addLiquidity","outputs":[{"name":"amountA","type":"uint256"},{"name":"amountB","type":"uint256"},{"name":"liquidity","type":"uint256"}],"payable":false,"stateMutability":"nonpayable","type":"function"},
+            {"constant":false,"inputs":[{"name":"token","type":"address"},{"name":"amountTokenDesired","type":"uint256"},{"name":"amountTokenMin","type":"uint256"},{"name":"amountETHMin","type":"uint256"},{"name":"to","type":"address"},{"name":"deadline","type":"uint256"}],"name":"addLiquidityETH","outputs":[{"name":"amountToken","type":"uint256"},{"name":"amountETH","type":"uint256"},{"name":"liquidity","type":"uint256"}],"payable":true,"stateMutability":"payable","type":"function"}
+        ];
+
+        const PAIR_ABI = [
+            {"constant":true,"inputs":[],"name":"getReserves","outputs":[{"name":"reserve0","type":"uint112"},{"name":"reserve1","type":"uint112"},{"name":"blockTimestampLast","type":"uint32"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[],"name":"token0","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[],"name":"token1","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"}
+        ];
+
+        const FACTORY_ABI = [
+            {"constant":true,"inputs":[{"name":"tokenA","type":"address"},{"name":"tokenB","type":"address"}],"name":"getPair","outputs":[{"name":"pair","type":"address"}],"payable":false,"stateMutability":"view","type":"function"}
+        ];
+
+        const ERC20_ABI = [
+            {"constant":false,"inputs":[{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},
+            {"constant":true,"inputs":[{"name":"owner","type":"address"},{"name":"spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[{"name":"account","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"}
+        ];
+
+        function setVersion(version) {
+            currentVersion = version;
+            
+            // Update UI
+            document.querySelectorAll('.version-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const title = document.getElementById('pageTitle');
+            const info = document.getElementById('versionInfo');
+            
+            if (version === 'v1') {
+                title.innerHTML = '🌊 PulseX V1 Add Liquidity';
+                info.textContent = 'Using V1 contracts - Legacy version for existing V1 pools';
+            } else {
+                title.innerHTML = '🌊 PulseX V2 Add Liquidity';
+                info.textContent = 'Using V2 contracts - Latest version with improved features';
+            }
+            
+            // Reset approval status when switching versions
+            if (isWalletConnected) {
+                resetApprovalButtons();
+                checkApprovalStatus();
+            }
+            
+            
+        }
+
+        function getCurrentContracts() {
+            return CONTRACTS[currentVersion];
+        }
+
+        function togglePLS() {
+            useNativePLS = !useNativePLS;
+            const toggle = document.getElementById('plsToggle');
+            const label = document.getElementById('toggleLabel');
+            
+            if (useNativePLS) {
+                toggle.classList.add('active');
+                label.textContent = 'Native PLS';
+            } else {
+                toggle.classList.remove('active');
+                label.textContent = 'WPLS (ERC20)';
+            }
+            
+            // Update UI to reflect the change
+            updateTokenAForPLSToggle();
+        }
+
+        function updateTokenAForPLSToggle() {
+            const tokenAInput = document.getElementById('tokenA');
+            const currentValue = tokenAInput.value;
+            
+            // If current token A is PLS related, update it
+            if (currentValue === 'NATIVE' || currentValue === TOKENS.WPLS || currentValue === '') {
+                if (useNativePLS) {
+                    tokenAInput.value = 'NATIVE';
+                    tokenAInput.classList.add('token-disabled');
+                    tokenAInput.placeholder = 'Native PLS Selected';
+                } else {
+                    tokenAInput.value = '';
+                    tokenAInput.classList.remove('token-disabled');
+                    tokenAInput.placeholder = '0x... or select PLS above';
+                }
+                
+                if (isWalletConnected) {
+                    resetApprovalButtons();
+                    checkApprovalStatus();
+                    getTokenInfo('A');
+                }
+            }
+        }
+
+        async function connectWallet() {
+            console.log('🔗 Attempting to connect wallet...');
+            
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    web3 = new Web3(window.ethereum);
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    walletAccount = accounts[0];
+                    isWalletConnected = true;
+                    
+                    console.log('✅ Wallet connected:', walletAccount);
+                    
+                    document.getElementById('connectBtn').style.display = 'none';
+                    document.getElementById('approveABtn').style.display = 'block';
+                    document.getElementById('approveBBtn').style.display = 'block';
+                    document.getElementById('addLiquidityBtn').style.display = 'block';
+                    
+                    showStatus(`Connected: ${walletAccount.substring(0,6)}...${walletAccount.substring(38)}`, 'success');
+                    
+                    // Check approval status after connection
+                    checkApprovalStatus();
+                    getTokenInfo('A');
+                    getTokenInfo('B');
+                    
+                } catch (error) {
+                    console.error('❌ Failed to connect wallet:', error);
+                    showStatus('Failed to connect wallet: ' + error.message, 'error');
+                }
+            } else {
+                showStatus('Please install Rabby or MetaMask', 'error');
+            }
+        }
+
+        function setSlippage(percentage) {
+            currentSlippage = percentage;
+            document.querySelectorAll('.slippage-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('customSlippage').value = '';
+        }
+
+        function setTokenPair(tokenASymbol, tokenBSymbol) {
+            const tokenAInput = document.getElementById('tokenA');
+            const tokenBInput = document.getElementById('tokenB');
+            
+            // Handle native PLS selection
+            if (tokenASymbol === 'PLS') {
+                if (!useNativePLS) {
+                    // Auto-toggle to native PLS
+                    togglePLS();
+                }
+                tokenAInput.value = 'NATIVE';
+                tokenAInput.classList.add('token-disabled');
+            } else if (tokenASymbol === 'WPLS') {
+                if (useNativePLS) {
+                    // Auto-toggle to WPLS
+                    togglePLS();
+                }
+                tokenAInput.value = TOKENS[tokenASymbol] || '';
+                tokenAInput.classList.remove('token-disabled');
+            } else {
+                tokenAInput.value = TOKENS[tokenASymbol] || '';
+                tokenAInput.classList.remove('token-disabled');
+            }
+            
+            // Handle token B
+            if (tokenBSymbol === 'PLS') {
+                tokenBInput.value = 'NATIVE';
+            } else {
+                tokenBInput.value = TOKENS[tokenBSymbol] || '';
+            }
+            
+            // Reset approval buttons to default state immediately
+            resetApprovalButtons();
+            
+            // Check approval status when tokens change
+            if (isWalletConnected) {
+                checkApprovalStatus();
+                getTokenInfo('A');
+                getTokenInfo('B');
+            }
+        }
+
+        function resetApprovalButtons() {
+            const btnA = document.getElementById('approveABtn');
+            const btnB = document.getElementById('approveBBtn');
+            
+            // Reset to default state
+            btnA.textContent = 'Approve Token A';
+            btnA.style.background = '';
+            btnA.disabled = false;
+            
+            btnB.textContent = 'Approve Token B';
+            btnB.style.background = '';
+            btnB.disabled = false;
+        }
+
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.innerHTML = message;
+            status.className = `status ${type}`;
+        }
+
+        function isNativeToken(tokenValue) {
+            return tokenValue === 'NATIVE';
+        }
+
+        function getTokenAddress(tokenValue) {
+            if (isNativeToken(tokenValue)) {
+                return useNativePLS ? 'NATIVE' : TOKENS.WPLS;
+            }
+            return tokenValue;
+        }
+
+        async function getTokenInfo(token) {
+            if (!web3 || !walletAccount) return;
+            
+            const tokenValue = token === 'A' ? document.getElementById('tokenA').value : document.getElementById('tokenB').value;
+            const infoDiv = token === 'A' ? document.getElementById('tokenAInfo') : document.getElementById('tokenBInfo');
+            
+            if (!tokenValue) {
+                infoDiv.innerHTML = '';
+                return;
+            }
+            
+            try {
+                if (isNativeToken(tokenValue)) {
+                    // Handle native PLS
+                    const balance = await web3.eth.getBalance(walletAccount);
+                    const balanceInEther = parseFloat(balance) / Math.pow(10, 18);
+                    infoDiv.innerHTML = `<div class="native-indicator">Native PLS</div>PLS | Balance: ${balanceInEther.toFixed(4)}`;
+                    
+                    // Store decimals for calculations
+                    if (token === 'A') {
+                        tokenADecimals = 18;
+                    } else {
+                        tokenBDecimals = 18;
+                    }
+                } else {
+                    // Handle ERC20 tokens
+                    const tokenContract = new web3.eth.Contract(ERC20_ABI, tokenValue);
+                    
+                    const [symbol, decimals, balance] = await Promise.all([
+                        tokenContract.methods.symbol().call(),
+                        tokenContract.methods.decimals().call(),
+                        tokenContract.methods.balanceOf(walletAccount).call()
+                    ]);
+                    
+                    // Store decimals for calculations
+                    if (token === 'A') {
+                        tokenADecimals = parseInt(decimals);
+                    } else {
+                        tokenBDecimals = parseInt(decimals);
+                    }
+                    
+                    // Convert balance using proper decimals
+                    const balanceInEther = parseFloat(balance) / Math.pow(10, parseInt(decimals));
+                    const balanceFormatted = balanceInEther.toFixed(4);
+                    infoDiv.innerHTML = `${symbol} | Balance: ${balanceFormatted}`;
+                }
+                
+            } catch (error) {
+                console.log('Error getting token info:', error);
+                infoDiv.innerHTML = 'Unable to load token info';
+            }
+        }
+
+        // Add timeout variables for debouncing
+        let calculateTimeoutA = null;
+        let calculateTimeoutB = null;
+
+        async function calculateAmountB() {
+            if (!web3 || !isWalletConnected) return;
+
+            const tokenAValue = document.getElementById('tokenA').value;
+            const tokenBValue = document.getElementById('tokenB').value;
+            const amountA = document.getElementById('amountA').value;
+
+            if (!tokenAValue || !tokenBValue || !amountA) {
+                return;
+            }
+
+            try {
+                const ratio = await getPoolRatio(tokenAValue, tokenBValue);
+                if (ratio) {
+                    const calculatedAmountB = parseFloat(amountA) * ratio;
+                    document.getElementById('amountB').value = calculatedAmountB.toFixed(6);
+                }
+            } catch (error) {
+                console.log('Could not calculate amount B:', error.message);
+            }
+        }
+
+        async function calculateAmountA() {
+            if (!web3 || !isWalletConnected) return;
+
+            const tokenAValue = document.getElementById('tokenA').value;
+            const tokenBValue = document.getElementById('tokenB').value;
+            const amountB = document.getElementById('amountB').value;
+
+            if (!tokenAValue || !tokenBValue || !amountB) {
+                return;
+            }
+
+            try {
+                const ratio = await getPoolRatio(tokenAValue, tokenBValue);
+                if (ratio) {
+                    const calculatedAmountA = parseFloat(amountB) / ratio;
+                    document.getElementById('amountA').value = calculatedAmountA.toFixed(6);
+                }
+            } catch (error) {
+                console.log('Could not calculate amount A:', error.message);
+            }
+        }
+
+        // Debounced calculation functions
+        function debouncedCalculateAmountB() {
+            if (calculateTimeoutA) clearTimeout(calculateTimeoutA);
+            calculateTimeoutA = setTimeout(calculateAmountB, 300);
+        }
+
+        function debouncedCalculateAmountA() {
+            if (calculateTimeoutB) clearTimeout(calculateTimeoutB);
+            calculateTimeoutB = setTimeout(calculateAmountA, 300);
+        }
+
+        async function getPoolRatio(tokenAValue, tokenBValue) {
+            try {
+                // Convert token values to actual addresses for pool lookup
+                let tokenA = getTokenAddress(tokenAValue);
+                let tokenB = getTokenAddress(tokenBValue);
+                
+                // For native PLS, use WPLS address for pool lookup
+                if (tokenA === 'NATIVE') tokenA = TOKENS.WPLS;
+                if (tokenB === 'NATIVE') tokenB = TOKENS.WPLS;
+
+                const contracts = getCurrentContracts();
+                const factory = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
+                const pairAddress = await factory.methods.getPair(tokenA, tokenB).call();
+                
+                if (pairAddress === '0x0000000000000000000000000000000000000000') {
+                    console.log('No existing pool found');
+                    return null;
+                }
+
+                const pair = new web3.eth.Contract(PAIR_ABI, pairAddress);
+                const reserves = await pair.methods.getReserves().call();
+                const token0 = await pair.methods.token0().call();
+                
+                // Use stored decimals if available
+                let decimalsA = tokenADecimals;
+                let decimalsB = tokenBDecimals;
+                
+                // Determine which reserve corresponds to which token
+                let reserveA, reserveB;
+                if (token0.toLowerCase() === tokenA.toLowerCase()) {
+                    reserveA = reserves[0];
+                    reserveB = reserves[1];
+                } else {
+                    reserveA = reserves[1];
+                    reserveB = reserves[0];
+                }
+
+                // Convert reserves to human readable format using proper decimals
+                const reserveAFormatted = parseFloat(reserveA) / Math.pow(10, parseInt(decimalsA));
+                const reserveBFormatted = parseFloat(reserveB) / Math.pow(10, parseInt(decimalsB));
+
+                // Calculate simple ratio
+                const ratio = reserveBFormatted / reserveAFormatted;
+                console.log(`Calculated ratio: ${ratio}`);
+                return ratio;
+
+            } catch (error) {
+                console.log('Error getting pool ratio:', error);
+                return null;
+            }
+        }
+
+        async function checkApprovalStatus() {
+            if (!web3 || !walletAccount) return;
+            
+            const tokenAValue = document.getElementById('tokenA').value;
+            const tokenBValue = document.getElementById('tokenB').value;
+            
+            if (!tokenAValue || !tokenBValue) return;
+            
+            try {
+                console.log('🔍 Checking approval status...');
+                
+                const btnA = document.getElementById('approveABtn');
+                const btnB = document.getElementById('approveBBtn');
+                const contracts = getCurrentContracts();
+                
+                // Check Token A approval
+                let isApprovedA = false;
+                if (isNativeToken(tokenAValue)) {
+                    // Native PLS doesn't need approval
+                    isApprovedA = true;
+                    btnA.textContent = 'Native PLS - No Approval Needed ✓';
+                    btnA.style.background = 'rgba(6, 255, 165, 0.3)';
+                    btnA.disabled = true;
+                } else {
+                    const tokenAContract = new web3.eth.Contract(ERC20_ABI, tokenAValue);
+                    const allowanceA = await tokenAContract.methods.allowance(walletAccount, ROUTER_ADDRESS).call();
+                    const decimalsA = await tokenAContract.methods.decimals().call();
+                    const allowanceAFormatted = parseFloat(allowanceA) / Math.pow(10, decimalsA);
+                    isApprovedA = allowanceAFormatted > 1000000;
+                    
+                    if (isApprovedA) {
+                        btnA.textContent = 'Token A Already Approved ✓';
+                        btnA.style.background = 'rgba(6, 255, 165, 0.3)';
+                        btnA.disabled = true;
+                    } else {
+                        btnA.textContent = 'Approve Token A';
+                        btnA.style.background = '';
+                        btnA.disabled = false;
+                    }
+                }
+                
+                // Check Token B approval
+                let isApprovedB = false;
+                if (isNativeToken(tokenBValue)) {
+                    // Native PLS doesn't need approval
+                    isApprovedB = true;
+                    btnB.textContent = 'Native PLS - No Approval Needed ✓';
+                    btnB.style.background = 'rgba(6, 255, 165, 0.3)';
+                    btnB.disabled = true;
+                } else {
+                    const tokenBContract = new web3.eth.Contract(ERC20_ABI, tokenBValue);
+                    const allowanceB = await tokenBContract.methods.allowance(walletAccount, ROUTER_ADDRESS).call();
+                    const decimalsB = await tokenBContract.methods.decimals().call();
+                    const allowanceBFormatted = parseFloat(allowanceB) / Math.pow(10, decimalsB);
+                    isApprovedB = allowanceBFormatted > 1000000;
+                    
+                    if (isApprovedB) {
+                        btnB.textContent = 'Token B Already Approved ✓';
+                        btnB.style.background = 'rgba(6, 255, 165, 0.3)';
+                        btnB.disabled = true;
+                    } else {
+                        btnB.textContent = 'Approve Token B';
+                        btnB.style.background = '';
+                        btnB.disabled = false;
+                    }
+                }
+                
+                console.log(`✅ Approval status - A: ${isApprovedA}, B: ${isApprovedB}`);
+                
+            } catch (error) {
+                console.error('❌ Error checking approval status:', error);
+            }
+        }
+
+        async function approveToken(token) {
+            if (!isWalletConnected) {
+                showStatus('Please connect your wallet first', 'error');
+                return;
+            }
+
+            const tokenValue = token === 'A' ? document.getElementById('tokenA').value : document.getElementById('tokenB').value;
+            
+            if (!tokenValue) {
+                showStatus(`Please enter Token ${token} address`, 'error');
+                return;
+            }
+
+            if (isNativeToken(tokenValue)) {
+                showStatus(`Native PLS doesn't require approval`, 'info');
+                return;
+            }
+
+            try {
+                const contracts = getCurrentContracts();
+                const tokenContract = new web3.eth.Contract(ERC20_ABI, tokenValue);
+                showStatus(`Approving Token ${token}...`, 'info');
+                
+                const maxUint = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
+                const tx = await tokenContract.methods.approve(ROUTER_ADDRESS, maxUint).send({ from: walletAccount });
+                
+                showStatus(`Token ${token} approved successfully!`, 'success');
+                
+                // Refresh approval status after successful approval
+                setTimeout(() => {
+                    checkApprovalStatus();
+                }, 2000);
+                
+            } catch (error) {
+                showStatus(`Approval failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function addLiquidity() {
+            if (!isWalletConnected) {
+                showStatus('Please connect your wallet first', 'error');
+                return;
+            }
+
+            const tokenAValue = document.getElementById('tokenA').value;
+            const tokenBValue = document.getElementById('tokenB').value;
+            const amountA = document.getElementById('amountA').value;
+            const amountB = document.getElementById('amountB').value;
+
+            if (!tokenAValue || !tokenBValue || !amountA || !amountB) {
+                showStatus('Please fill in all fields', 'error');
+                return;
+            }
+
+            // Check if either token is native PLS
+            const isTokenANative = isNativeToken(tokenAValue);
+            const isTokenBNative = isNativeToken(tokenBValue);
+
+            if (isTokenANative && isTokenBNative) {
+                showStatus('Cannot add liquidity between two native PLS tokens', 'error');
+                return;
+            }
+
+            try {
+                const contracts = getCurrentContracts();
+                const router = new web3.eth.Contract(ROUTER_ABI, ROUTER_ADDRESS);
+                showStatus(`Adding liquidity to PoofDex...`, 'info');
+
+                const deadline = Math.floor(Date.now() / 1000) + 120;
+                const slippageMultiplier = (100 - currentSlippage) / 100;
+
+                if (isTokenANative || isTokenBNative) {
+                    // Use addLiquidityETH for native PLS
+                    const nativeAmount = isTokenANative ? amountA : amountB;
+                    const tokenAmount = isTokenANative ? amountB : amountA;
+                    const tokenAddress = isTokenANative ? tokenBValue : tokenAValue;
+                    const tokenDecimals = isTokenANative ? tokenBDecimals : tokenADecimals;
+
+                    const tokenAmountWei = BigInt(Math.floor(parseFloat(tokenAmount) * Math.pow(10, tokenDecimals)));
+                    const nativeAmountWei = BigInt(Math.floor(parseFloat(nativeAmount) * Math.pow(10, 18)));
+                    
+                    const tokenAmountMin = BigInt(Math.floor(Number(tokenAmountWei) * slippageMultiplier));
+                    const nativeAmountMin = BigInt(Math.floor(Number(nativeAmountWei) * slippageMultiplier));
+
+                    console.log(`Adding native PLS liquidity: ${nativeAmount} PLS, ${tokenAmount} Token`);
+
+                    const tx = await router.methods.addLiquidityETH(
+                        tokenAddress,
+                        tokenAmountWei.toString(),
+                        tokenAmountMin.toString(),
+                        nativeAmountMin.toString(),
+                        walletAccount,
+                        deadline
+                    ).send({ 
+                        from: walletAccount,
+                        value: nativeAmountWei.toString()
+                    });
+
+                    showStatus(`✅ Liquidity added successfully! TX: ${tx.transactionHash}`, 'success');
+
+                } else {
+                    // Use regular addLiquidity for ERC20 tokens
+                    const amountAWei = BigInt(Math.floor(parseFloat(amountA) * Math.pow(10, tokenADecimals)));
+                    const amountBWei = BigInt(Math.floor(parseFloat(amountB) * Math.pow(10, tokenBDecimals)));
+                    
+                    const amountAMin = BigInt(Math.floor(Number(amountAWei) * slippageMultiplier));
+                    const amountBMin = BigInt(Math.floor(Number(amountBWei) * slippageMultiplier));
+
+                    console.log(`Adding ERC20 liquidity: ${amountA} TokenA, ${amountB} TokenB`);
+
+                    const tx = await router.methods.addLiquidity(
+                        tokenAValue,
+                        tokenBValue,
+                        amountAWei.toString(),
+                        amountBWei.toString(),
+                        amountAMin.toString(),
+                        amountBMin.toString(),
+                        walletAccount,
+                        deadline
+                    ).send({ from: walletAccount });
+
+                    showStatus(`✅ Liquidity added successfully! TX: ${tx.transactionHash}`, 'success');
+                }
+
+            } catch (error) {
+                console.error('Liquidity addition error:', error);
+                showStatus(`Transaction failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 PulseX Liquidity Page Ready!');
+            showStatus('Ready to connect wallet', 'info');
+        });
+    </script>
+</body>
+</html>
