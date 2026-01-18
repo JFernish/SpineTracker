@@ -363,19 +363,11 @@
         let tokenADecimals = 18;
         let tokenBDecimals = 18;
         let useNativePLS = false;
-        let currentVersion = 'v2';
 
         // Contract addresses for both versions
-        const CONTRACTS = {
-            v1: {
-                ROUTER_ADDRESS: "0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02", // PulseX V1 Router
-                FACTORY_ADDRESS: "0x1715a3E4A142d8b698131108995174F37aEBA10D" // PulseX V1 Factory
-            },
-            v2: {
-                ROUTER_ADDRESS: "0x165C3410fC91EF562C50559f7d2289fEbed552d9", // PulseX V2 Router  
-                FACTORY_ADDRESS: "0x29eA7545DEf87022BAdc76323F373EA1e707C523" // PulseX V2 Factory
-            }
-        };
+        // PoofDex Contract Addresses
+        const ROUTER_ADDRESS = "0xE0679A5F9E57EBC925D27EDaeFD611A37c7A4341";  // PoofDex Router
+        const FACTORY_ADDRESS = "0x93ab16A8E581F4a7f95bA750b6C7E3D73428feFF"; // PoofDex Factory
         
         const TOKENS = {
             'PLS': 'NATIVE', // Special marker for native PLS
@@ -408,32 +400,6 @@
             {"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"}
         ];
 
-        function setVersion(version) {
-            currentVersion = version;
-            
-            // Update UI
-            document.querySelectorAll('.version-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            const title = document.getElementById('pageTitle');
-            const info = document.getElementById('versionInfo');
-            
-            if (version === 'v1') {
-                title.innerHTML = '🌊 PulseX V1 Add Liquidity';
-                info.textContent = 'Using V1 contracts - Legacy version for existing V1 pools';
-            } else {
-                title.innerHTML = '🌊 PulseX V2 Add Liquidity';
-                
-            }
-            
-            // Reset approval status when switching versions
-            if (isWalletConnected) {
-                resetApprovalButtons();
-                checkApprovalStatus();
-            }
-            
-            
-        }
 
         function getCurrentContracts() {
             return CONTRACTS[currentVersion];
@@ -963,7 +929,7 @@
 
         // Initialize
         window.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 PulseX Liquidity Page Ready!');
+            console.log('🚀 PoofDex Add Liquidity Ready!');
             showStatus('Ready to connect wallet', 'info');
         });
     </script>
