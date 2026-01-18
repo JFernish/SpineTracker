@@ -286,9 +286,15 @@
 </head>
 <body>
     <div class="container">
-        <h1>🌊 PoofDex Add Liquidity</h1>
+        <h1 id="pageTitle">🌊 PoofDex Add Liquidity</h1>
         
-
+        <div class="fee-notice">
+            <div class="fee-notice-title">💰 PoofDex Fees</div>
+            <div class="fee-notice-text">
+                <strong>Zero entrance fee</strong> • <strong>1% exit fee</strong> on liquidity removal
+            </div>
+        </div>
+        
         <div class="pls-toggle">
             <div class="toggle-container">
                 <span>Use Native PLS:</span>
@@ -363,11 +369,19 @@
         let tokenADecimals = 18;
         let tokenBDecimals = 18;
         let useNativePLS = false;
+        let currentVersion = 'v2';
 
         // Contract addresses for both versions
-        // PoofDex Contract Addresses
-        const ROUTER_ADDRESS = "0xE0679A5F9E57EBC925D27EDaeFD611A37c7A4341";  // PoofDex Router
-        const FACTORY_ADDRESS = "0x93ab16A8E581F4a7f95bA750b6C7E3D73428feFF"; // PoofDex Factory
+        const CONTRACTS = {
+            v1: {
+                ROUTER_ADDRESS: "0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02", // PulseX V1 Router
+                FACTORY_ADDRESS: "0x1715a3E4A142d8b698131108995174F37aEBA10D" // PulseX V1 Factory
+            },
+            v2: {
+                ROUTER_ADDRESS: "0xE0679A5F9E57EBC925D27EDaeFD611A37c7A4341", // PoofDex Router  
+                FACTORY_ADDRESS: "0x93ab16A8E581F4a7f95bA750b6C7E3D73428feFF" // PoofDex Factory
+            }
+        };
         
         const TOKENS = {
             'PLS': 'NATIVE', // Special marker for native PLS
@@ -400,6 +414,32 @@
             {"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"}
         ];
 
+        function setVersion(version) {
+            currentVersion = version;
+            
+            // Update UI
+            document.querySelectorAll('.version-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const title = document.getElementById('pageTitle');
+            const info = document.getElementById('versionInfo');
+            
+            if (version === 'v1') {
+                title.innerHTML = '🌊 PulseX V1 Add Liquidity';
+                info.textContent = 'Using V1 contracts - Legacy version for existing V1 pools';
+            } else {
+                title.innerHTML = '🌊 PulseX V2 Add Liquidity';
+                info.textContent = 'Using V2 contracts - Latest version with improved features';
+            }
+            
+            // Reset approval status when switching versions
+            if (isWalletConnected) {
+                resetApprovalButtons();
+                checkApprovalStatus();
+            }
+            
+            showStatus(`Switched to PulseX ${version.toUpperCase()}`, 'info');
+        }
 
         function getCurrentContracts() {
             return CONTRACTS[currentVersion];
@@ -682,7 +722,7 @@
                 if (tokenB === 'NATIVE') tokenB = TOKENS.WPLS;
 
                 const contracts = getCurrentContracts();
-                const factory = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
+                const factory = new web3.eth.Contract(FACTORY_ABI, contracts.FACTORY_ADDRESS);
                 const pairAddress = await factory.methods.getPair(tokenA, tokenB).call();
                 
                 if (pairAddress === '0x0000000000000000000000000000000000000000') {
@@ -748,7 +788,7 @@
                     btnA.disabled = true;
                 } else {
                     const tokenAContract = new web3.eth.Contract(ERC20_ABI, tokenAValue);
-                    const allowanceA = await tokenAContract.methods.allowance(walletAccount, ROUTER_ADDRESS).call();
+                    const allowanceA = await tokenAContract.methods.allowance(walletAccount, contracts.ROUTER_ADDRESS).call();
                     const decimalsA = await tokenAContract.methods.decimals().call();
                     const allowanceAFormatted = parseFloat(allowanceA) / Math.pow(10, decimalsA);
                     isApprovedA = allowanceAFormatted > 1000000;
@@ -774,7 +814,7 @@
                     btnB.disabled = true;
                 } else {
                     const tokenBContract = new web3.eth.Contract(ERC20_ABI, tokenBValue);
-                    const allowanceB = await tokenBContract.methods.allowance(walletAccount, ROUTER_ADDRESS).call();
+                    const allowanceB = await tokenBContract.methods.allowance(walletAccount, contracts.ROUTER_ADDRESS).call();
                     const decimalsB = await tokenBContract.methods.decimals().call();
                     const allowanceBFormatted = parseFloat(allowanceB) / Math.pow(10, decimalsB);
                     isApprovedB = allowanceBFormatted > 1000000;
@@ -821,7 +861,7 @@
                 showStatus(`Approving Token ${token}...`, 'info');
                 
                 const maxUint = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
-                const tx = await tokenContract.methods.approve(ROUTER_ADDRESS, maxUint).send({ from: walletAccount });
+                const tx = await tokenContract.methods.approve(contracts.ROUTER_ADDRESS, maxUint).send({ from: walletAccount });
                 
                 showStatus(`Token ${token} approved successfully!`, 'success');
                 
@@ -862,8 +902,8 @@
 
             try {
                 const contracts = getCurrentContracts();
-                const router = new web3.eth.Contract(ROUTER_ABI, ROUTER_ADDRESS);
-                showStatus(`Adding liquidity to PoofDex...`, 'info');
+                const router = new web3.eth.Contract(ROUTER_ABI, contracts.ROUTER_ADDRESS);
+                showStatus(`Adding liquidity to PulseX ${currentVersion.toUpperCase()}...`, 'info');
 
                 const deadline = Math.floor(Date.now() / 1000) + 120;
                 const slippageMultiplier = (100 - currentSlippage) / 100;
