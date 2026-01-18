@@ -40,7 +40,31 @@
             -webkit-text-fill-color: transparent;
         }
         
-        .fee-notice {
+        .preset-btn {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #c0c0c0;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .preset-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+        }
+
+        .preset-btn.active {
+            background: linear-gradient(45deg, #9d4edd, #7209b7);
+            color: white;
+            border-color: transparent;
+        }
+
+                .fee-notice {
             margin-bottom: 25px;
             padding: 15px;
             background: rgba(157, 78, 221, 0.1);
@@ -368,7 +392,40 @@
             {"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"}
         ];
 
-        async function connectWallet() {
+        let currentRemovePercent = 100;
+
+        function setRemovePercent(percent) {
+            currentRemovePercent = percent;
+            document.getElementById('removePercent').value = percent;
+            
+            // Update button states
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Update liquidity amount if we have total LP
+            updateLiquidityAmount();
+        }
+
+        async function updateLiquidityAmount() {
+            const pairAddress = document.getElementById('pairAddress').value;
+            const percent = parseFloat(document.getElementById('removePercent').value) || 100;
+            
+            if (!pairAddress || !web3 || !walletAccount) return;
+            
+            try {
+                const pairContract = new web3.eth.Contract(PAIR_ABI, pairAddress);
+                const totalLP = await pairContract.methods.balanceOf(walletAccount).call();
+                const lpToRemove = (BigInt(totalLP) * BigInt(percent)) / BigInt(100);
+                
+                document.getElementById('liquidityAmount').value = web3.utils.fromWei(lpToRemove.toString(), 'ether');
+            } catch (error) {
+                console.error('Error updating liquidity amount:', error);
+            }
+        }
+
+                async function connectWallet() {
             console.log('🔗 Attempting to connect wallet...');
             
             if (typeof window.ethereum !== 'undefined') {
