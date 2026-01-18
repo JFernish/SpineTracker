@@ -302,7 +302,7 @@
         
         <div class="warning-box">
             <div class="icon">⚠️</div>
-            <div>This will remove ALL your liquidity from the selected pair</div>
+            <div>Remove liquidity from the selected pair (adjustable %)</div>
         </div>
 
         
@@ -338,6 +338,27 @@
             </div>
         </div>
 
+        <div class="input-group">
+            <label for="removePercent">
+                <span class="label-main">Removal Percentage</span>
+                <span class="label-sub" style="display: block; font-size: 0.8rem; color: #888; margin-top: 4px;">Choose how much liquidity to remove</span>
+            </label>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button class="preset-btn" onclick="setRemovePercent(25)">25%</button>
+                <button class="preset-btn" onclick="setRemovePercent(50)">50%</button>
+                <button class="preset-btn" onclick="setRemovePercent(75)">75%</button>
+                <button class="preset-btn active" onclick="setRemovePercent(100)">100%</button>
+            </div>
+            <div style="position: relative;">
+                <input type="number" id="removePercent" value="100" min="1" max="100" step="1" 
+                       onchange="updateRemovalDisplay()" placeholder="100">
+                <div class="input-suffix">%</div>
+            </div>
+            <div id="removalDisplay" style="margin-top: 10px; padding: 10px; background: rgba(157, 78, 221, 0.1); border-radius: 8px; font-size: 0.9rem; color: #c0c0c0; display: none;">
+                Removing: <span id="removalAmount" style="color: #9d4edd; font-weight: 600;">0</span> LP tokens
+            </div>
+        </div>
+
         <div class="slippage-section">
             <label>Slippage Tolerance:</label>
             <div class="slippage-buttons">
@@ -351,7 +372,7 @@
 
         <button id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
         <button id="approveBtn" onclick="approvePair()" style="display:none;">Approve LP Token</button>
-        <button id="removeLiquidityBtn" onclick="removeLiquidity()" style="display:none;">Remove All Liquidity</button>
+        <button id="removeLiquidityBtn" onclick="removeLiquidity()" style="display:none;">Remove Liquidity</button>
 
         <div id="status"></div>
     </div>
@@ -402,10 +423,26 @@
             document.querySelectorAll('.preset-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
             
-            // Update liquidity amount if we have total LP
-            updateLiquidityAmount();
+            updateRemovalDisplay();
+        }
+
+        function updateRemovalDisplay() {
+            const percent = parseFloat(document.getElementById('removePercent').value) || 100;
+            const display = document.getElementById('removalDisplay');
+            const amountSpan = document.getElementById('removalAmount');
+            
+            if (lpTokenBalance && lpTokenBalance !== '0') {
+                const lpAmount = parseFloat(web3.utils.fromWei(lpTokenBalance, 'ether'));
+                const removeAmount = (lpAmount * percent / 100).toFixed(6);
+                amountSpan.textContent = removeAmount;
+                display.style.display = 'block';
+            } else {
+                display.style.display = 'none';
+            }
         }
 
         async function updateLiquidityAmount() {
@@ -595,7 +632,8 @@
         }
 
         async function removeLiquidity() {
-            if (!isWalletConnected) {
+            const percent = parseFloat(document.getElementById('removePercent').value) || 100;
+                        if (!isWalletConnected) {
                 showStatus('Please connect your wallet first', 'error');
                 return;
             }
