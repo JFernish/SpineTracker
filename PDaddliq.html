@@ -288,16 +288,7 @@
     <div class="container">
         <h1>🌊 PoofDex Add Liquidity</h1>
         
-        <div class="version-toggle">
-            <div class="version-selector">
-                <div class="version-btn" onclick="setVersion('v1')">V1 (Legacy)</div>
-                <div class="version-btn active" onclick="setVersion('v2')">V2 (Current)</div>
-            </div>
-            <div class="version-info" id="versionInfo">
-                Using V2 contracts - Latest version with improved features
-            </div>
-        </div>
-        
+
         <div class="pls-toggle">
             <div class="toggle-container">
                 <span>Use Native PLS:</span>
@@ -432,7 +423,7 @@
                 info.textContent = 'Using V1 contracts - Legacy version for existing V1 pools';
             } else {
                 title.innerHTML = '🌊 PulseX V2 Add Liquidity';
-                info.textContent = 'Using V2 contracts - Latest version with improved features';
+                
             }
             
             // Reset approval status when switching versions
