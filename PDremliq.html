@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔥 PoofDex Remove Liquidity</title>
+    <title>🌊 PoofDex Remove Liquidity</title>
     <style>
         * {
             margin: 0;
@@ -38,52 +38,6 @@
             background: linear-gradient(45deg, #ff6b6b, #ee5a24, #ff9ff3);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-        }
-        
-        .preset-btn {
-            padding: 8px 16px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            color: #c0c0c0;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            flex: 1;
-        }
-
-        .preset-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: #ffffff;
-        }
-
-        .preset-btn.active {
-            background: linear-gradient(45deg, #9d4edd, #7209b7);
-            color: white;
-            border-color: transparent;
-        }
-
-                .fee-notice {
-            margin-bottom: 25px;
-            padding: 15px;
-            background: rgba(157, 78, 221, 0.1);
-            border-radius: 12px;
-            border: 2px solid rgba(157, 78, 221, 0.3);
-            text-align: center;
-        }
-
-        .fee-notice-title {
-            font-size: 0.9rem;
-            color: #9d4edd;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .fee-notice-text {
-            font-size: 0.85rem;
-            color: #c0c0c0;
-            line-height: 1.5;
         }
         
         .input-group {
@@ -302,18 +256,9 @@
         
         <div class="warning-box">
             <div class="icon">⚠️</div>
-            <div>Remove liquidity from the selected pair (adjustable %)</div>
+            <div>This will remove ALL your liquidity from the selected pair</div>
         </div>
 
-        
-        
-        <div class="fee-notice">
-            <div class="fee-notice-title">💰 PoofDex Fees</div>
-            <div class="fee-notice-text">
-                <strong>1% exit fee</strong> on liquidity removal (sent to feeTo address)
-            </div>
-        </div>
-        
         <div class="input-group">
             <label>Liquidity Pair (PLP) Token Address:</label>
             <input type="text" id="pairAddress" placeholder="0x..." onchange="if(isWalletConnected) { loadPairInfo(); checkApprovalStatus(); }">
@@ -338,27 +283,6 @@
             </div>
         </div>
 
-        <div class="input-group">
-            <label for="removePercent">
-                <span class="label-main">Removal Percentage</span>
-                <span class="label-sub" style="display: block; font-size: 0.8rem; color: #888; margin-top: 4px;">Choose how much liquidity to remove</span>
-            </label>
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <button class="preset-btn" onclick="setRemovePercent(25)">25%</button>
-                <button class="preset-btn" onclick="setRemovePercent(50)">50%</button>
-                <button class="preset-btn" onclick="setRemovePercent(75)">75%</button>
-                <button class="preset-btn active" onclick="setRemovePercent(100)">100%</button>
-            </div>
-            <div style="position: relative;">
-                <input type="number" id="removePercent" value="100" min="1" max="100" step="1" 
-                       onchange="updateRemovalDisplay()" placeholder="100">
-                <div class="input-suffix">%</div>
-            </div>
-            <div id="removalDisplay" style="margin-top: 10px; padding: 10px; background: rgba(157, 78, 221, 0.1); border-radius: 8px; font-size: 0.9rem; color: #c0c0c0; display: none;">
-                Removing: <span id="removalAmount" style="color: #9d4edd; font-weight: 600;">0</span> LP tokens
-            </div>
-        </div>
-
         <div class="slippage-section">
             <label>Slippage Tolerance:</label>
             <div class="slippage-buttons">
@@ -372,7 +296,7 @@
 
         <button id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
         <button id="approveBtn" onclick="approvePair()" style="display:none;">Approve LP Token</button>
-        <button id="removeLiquidityBtn" onclick="removeLiquidity()" style="display:none;">Remove Liquidity</button>
+        <button id="removeLiquidityBtn" onclick="removeLiquidity()" style="display:none;">Remove All Liquidity</button>
 
         <div id="status"></div>
     </div>
@@ -390,7 +314,7 @@
         let lpTokenBalance = '0';
 
         // Contract addresses
-        const ROUTER_ADDRESS = "0x2eD517270bA04904eEc4c370f51DdE363d11eDDB"; // PoofDex Router
+        const ROUTER_ADDRESS = "0x2eD517270bA04904eEc4c370f51DdE363d11eDDB";
         const WPLS_ADDRESS = "0xA1077a294dDE1B09bB078844df40758a5d0f9a27";
 
         const ROUTER_ABI = [
@@ -413,56 +337,7 @@
             {"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"}
         ];
 
-        let currentRemovePercent = 100;
-
-        function setRemovePercent(percent) {
-            currentRemovePercent = percent;
-            document.getElementById('removePercent').value = percent;
-            
-            // Update button states
-            document.querySelectorAll('.preset-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            if (event && event.target) {
-                event.target.classList.add('active');
-            }
-            
-            updateRemovalDisplay();
-        }
-
-        function updateRemovalDisplay() {
-            const percent = parseFloat(document.getElementById('removePercent').value) || 100;
-            const display = document.getElementById('removalDisplay');
-            const amountSpan = document.getElementById('removalAmount');
-            
-            if (lpTokenBalance && lpTokenBalance !== '0') {
-                const lpAmount = parseFloat(web3.utils.fromWei(lpTokenBalance, 'ether'));
-                const removeAmount = (lpAmount * percent / 100).toFixed(6);
-                amountSpan.textContent = removeAmount;
-                display.style.display = 'block';
-            } else {
-                display.style.display = 'none';
-            }
-        }
-
-        async function updateLiquidityAmount() {
-            const pairAddress = document.getElementById('pairAddress').value;
-            const percent = parseFloat(document.getElementById('removePercent').value) || 100;
-            
-            if (!pairAddress || !web3 || !walletAccount) return;
-            
-            try {
-                const pairContract = new web3.eth.Contract(PAIR_ABI, pairAddress);
-                const totalLP = await pairContract.methods.balanceOf(walletAccount).call();
-                const lpToRemove = (BigInt(totalLP) * BigInt(percent)) / BigInt(100);
-                
-                document.getElementById('liquidityAmount').value = web3.utils.fromWei(lpToRemove.toString(), 'ether');
-            } catch (error) {
-                console.error('Error updating liquidity amount:', error);
-            }
-        }
-
-                async function connectWallet() {
+        async function connectWallet() {
             console.log('🔗 Attempting to connect wallet...');
             
             if (typeof window.ethereum !== 'undefined') {
@@ -632,8 +507,7 @@
         }
 
         async function removeLiquidity() {
-            const percent = parseFloat(document.getElementById('removePercent').value) || 100;
-                        if (!isWalletConnected) {
+            if (!isWalletConnected) {
                 showStatus('Please connect your wallet first', 'error');
                 return;
             }
@@ -715,7 +589,7 @@
 
         // Initialize
         window.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 PulseX Remove Liquidity Page Ready!');
+            console.log('🚀 PoofDex Remove Liquidity Page Ready!');
             showStatus('Ready to connect wallet', 'info');
         });
     </script>
