@@ -521,6 +521,16 @@
             {"inputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"address[]","name":"path","type":"address[]"}],"name":"getAmountsOut","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"view","type":"function"}
         ];
 
+        const FACTORY_ABI = [
+            {"constant":true,"inputs":[{"name":"","type":"address"},{"name":"","type":"address"}],"name":"getPair","outputs":[{"name":"","type":"address"}],"type":"function"}
+        ];
+
+        const PAIR_ABI = [
+            {"constant":true,"inputs":[],"name":"getReserves","outputs":[{"name":"reserve0","type":"uint112"},{"name":"reserve1","type":"uint112"},{"name":"blockTimestampLast","type":"uint32"}],"type":"function"},
+            {"constant":true,"inputs":[],"name":"token0","outputs":[{"name":"","type":"address"}],"type":"function"},
+            {"constant":true,"inputs":[],"name":"token1","outputs":[{"name":"","type":"address"}],"type":"function"}
+        ];
+
         function isNativeToken(address) {
             return address === 'NATIVE' || address.toLowerCase() === 'native' || address === '';
         }
@@ -795,44 +805,61 @@
                 document.getElementById('amountTo').value = amountOutFormatted;
                 
                 // Calculate price info
+                // Calculate price info
                 const exchangeRate = (parseFloat(amountOutFormatted) / parseFloat(amountFrom)).toFixed(6);
                 const minReceived = (parseFloat(amountOutFormatted) * (100 - currentSlippage) / 100).toFixed(6);
                 
-                // Calculate actual price impact
-                // Price impact = difference between initial rate and actual rate after trade
+                // Calculate price impact THE UNISWAP WAY
                 let priceImpact = '< 0.01%';
                 try {
-                    // Get the initial exchange rate by querying with a tiny amount
-                    const tinyAmount = '1000000000000000'; // 0.001 tokens (18 decimals)
-                    const tinyAmounts = await router.methods.getAmountsOut(tinyAmount, path).call();
-                    const tinyOut = tinyAmounts[tinyAmounts.length - 1];
+                    // Get the pair address from factory
+                    const factory = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
+                    const tokenAAddress = path[0];
+                    const tokenBAddress = path[path.length - 1];
+                    const pairAddress = await factory.methods.getPair(tokenAAddress, tokenBAddress).call();
                     
-                    // Initial rate (before our trade affects the pool)
-                    const initialRate = parseFloat(tinyOut) / parseFloat(tinyAmount);
-                    
-                    // Our actual rate
-                    const actualRate = parseFloat(amountOut) / parseFloat(amountInWei);
-                    
-                    // Price impact as percentage difference
-                    const impact = ((initialRate - actualRate) / initialRate) * 100;
-                    
-                    if (impact < 0.01) {
-                        priceImpact = '< 0.01%';
-                    } else if (impact < 1) {
-                        priceImpact = impact.toFixed(2) + '%';
-                    } else {
-                        priceImpact = impact.toFixed(1) + '%';
-                    }
-                    
-                    // Warn if high impact
-                    if (impact > 5) {
-                        priceImpact = '⚠️ ' + priceImpact;
+                    if (pairAddress && pairAddress !== '0x0000000000000000000000000000000000000000') {
+                        // Get reserves from the pair
+                        const pair = new web3.eth.Contract(PAIR_ABI, pairAddress);
+                        const reserves = await pair.methods.getReserves().call();
+                        const token0 = await pair.methods.token0().call();
+                        
+                        // Determine which reserve is which based on token ordering
+                        let reserveIn, reserveOut;
+                        if (token0.toLowerCase() === tokenAAddress.toLowerCase()) {
+                            reserveIn = reserves.reserve0;
+                            reserveOut = reserves.reserve1;
+                        } else {
+                            reserveIn = reserves.reserve1;
+                            reserveOut = reserves.reserve0;
+                        }
+                        
+                        // Calculate mid-price (current pool ratio)
+                        const midPrice = parseFloat(reserveOut) / parseFloat(reserveIn);
+                        
+                        // Calculate execution price (actual swap rate)
+                        const executionPrice = parseFloat(amountOut) / parseFloat(amountInWei);
+                        
+                        // Price impact = difference between mid-price and execution price
+                        const impact = Math.abs(((midPrice - executionPrice) / midPrice) * 100);
+                        
+                        if (impact < 0.01) {
+                            priceImpact = '< 0.01%';
+                        } else if (impact < 1) {
+                            priceImpact = impact.toFixed(2) + '%';
+                        } else {
+                            priceImpact = impact.toFixed(1) + '%';
+                        }
+                        
+                        // Warning for high impact (Uniswap warns at 5%)
+                        if (impact > 5) {
+                            priceImpact = '⚠️ ' + priceImpact;
+                        }
                     }
                 } catch (error) {
                     console.log('Could not calculate price impact:', error);
                     priceImpact = 'N/A';
                 }
-                
                 
                 document.getElementById('exchangeRate').textContent = `1 → ${exchangeRate}`;
                 document.getElementById('priceImpact').textContent = priceImpact;
