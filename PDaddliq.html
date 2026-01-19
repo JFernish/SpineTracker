@@ -385,7 +385,7 @@
 
         const ROUTER_ABI = [
             {"constant":false,"inputs":[{"name":"tokenA","type":"address"},{"name":"tokenB","type":"address"},{"name":"amountADesired","type":"uint256"},{"name":"amountBDesired","type":"uint256"},{"name":"amountAMin","type":"uint256"},{"name":"amountBMin","type":"uint256"},{"name":"to","type":"address"},{"name":"deadline","type":"uint256"}],"name":"addLiquidity","outputs":[{"name":"amountA","type":"uint256"},{"name":"amountB","type":"uint256"},{"name":"liquidity","type":"uint256"}],"payable":false,"stateMutability":"nonpayable","type":"function"},
-            {"constant":false,"inputs":[{"name":"token","type":"address"},{"name":"amountTokenDesired","type":"uint256"},{"name":"amountTokenMin","type":"uint256"},{"name":"amountETHMin","type":"uint256"},{"name":"to","type":"address"},{"name":"deadline","type":"uint256"}],"name":"addLiquidityETH","outputs":[{"name":"amountToken","type":"uint256"},{"name":"amountETH","type":"uint256"},{"name":"liquidity","type":"uint256"}],"payable":true,"stateMutability":"payable","type":"function"}
+            {"constant":false,"inputs":[{"name":"token","type":"address"},{"name":"amountTokenDesired","type":"uint256"},{"name":"amountTokenMin","type":"uint256"},{"name":"amountPLSMin","type":"uint256"},{"name":"to","type":"address"},{"name":"deadline","type":"uint256"}],"name":"addLiquidityPLS","outputs":[{"name":"amountToken","type":"uint256"},{"name":"amountPLS","type":"uint256"},{"name":"liquidity","type":"uint256"}],"payable":true,"stateMutability":"payable","type":"function"}
         ];
 
         const PAIR_ABI = [
@@ -899,7 +899,7 @@
                 const slippageMultiplier = (100 - currentSlippage) / 100;
 
                 if (isTokenANative || isTokenBNative) {
-                    // Use addLiquidityETH for native PLS
+                    // Use addLiquidityPLS for native PLS
                     const nativeAmount = isTokenANative ? amountA : amountB;
                     const tokenAmount = isTokenANative ? amountB : amountA;
                     const tokenAddress = isTokenANative ? tokenBValue : tokenAValue;
@@ -913,7 +913,7 @@
 
                     console.log(`Adding native PLS liquidity: ${nativeAmount} PLS, ${tokenAmount} Token`);
 
-                    const tx = await router.methods.addLiquidityETH(
+                    const tx = await router.methods.addLiquidityPLS(
                         tokenAddress,
                         tokenAmountWei.toString(),
                         tokenAmountMin.toString(),
