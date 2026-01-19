@@ -351,7 +351,7 @@
             </div>
             <div style="position: relative;">
                 <input type="number" id="removePercent" value="100" min="1" max="100" step="1" 
-                       onchange="updateRemovalDisplay()" placeholder="100">
+                       oninput="handleCustomPercentInput()" onchange="updateRemovalDisplay()" placeholder="100">
                 <div class="input-suffix">%</div>
             </div>
             <div id="removalDisplay" style="margin-top: 10px; padding: 10px; background: rgba(157, 78, 221, 0.1); border-radius: 8px; font-size: 0.9rem; color: #c0c0c0; display: none;">
@@ -427,6 +427,16 @@
                 event.target.classList.add('active');
             }
             
+            updateRemovalDisplay();
+        }
+
+        function handleCustomPercentInput() {
+            // Clear all preset button active states when user types custom amount
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Update the removal display
             updateRemovalDisplay();
         }
 
