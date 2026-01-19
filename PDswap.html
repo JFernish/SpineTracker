@@ -798,8 +798,41 @@
                 const exchangeRate = (parseFloat(amountOutFormatted) / parseFloat(amountFrom)).toFixed(6);
                 const minReceived = (parseFloat(amountOutFormatted) * (100 - currentSlippage) / 100).toFixed(6);
                 
-                // Simple price impact estimation (this is rough)
-                const priceImpact = '< 0.01%'; // Simplified for now
+                // Calculate actual price impact
+                // Price impact = difference between initial rate and actual rate after trade
+                let priceImpact = '< 0.01%';
+                try {
+                    // Get the initial exchange rate by querying with a tiny amount
+                    const tinyAmount = '1000000000000000'; // 0.001 tokens (18 decimals)
+                    const tinyAmounts = await router.methods.getAmountsOut(tinyAmount, path).call();
+                    const tinyOut = tinyAmounts[tinyAmounts.length - 1];
+                    
+                    // Initial rate (before our trade affects the pool)
+                    const initialRate = parseFloat(tinyOut) / parseFloat(tinyAmount);
+                    
+                    // Our actual rate
+                    const actualRate = parseFloat(amountOut) / parseFloat(amountInWei);
+                    
+                    // Price impact as percentage difference
+                    const impact = ((initialRate - actualRate) / initialRate) * 100;
+                    
+                    if (impact < 0.01) {
+                        priceImpact = '< 0.01%';
+                    } else if (impact < 1) {
+                        priceImpact = impact.toFixed(2) + '%';
+                    } else {
+                        priceImpact = impact.toFixed(1) + '%';
+                    }
+                    
+                    // Warn if high impact
+                    if (impact > 5) {
+                        priceImpact = '⚠️ ' + priceImpact;
+                    }
+                } catch (error) {
+                    console.log('Could not calculate price impact:', error);
+                    priceImpact = 'N/A';
+                }
+                
                 
                 document.getElementById('exchangeRate').textContent = `1 → ${exchangeRate}`;
                 document.getElementById('priceImpact').textContent = priceImpact;
