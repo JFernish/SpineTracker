@@ -338,6 +338,111 @@
             font-size: 1.2rem;
             padding: 18px;
         }
+
+        /* COMPRESSED LAYOUT STYLES */
+        .token-section-compressed {
+            padding: 12px 15px;
+            margin-bottom: 8px;
+        }
+        
+        .section-header-inline {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        
+        .section-header-inline .section-title {
+            margin: 0;
+            min-width: 45px;
+            font-size: 0.85rem;
+        }
+        
+        .section-header-inline .input-group {
+            flex: 1;
+            margin: 0;
+        }
+        
+        .section-header-inline label {
+            margin-bottom: 3px;
+            font-size: 0.8rem;
+        }
+        
+        .section-header-inline input {
+            padding: 10px;
+        }
+        
+        .preset-amount-row {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .preset-pairs-inline {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            align-items: center;
+        }
+        
+        .preset-button-compact {
+            padding: 6px 12px;
+            margin: 0;
+            font-size: 0.8rem;
+        }
+        
+        .amount-input-inline {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .amount-input-inline label {
+            margin-bottom: 3px;
+            font-size: 0.8rem;
+        }
+        
+        .amount-input-inline input {
+            padding: 10px;
+        }
+        
+        .swap-arrow-compact {
+            margin: 8px 0;
+        }
+        
+        .swap-arrow-compact .swap-arrow {
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+        }
+        
+        .approve-section {
+            margin-top: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .approve-section button {
+            margin-bottom: 8px;
+        }
+        
+        .slippage-section-bottom {
+            margin-top: 8px;
+            margin-bottom: 0;
+        }
+        
+        .fee-notice-compact {
+            margin-bottom: 12px;
+            padding: 10px;
+        }
+        
+        .fee-notice-compact .fee-notice-title {
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+        }
+        
+        .fee-notice-compact .fee-notice-text {
+            font-size: 0.8rem;
+        }
     </style>
 </head>
 <body>
@@ -346,95 +451,68 @@
         
         <button id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
         
-        <!-- Token From Section -->
-        <div class="token-section from">
-            <div class="section-title">From</div>
-            
-            
-        
-        <div class="fee-notice">
+        <!-- Fee Notice at Top -->
+        <div class="fee-notice fee-notice-compact">
             <div class="fee-notice-title">💰 PoofDex Fees</div>
             <div class="fee-notice-text">
                 <strong>0.22% swap fee</strong> on all trades
             </div>
         </div>
         
-        <div class="input-group">
-                <label for="tokenFrom">Token Address</label>
-                <input 
-                    type="text" 
-                    id="tokenFrom" 
-                    placeholder="0x..." 
-                    oninput="updateTokenFromInfo()"
-                />
-                <div id="tokenFromInfo" class="token-info"></div>
-            </div>
-
-            <div class="preset-pairs">
-                <span class="preset-button" onclick="setPresetToken('from', 'WPLS')">WPLS</span>
-                <span class="preset-button" onclick="setPresetToken('from', 'PLS')">PLS</span>
-                <span class="preset-button" onclick="setPresetToken('from', 'DAI')">DAI</span>
-            </div>
-
-            <div class="amount-input-container">
-                <label for="amountFrom">Amount</label>
-                <input 
-                    type="number" 
-                    id="amountFrom" 
-                    placeholder="0.0" 
-                    step="any"
-                    oninput="calculateAmountOut()"
-                />
-                <div class="balance-info">
-                    <span class="balance-amount" id="balanceFrom">Balance: -</span>
-                    <span class="max-button" onclick="setMaxAmount()">MAX</span>
+        <!-- Token From Section - COMPRESSED -->
+        <div class="token-section from token-section-compressed">
+            <div class="section-header-inline">
+                <div class="section-title">From</div>
+                <div class="input-group">
+                    <label for="tokenFrom">Token Address</label>
+                    <input type="text" id="tokenFrom" placeholder="0x..." oninput="updateTokenFromInfo()"/>
+                    <div id="tokenFromInfo" class="token-info"></div>
                 </div>
             </div>
-
-            <button id="approveFromBtn" class="approve-button" onclick="approveToken('from')" style="display: none;">
-                Approve Token
-            </button>
-        </div>
-
-        <!-- Swap Arrow -->
-        <div class="swap-arrow-container">
-            <div class="swap-arrow" onclick="flipTokens()" title="Flip tokens">
-                ⬇️
+            <div class="preset-amount-row">
+                <div class="preset-pairs-inline">
+                    <span class="preset-button preset-button-compact" onclick="setPresetToken('from', 'WPLS')">WPLS</span>
+                    <span class="preset-button preset-button-compact" onclick="setPresetToken('from', 'PLS')">PLS</span>
+                    <span class="preset-button preset-button-compact" onclick="setPresetToken('from', 'DAI')">DAI</span>
+                </div>
+                <div class="amount-input-inline">
+                    <label for="amountFrom">Amount</label>
+                    <input type="number" id="amountFrom" placeholder="0.0" step="any" oninput="calculateAmountOut()"/>
+                    <div class="balance-info">
+                        <span class="balance-amount" id="balanceFrom">Balance: -</span>
+                        <span class="max-button" onclick="setMaxAmount()">MAX</span>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Token To Section -->
-        <div class="token-section to">
-            <div class="section-title">To</div>
-            
-            <div class="input-group">
-                <label for="tokenTo">Token Address</label>
-                <input 
-                    type="text" 
-                    id="tokenTo" 
-                    placeholder="0x..." 
-                    oninput="updateTokenToInfo()"
-                />
-                <div id="tokenToInfo" class="token-info"></div>
-            </div>
+        <!-- Swap Arrow - COMPACT -->
+        <div class="swap-arrow-container swap-arrow-compact">
+            <div class="swap-arrow" onclick="flipTokens()" title="Flip tokens">⬇️</div>
+        </div>
 
-            <div class="preset-pairs">
-                <span class="preset-button" onclick="setPresetToken('to', 'WPLS')">WPLS</span>
-                <span class="preset-button" onclick="setPresetToken('to', 'PLS')">PLS</span>
-                <span class="preset-button" onclick="setPresetToken('to', 'DAI')">DAI</span>
+        <!-- Token To Section - COMPRESSED -->
+        <div class="token-section to token-section-compressed">
+            <div class="section-header-inline">
+                <div class="section-title">To</div>
+                <div class="input-group">
+                    <label for="tokenTo">Token Address</label>
+                    <input type="text" id="tokenTo" placeholder="0x..." oninput="updateTokenToInfo()"/>
+                    <div id="tokenToInfo" class="token-info"></div>
+                </div>
             </div>
-
-            <div class="amount-input-container">
-                <label for="amountTo">You Receive (Estimated)</label>
-                <input 
-                    type="text" 
-                    id="amountTo" 
-                    placeholder="0.0" 
-                    readonly
-                    style="background: rgba(6, 255, 165, 0.05);"
-                />
-                <div class="balance-info">
-                    <span class="balance-amount" id="balanceTo">Balance: -</span>
+            <div class="preset-amount-row">
+                <div class="preset-pairs-inline">
+                    <span class="preset-button preset-button-compact" onclick="setPresetToken('to', 'WPLS')">WPLS</span>
+                    <span class="preset-button preset-button-compact" onclick="setPresetToken('to', 'PLS')">PLS</span>
+                    <span class="preset-button preset-button-compact" onclick="setPresetToken('to', 'DAI')">DAI</span>
+                </div>
+                <div class="amount-input-inline">
+                    <label for="amountTo">You Receive (Est.)</label>
+                    <input type="text" id="amountTo" placeholder="0.0" readonly style="background: rgba(6, 255, 165, 0.05);"/>
+                    <div class="balance-info">
+                        <span class="balance-amount" id="balanceTo">Balance: -</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -455,27 +533,28 @@
             </div>
         </div>
 
-        <!-- Slippage Section -->
-        <div class="slippage-section">
-            <label>Slippage Tolerance</label>
-            <div class="slippage-buttons">
-                <button class="slippage-btn" onclick="setSlippage(0.5)">0.5%</button>
-                <button class="slippage-btn active" onclick="setSlippage(1)">1%</button>
-                <button class="slippage-btn" onclick="setSlippage(2)">2%</button>
-                <input 
-                    type="number" 
-                    id="customSlippage" 
-                    placeholder="Custom %" 
-                    style="flex: 1; padding: 12px;"
-                    step="0.1"
-                />
-            </div>
+        <!-- Approve Buttons Section -->
+        <div class="approve-section">
+            <button id="approveFromBtn" class="approve-button" onclick="approveToken('from')" style="display: none;">
+                Approve Token From
+            </button>
         </div>
         
         <!-- Swap Button -->
         <button id="swapBtn" class="swap-button" onclick="executeSwap()" disabled>
             Enter Amount
         </button>
+
+        <!-- Slippage Section - MOVED TO BOTTOM -->
+        <div class="slippage-section slippage-section-bottom">
+            <label>Slippage Tolerance</label>
+            <div class="slippage-buttons">
+                <button class="slippage-btn" onclick="setSlippage(0.5)">0.5%</button>
+                <button class="slippage-btn active" onclick="setSlippage(1)">1%</button>
+                <button class="slippage-btn" onclick="setSlippage(2)">2%</button>
+                <input type="number" id="customSlippage" placeholder="Custom %" style="flex: 1; padding: 12px;" step="0.1"/>
+            </div>
+        </div>
         
         <div id="status" class="status" style="display: none;"></div>
     </div>
